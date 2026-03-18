@@ -8,7 +8,7 @@ import {
   lineupSuggestionPlayerTable,
   clubsTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, isNotNull, desc } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, desc, sql } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("history");
@@ -176,7 +176,8 @@ router.get("/history/lineup-backtest", async (req, res) => {
     const allLineups = await db
       .select()
       .from(lineupSuggestionTable)
-      .orderBy(desc(lineupSuggestionTable.expectedPoints));
+      .where(isNotNull(lineupSuggestionTable.expectedPoints))
+      .orderBy(sql`${lineupSuggestionTable.expectedPoints} DESC NULLS LAST`);
 
     if (allLineups.length === 0) {
       res.json({ rounds: [], message: "Nenhuma escalação salva. Gere uma escalação pela página de Escalação primeiro." });
@@ -268,7 +269,10 @@ router.get("/history/lineup-backtest", async (req, res) => {
     const result = targetLineups.map((lineup) => {
       const players = playersByLineup.get(lineup.id) ?? [];
       const captainId = lineup.captainPlayerId;
-      const hasActualData = players.some((p) => actualMap.has(`${p.playerId}-${lineup.round}`));
+      const nonCoachPlayers = players.filter((p) => p.position !== "TEC");
+      const hasActualData =
+        nonCoachPlayers.length > 0 &&
+        nonCoachPlayers.every((p) => actualMap.has(`${p.playerId}-${lineup.round}`));
 
       const playerRows = players
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
