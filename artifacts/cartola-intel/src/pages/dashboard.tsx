@@ -46,7 +46,7 @@ export default function Dashboard() {
     round: roundData?.round ?? undefined,
   });
   const { data: matchesData, isError: matchesError } = useGetCurrentMatches();
-  const { data: availabilityData, isError: availabilityError } = useGetCurrentAvailability({});
+  const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError } = useGetCurrentAvailability({});
 
   const providers = providersData?.providers ?? [];
   const projections = projectionsData?.projections ?? [];
@@ -56,6 +56,10 @@ export default function Dashboard() {
     (a) => (a.playProbability ?? 0) >= 0.5
   ).length;
 
+  const projByPlayerId = new Map(
+    projections.map((p) => [p.playerId, p])
+  );
+
   const getTopByPos = (pos: string, limit = 3) => {
     return projections
       .filter((p) => getPlayerField(p, "position") === pos)
@@ -63,19 +67,19 @@ export default function Dashboard() {
       .slice(0, limit);
   };
 
-  const riskAlerts = projections
-    .filter((p) => {
-      const prob = getNestedField(p, "availability", "playProbability");
-      return typeof prob === "number" && prob < 0.5;
-    })
-    .sort((a, b) => {
-      const probA = getNestedField(a, "availability", "playProbability");
-      const probB = getNestedField(b, "availability", "playProbability");
-      const numA = typeof probA === "number" ? probA : 1;
-      const numB = typeof probB === "number" ? probB : 1;
-      return numA - numB;
-    })
-    .slice(0, 6);
+  type AvailabilityPlayer = Record<string, unknown> | null | undefined;
+
+  const riskAlerts = availabilityList
+    .filter((a) => typeof a.playProbability === "number" && a.playProbability < 0.5)
+    .sort((a, b) => (a.playProbability ?? 1) - (b.playProbability ?? 1))
+    .slice(0, 6)
+    .map((a) => {
+      const proj = a.playerId != null ? projByPlayerId.get(a.playerId) : undefined;
+      const playerFromProj = proj?.player as AvailabilityPlayer;
+      const playerFromAvail = a.player as AvailabilityPlayer;
+      const player = playerFromProj ?? playerFromAvail;
+      return { ...a, _player: player, _proj: proj };
+    });
 
   const positions = ["ATA", "MEI", "LAT", "ZAG", "GOL", "TEC"];
 
@@ -287,7 +291,17 @@ export default function Dashboard() {
           )}
 
           {/* Risk Alerts */}
-          {riskAlerts.length > 0 && (
+          {availabilityLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+              Carregando alertas de risco...
+            </div>
+          ) : availabilityError ? (
+            <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Erro ao carregar dados de disponibilidade
+            </div>
+          ) : riskAlerts.length > 0 ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-yellow-500" />
@@ -295,14 +309,15 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground">(jogadores com baixa probabilidade de jogar)</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {riskAlerts.map((p) => {
-                  const prob = getNestedField(p, "availability", "playProbability");
-                  const riskScore = getNestedField(p, "availability", "riskScore");
-                  const numProb = typeof prob === "number" ? prob : 0;
-                  const numRisk = typeof riskScore === "number" ? riskScore : 0;
+                {riskAlerts.map((alert) => {
+                  const numProb = alert.playProbability ?? 0;
+                  const riskScore = alert._proj?.riskScore ?? null;
+                  const playerName = (alert._player?.["name"] as string | undefined) ?? "Desconhecido";
+                  const clubName = (alert._player?.["club"] as Record<string, unknown> | undefined)?.["name"] as string | undefined;
+                  const position = (alert._player?.["position"] as string | undefined) ?? "";
                   return (
                     <div
-                      key={p.id}
+                      key={alert.id ?? alert.playerId}
                       className="flex items-center justify-between p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5"
                     >
                       <div className="flex items-center gap-3">
@@ -310,22 +325,24 @@ export default function Dashboard() {
                           <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
                         </div>
                         <div>
-                          <p className="font-semibold text-sm">{getPlayerField(p, "name") as string}</p>
+                          <p className="font-semibold text-sm">{playerName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {getNestedField(p, "club", "name") as string} · {getPlayerField(p, "position") as string}
+                            {clubName ?? "—"} · {position}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-yellow-500">{(numProb * 100).toFixed(0)}%</p>
-                        <p className="text-[10px] text-muted-foreground">risco: {numRisk.toFixed(2)}</p>
+                        {riskScore !== null && (
+                          <p className="text-[10px] text-muted-foreground">risco: {riskScore.toFixed(2)}</p>
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Right sidebar */}
