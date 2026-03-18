@@ -168,6 +168,9 @@ export interface LineupPlayer {
   riskScore?: number | null;
   recommendationScore?: number | null;
   explanation?: LineupPlayerExplanation;
+  clubId?: number | null;
+  clubAbbr?: string | null;
+  clubName?: string | null;
 }
 
 export interface LineupSuggestion {

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import axios from "axios";
 import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
+import { db } from "@workspace/db";
+import { clubsTable } from "@workspace/db/schema";
 
 const router = Router();
 
@@ -28,12 +30,17 @@ router.post("/lineup/generate", async (req, res) => {
       ? (strategy as StrategyType)
       : "safe";
 
-    const result = await generateLineup({
-      round: currentRound,
-      budgetLimit: budget ?? 100,
-      formation: formation ?? "4-4-2",
-      strategy: strategyType,
-    });
+    const [result, allClubs] = await Promise.all([
+      generateLineup({
+        round: currentRound,
+        budgetLimit: budget ?? 100,
+        formation: formation ?? "4-4-2",
+        strategy: strategyType,
+      }),
+      db.select().from(clubsTable),
+    ]);
+
+    const clubMap = new Map(allClubs.map((c) => [c.id, c]));
 
     res.json({
       lineup: {
@@ -48,23 +55,29 @@ router.post("/lineup/generate", async (req, res) => {
         riskScore: result.riskScore,
         captainPlayerId: result.captainPlayerId,
         coachPlayerId: result.coachPlayerId,
-        players: result.players.map((p) => ({
-          playerId: p.playerId,
-          position: p.position,
-          slot: p.slot,
-          orderIndex: p.orderIndex,
-          isCaptain: p.isCaptain,
-          name: p.player.name,
-          nickname: p.player.nickname,
-          price: p.player.price,
-          averagePoints: p.player.averagePoints,
-          expectedPoints: p.projection.expectedPoints,
-          floorPoints: p.projection.floorPoints,
-          ceilingPoints: p.projection.ceilingPoints,
-          riskScore: p.projection.riskScore,
-          recommendationScore: p.projection.recommendationScore,
-          explanation: p.projection.explanationJson,
-        })),
+        players: result.players.map((p) => {
+          const club = p.player.clubId ? clubMap.get(p.player.clubId) : undefined;
+          return {
+            playerId: p.playerId,
+            position: p.position,
+            slot: p.slot,
+            orderIndex: p.orderIndex,
+            isCaptain: p.isCaptain,
+            name: p.player.name,
+            nickname: p.player.nickname,
+            price: p.player.price,
+            averagePoints: p.player.averagePoints,
+            expectedPoints: p.projection.expectedPoints,
+            floorPoints: p.projection.floorPoints,
+            ceilingPoints: p.projection.ceilingPoints,
+            riskScore: p.projection.riskScore,
+            recommendationScore: p.projection.recommendationScore,
+            explanation: p.projection.explanationJson,
+            clubId: p.player.clubId ?? null,
+            clubAbbr: club?.abbreviation ?? club?.shortName ?? null,
+            clubName: club?.name ?? null,
+          };
+        }),
       },
     });
   } catch (error) {

@@ -31,7 +31,9 @@ function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; capt
           {isCoach && !isCaptain && <Star className="w-4 h-4 text-primary shrink-0" />}
           <div className="min-w-0">
             <p className="font-bold text-sm text-foreground truncate">{player.name}</p>
-            <p className="text-[10px] text-muted-foreground">{player.nickname ?? ""}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {player.clubAbbr ?? player.clubName ?? player.nickname ?? ""}
+            </p>
           </div>
         </div>
         <Badge variant="outline" className={`font-mono text-[10px] shrink-0 ${getPositionColor(player.position ?? "")}`}>
