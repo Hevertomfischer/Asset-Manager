@@ -1,0 +1,186 @@
+gora quero a fase final de hardening e preparação para evolução do produto.
+
+Você deve agir como um engenheiro sênior revisando um app que já funciona, mas precisa ficar mais estável, mais profissional e mais preparado para crescer.
+
+Objetivo da fase 3
+
+Quero que você transforme o projeto em uma base sólida de produto, com:
+
+estabilidade melhor
+
+observabilidade melhor
+
+histórico e backtest real
+
+arquitetura preparada para expansão
+
+qualidade visual refinada
+
+documentação clara
+
+menos risco operacional no Replit
+
+Tarefas obrigatórias
+1. Criar histórico e backtest
+
+Adicionar rotas e páginas para:
+
+/historico
+
+Implementar:
+
+comparação entre projeção e pontuação real
+
+erro médio absoluto
+
+acerto por posição
+
+desempenho por estratégia
+
+ranking das melhores decisões
+
+ranking das piores decisões
+
+Usar histórico real persistido e snapshots reais.
+
+2. Melhorar observabilidade
+
+Adicionar:
+
+logs mais organizados
+
+níveis de log
+
+logs por provider
+
+logs por job
+
+logs por erro de parsing
+
+logs por falha de persistência
+
+Se possível, criar utilitário central de logging.
+
+3. Melhorar resiliência
+
+Adicionar:
+
+circuit breaker simples por provider
+
+política de fallback explícita
+
+cache persistente
+
+marcação de dados degradados
+
+timestamps de validade do dado
+
+proteção contra rate limit
+
+4. Preparar para machine learning futuro
+
+Sem implementar ML real agora, mas deixar pronto:
+
+interface para modelos preditivos
+
+estrutura para features
+
+tabela ou camada de feature store simples
+
+ponto único para trocar o projectionEngine no futuro
+
+5. Preparar autenticação futura
+
+Sem login completo agora, mas deixar pronto:
+
+estrutura de usuários opcional
+
+separação entre rotas públicas e administrativas
+
+camada de autorização simples para futura expansão
+
+6. Refinar UX
+
+Melhorar:
+
+layout do dashboard
+
+navegação
+
+responsividade
+
+consistência visual
+
+tooltips explicando métricas
+
+empty states
+
+error states
+
+loading states elegantes
+
+7. Revisão geral de qualidade
+
+Faça revisão geral para:
+
+remover código duplicado
+
+melhorar nomes de funções
+
+melhorar tipagem
+
+reduzir acoplamento
+
+revisar tratamento de erro
+
+revisar performance básica
+
+8. README final profissional
+
+Quero um README final contendo:
+
+visão do produto
+
+stack
+
+arquitetura
+
+fluxo ETL
+
+providers
+
+projeção
+
+disponibilidade
+
+otimização
+
+páginas
+
+APIs
+
+configuração no Replit
+
+comandos úteis
+
+limitações conhecidas
+
+próximos passos
+
+Entrega final da fase 3
+
+Ao concluir:
+
+mostrar resumo do que foi melhorado
+
+listar módulos principais
+
+apontar riscos remanescentes
+
+explicar como subir no Replit
+
+explicar como rodar a sincronização real
+
+explicar como recalcular projeções
+
+explicar como evoluir depois para ML e versão premium

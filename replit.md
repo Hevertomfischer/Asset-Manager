@@ -131,6 +131,32 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. Root `t
 - **Always typecheck from the root** — run `pnpm run typecheck`
 - **`emitDeclarationOnly`** — only emit `.d.ts` files during typecheck
 
+## Observability
+
+Central logger at `artifacts/api-server/src/lib/logger.ts`. Usage:
+```ts
+const log = createLogger("my-tag");
+log.info("message", { extra: "data" });
+```
+Level controlled via `LOG_LEVEL=debug|info|warn|error` env var.
+
+## Resiliência
+
+`artifacts/api-server/src/lib/circuitBreaker.ts`:
+- `withCircuitBreaker(name, fn, options)` — opens after N failures, retries after `openDurationMs`
+- `fetchWithRetry(name, fn, retries, delayMs)` — linear backoff retry
+
+## Auth
+
+`artifacts/api-server/src/middlewares/adminAuth.ts`:
+- If `ADMIN_SECRET` env var is set, guards all `/admin/*` routes with `x-admin-secret` header check
+- Middleware is a no-op if env var is not set (safe default)
+
+## ML Preparação
+
+`artifacts/api-server/src/engines/IProjectionEngine.ts` — interface que qualquer motor futuro deve implementar.
+`artifacts/api-server/src/lib/featureExtractor.ts` — extrai PlayerFeatures padronizadas de dados brutos.
+
 ## Root Scripts
 
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages

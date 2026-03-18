@@ -10,6 +10,7 @@ import Players from "@/pages/players";
 import Lineup from "@/pages/lineup";
 import Admin from "@/pages/admin";
 import Confrontos from "@/pages/confrontos";
+import Historico from "@/pages/historico";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function App() {
               <Route path="/escalacao" element={<Lineup />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/confrontos" element={<Confrontos />} />
+              <Route path="/historico" element={<Historico />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

@@ -1,6 +1,6 @@
 import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Shield, Settings, Activity, Swords } from "lucide-react";
+import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ const navItems = [
   { title: "Jogadores", url: "/jogadores", icon: Users },
   { title: "Escalação", url: "/escalacao", icon: Shield },
   { title: "Confrontos", url: "/confrontos", icon: Swords },
+  { title: "Histórico", url: "/historico", icon: History },
   { title: "Admin", url: "/admin", icon: Settings },
 ];
 
@@ -90,7 +91,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
             </div>
             <div className="flex items-center gap-3">
               <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border">
-                v0.1.0-alpha
+                v0.2.0-beta
               </div>
             </div>
           </header>
