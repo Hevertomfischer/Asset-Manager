@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 
@@ -81,7 +81,7 @@ function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; capt
 
 export default function Lineup() {
   const [formation, setFormation] = useState("4-3-3");
-  const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit">("cost-benefit");
+  const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit" | "antimassa">("cost-benefit");
   const [budget, setBudget] = useState(100);
 
   const { toast } = useToast();
@@ -125,10 +125,11 @@ export default function Lineup() {
     );
   };
 
-  const strategies: { value: "safe" | "aggressive" | "cost-benefit"; label: string; icon: typeof Shield; desc: string }[] = [
+  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa"; label: string; icon: typeof Shield; desc: string }[] = [
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade." },
     { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro." },
+    { value: "antimassa", label: "Antimaçonaria (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação." },
   ];
 
   const fieldPlayers = currentLineup?.players?.filter((p) => p.position !== "TEC") ?? [];

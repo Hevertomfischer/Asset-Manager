@@ -4,7 +4,7 @@ import { insertLineupSuggestion } from "../repositories/lineupRepository";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 
-export type StrategyType = "safe" | "aggressive" | "cost-benefit";
+export type StrategyType = "safe" | "aggressive" | "cost-benefit" | "antimassa";
 
 export interface LineupRequest {
   round: number;
@@ -26,6 +26,7 @@ interface LineupResult {
   budgetLimit: number;
   totalCost: number;
   expectedPoints: number;
+  captainExpectedPointsDoubled: number;
   riskScore: number;
   captainPlayerId: number | null;
   coachPlayerId: number | null;
@@ -40,14 +41,44 @@ interface LineupResult {
   }>;
 }
 
-function getScoringFn(strategy: StrategyType): (proj: PlayerProjection) => number {
+function normalizePopularity(players: PlayerWithProjection[]): Map<number, number> {
+  const popularities = players
+    .map((pw) => pw.player.popularity ?? 0)
+    .filter((p) => p > 0);
+  const maxPop = Math.max(...popularities, 1);
+  return new Map(players.map((pw) => [pw.player.id, (pw.player.popularity ?? 0) / maxPop]));
+}
+
+function getScoringFn(
+  strategy: StrategyType,
+  popularityMap: Map<number, number>
+): (pw: PlayerWithProjection) => number {
   switch (strategy) {
     case "safe":
-      return (p) => (p.floorPoints ?? 0) * 0.6 + (p.expectedPoints ?? 0) * 0.4 - (p.riskScore ?? 0) * 5;
+      return (pw) =>
+        (pw.projection.floorPoints ?? 0) * 0.6 +
+        (pw.projection.expectedPoints ?? 0) * 0.4 -
+        (pw.projection.riskScore ?? 0) * 5;
     case "aggressive":
-      return (p) => (p.ceilingPoints ?? 0) * 0.7 + (p.expectedPoints ?? 0) * 0.3;
+      return (pw) =>
+        (pw.projection.ceilingPoints ?? 0) * 0.7 +
+        (pw.projection.expectedPoints ?? 0) * 0.3;
     case "cost-benefit":
-      return (p) => (p.valueScore ?? 0) * 4 + (p.recommendationScore ?? 0) * 0.3;
+      return (pw) =>
+        (pw.projection.valueScore ?? 0) * 4 +
+        (pw.projection.recommendationScore ?? 0) * 0.3;
+    case "antimassa": {
+      return (pw) => {
+        const popNorm = popularityMap.get(pw.player.id) ?? 0.5;
+        const expected = pw.projection.expectedPoints ?? 0;
+        const value = pw.projection.valueScore ?? 0;
+        const explanation = pw.projection.explanationJson as Record<string, unknown> | null;
+        const differentialScore = (explanation?.differentialScore as number | undefined) ?? 0;
+        const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
+        const trapPenalty = isTrap ? 5 : 0;
+        return expected * (1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty;
+      };
+    }
   }
 }
 
@@ -63,6 +94,31 @@ function getFormationRequirements(formation: string): Array<{ position: string; 
   return slots;
 }
 
+function selectCaptain(
+  fieldPlayers: PlayerWithProjection[],
+  strategy: StrategyType,
+  popularityMap: Map<number, number>
+): PlayerWithProjection | undefined {
+  if (fieldPlayers.length === 0) return undefined;
+  return [...fieldPlayers].sort((a, b) => {
+    if (strategy === "antimassa") {
+      const popA = popularityMap.get(a.player.id) ?? 0.5;
+      const popB = popularityMap.get(b.player.id) ?? 0.5;
+      const scoreA = (a.projection.expectedPoints ?? 0) * (1 - popA * 0.5);
+      const scoreB = (b.projection.expectedPoints ?? 0) * (1 - popB * 0.5);
+      return scoreB - scoreA;
+    }
+    if (strategy === "safe") {
+      return ((b.projection.floorPoints ?? 0) + (b.projection.expectedPoints ?? 0)) -
+        ((a.projection.floorPoints ?? 0) + (a.projection.expectedPoints ?? 0));
+    }
+    if (strategy === "aggressive") {
+      return (b.projection.ceilingPoints ?? 0) - (a.projection.ceilingPoints ?? 0);
+    }
+    return (b.projection.expectedPoints ?? 0) - (a.projection.expectedPoints ?? 0);
+  })[0];
+}
+
 export async function generateLineup(request: LineupRequest): Promise<LineupResult> {
   const { round, strategy, formation = LINEUP_CONFIG.defaultFormation } = request;
   const budgetLimit = request.budgetLimit ?? LINEUP_CONFIG.defaultBudget;
@@ -75,23 +131,26 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     throw new Error(`No projections found for round ${round}. Please sync data first.`);
   }
 
-  const scoringFn = getScoringFn(strategy);
-
-  const playerProjections: PlayerWithProjection[] = projections
+  const allPlayerProjections: PlayerWithProjection[] = projections
     .map((proj) => {
       const player = playerMap.get(proj.playerId);
       if (!player) return null;
       return { player, projection: proj };
     })
-    .filter((x): x is PlayerWithProjection => x !== null)
-    .sort((a, b) => scoringFn(b.projection) - scoringFn(a.projection));
+    .filter((x): x is PlayerWithProjection => x !== null);
+
+  const popularityMap = normalizePopularity(allPlayerProjections);
+  const scoringFn = getScoringFn(strategy, popularityMap);
+
+  const playerProjections = [...allPlayerProjections].sort(
+    (a, b) => scoringFn(b) - scoringFn(a)
+  );
 
   const slotRequirements = getFormationRequirements(formation);
   const selected: PlayerWithProjection[] = [];
   const clubCount = new Map<number, number>();
   let totalCost = 0;
 
-  // Pre-compute minimum cost for each position (cheapest available player with play probability > 0.1)
   const minCostByPosition = new Map<string, number>();
   for (const { position } of slotRequirements) {
     const cheapest = playerProjections
@@ -101,7 +160,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     minCostByPosition.set(position, cheapest);
   }
 
-  // Greedy fill: for each position slot, pick best available candidates while reserving budget for future positions
   for (let slotIdx = 0; slotIdx < slotRequirements.length; slotIdx++) {
     const { position, count } = slotRequirements[slotIdx]!;
 
@@ -118,7 +176,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       );
     });
 
-    // Compute minimum budget required for all future unfilled positions
     let futureMinCost = 0;
     for (let futureIdx = slotIdx + 1; futureIdx < slotRequirements.length; futureIdx++) {
       const future = slotRequirements[futureIdx]!;
@@ -130,7 +187,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       if (filled >= count) break;
       const price = candidate.player.price ?? 0;
 
-      // For current slot, also account for remaining slots within same position group
       const currentPositionRemaining = count - filled - 1;
       const minCostCurrentPosition = (minCostByPosition.get(position) ?? 0) * currentPositionRemaining;
 
@@ -147,7 +203,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     }
   }
 
-  // Validate lineup completeness
   const filledPositions: Record<string, number> = {};
   for (const pw of selected) {
     filledPositions[pw.player.position] = (filledPositions[pw.player.position] ?? 0) + 1;
@@ -174,17 +229,18 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     );
   }
 
-  const expectedPoints = selected.reduce((sum, pw) => sum + (pw.projection.expectedPoints ?? 0), 0);
+  const fieldPlayers = selected.filter((pw) => pw.player.position !== "TEC");
+  const captain = selectCaptain(fieldPlayers, strategy, popularityMap);
+  const coach = selected.find((pw) => pw.player.position === "TEC") ?? null;
+
+  const baseExpectedPoints = selected.reduce((sum, pw) => sum + (pw.projection.expectedPoints ?? 0), 0);
+  const captainBonus = captain ? (captain.projection.expectedPoints ?? 0) : 0;
+  const captainExpectedPointsDoubled = Number((baseExpectedPoints + captainBonus).toFixed(2));
+
   const avgRiskScore =
     selected.length > 0
       ? selected.reduce((sum, pw) => sum + (pw.projection.riskScore ?? 0), 0) / selected.length
       : 1;
-
-  const fieldPlayers = selected.filter((pw) => pw.player.position !== "TEC");
-  const captain = [...fieldPlayers].sort(
-    (a, b) => (b.projection.expectedPoints ?? 0) - (a.projection.expectedPoints ?? 0)
-  )[0];
-  const coach = selected.find((pw) => pw.player.position === "TEC") ?? null;
 
   const lineupPlayers = selected.map((pw, idx) => ({
     playerId: pw.player.id,
@@ -200,7 +256,7 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       formation,
       budgetLimit,
       totalCost: Number(totalCost.toFixed(2)),
-      expectedPoints: Number(expectedPoints.toFixed(2)),
+      expectedPoints: Number(captainExpectedPointsDoubled.toFixed(2)),
       riskScore: Number(avgRiskScore.toFixed(3)),
       captainPlayerId: captain?.player.id ?? null,
       coachPlayerId: coach?.player.id ?? null,
@@ -215,7 +271,8 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     formation,
     budgetLimit,
     totalCost: Number(totalCost.toFixed(2)),
-    expectedPoints: Number(expectedPoints.toFixed(2)),
+    expectedPoints: Number(captainExpectedPointsDoubled.toFixed(2)),
+    captainExpectedPointsDoubled,
     riskScore: Number(avgRiskScore.toFixed(3)),
     captainPlayerId: captain?.player.id ?? null,
     coachPlayerId: coach?.player.id ?? null,

@@ -21,6 +21,8 @@ import {
   Calendar,
   Users,
   AlertCircle,
+  Sparkles,
+  Bomb,
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { Link } from "react-router-dom";
@@ -59,6 +61,35 @@ export default function Dashboard() {
   const projByPlayerId = new Map(
     projections.map((p) => [p.playerId, p])
   );
+
+  const getExplanation = (p: ProjectionItem) =>
+    (p.explanationJson ?? {}) as Record<string, unknown>;
+
+  const diferenciais = projections
+    .filter((p) => {
+      const exp = getExplanation(p);
+      const ds = (exp.differentialScore as number | undefined) ?? 0;
+      const pp = p.playProbability ?? 0;
+      return ds > 0 && pp >= 0.7;
+    })
+    .sort((a, b) => {
+      const dsA = (getExplanation(a).differentialScore as number | undefined) ?? 0;
+      const dsB = (getExplanation(b).differentialScore as number | undefined) ?? 0;
+      return dsB - dsA;
+    })
+    .slice(0, 5);
+
+  const armadilhas = projections
+    .filter((p) => {
+      const exp = getExplanation(p);
+      return exp.isTrap === true;
+    })
+    .sort((a, b) => {
+      const popA = (getExplanation(a).popularity as number | undefined) ?? 0;
+      const popB = (getExplanation(b).popularity as number | undefined) ?? 0;
+      return popB - popA;
+    })
+    .slice(0, 5);
 
   const getTopByPos = (pos: string, limit = 3) => {
     return projections
@@ -343,6 +374,90 @@ export default function Dashboard() {
               </div>
             </div>
           ) : null}
+
+          {/* Diferenciais da Rodada */}
+          {!projLoading && !projError && diferenciais.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-accent" />
+                <h3 className="text-lg font-display font-bold">Diferenciais da Rodada</h3>
+                <span className="text-xs text-muted-foreground">(alta projeção, baixa escalação)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {diferenciais.map((p) => {
+                  const exp = getExplanation(p);
+                  const ds = (exp.differentialScore as number | undefined) ?? 0;
+                  const pop = (exp.popularity as number | undefined) ?? 0;
+                  const name = getPlayerField(p, "name") as string | undefined;
+                  const clubName = getNestedField(p, "club", "name") as string | undefined;
+                  const position = getPlayerField(p, "position") as string | undefined;
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-accent/20 bg-accent/5">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg bg-accent/20">
+                          <Sparkles className="w-3.5 h-3.5 text-accent" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{name ?? "—"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {clubName ?? "—"} · {position ? <Badge variant="outline" className={`font-mono text-[9px] px-1 py-0 ${getPositionColor(position)} border`}>{position}</Badge> : null}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
+                        <p className="text-[10px] text-muted-foreground">pop: {(pop * 100).toFixed(0)}%</p>
+                        <p className="text-[10px] text-muted-foreground">dif: {ds.toFixed(0)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Armadilhas da Rodada */}
+          {!projLoading && !projError && armadilhas.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Bomb className="w-5 h-5 text-destructive" />
+                <h3 className="text-lg font-display font-bold">Armadilhas da Rodada</h3>
+                <span className="text-xs text-muted-foreground">(muito escalados, forma em queda)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {armadilhas.map((p) => {
+                  const exp = getExplanation(p);
+                  const pop = (exp.popularity as number | undefined) ?? 0;
+                  const shortAvg = (exp.shortAvg as number | undefined) ?? 0;
+                  const mediumAvg = (exp.mediumAvg as number | undefined) ?? 0;
+                  const name = getPlayerField(p, "name") as string | undefined;
+                  const clubName = getNestedField(p, "club", "name") as string | undefined;
+                  const position = getPlayerField(p, "position") as string | undefined;
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-destructive/20 bg-destructive/5">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 rounded-lg bg-destructive/20">
+                          <Bomb className="w-3.5 h-3.5 text-destructive" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{name ?? "—"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {clubName ?? "—"} · {position}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-mono font-bold text-destructive">{(pop * 100).toFixed(0)}% escalado</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          forma: {shortAvg.toFixed(1)} vs {mediumAvg.toFixed(1)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar */}

@@ -1,5 +1,38 @@
+export const SCOUT_SCORING: Record<string, number> = {
+  G: 8,
+  A: 5,
+  FT: 3,
+  FD: 1.5,
+  FS: 0.5,
+  FC: -0.3,
+  DE: 1,
+  DS: 1.2,
+  SG: 5,
+  GC: -2,
+  CV: -5,
+  CA: -2,
+  PP: -4,
+  PS: 3,
+  GS: 1,
+  I: 0.8,
+};
+
+export const POSITION_SCOUT_WEIGHTS: Record<string, Record<string, number>> = {
+  GOL: { SG: 2.0, PS: 1.8, GC: 1.5, DE: 0.8, DS: 0.8 },
+  ZAG: { SG: 1.6, DE: 1.4, DS: 1.3, G: 1.2, CA: 1.2, CV: 1.2 },
+  LAT: { A: 1.3, DS: 1.2, DE: 1.2, FS: 1.1, SG: 1.3 },
+  MEI: { A: 1.4, G: 1.2, FT: 1.2, FS: 1.1, FC: 1.1 },
+  ATA: { G: 1.5, FT: 1.3, FD: 1.2, A: 1.1, PP: 1.2 },
+  TEC: {},
+};
+
 export const PROJECTION_WEIGHTS = {
   recentFormRounds: 5,
+  multiWindow: {
+    short: { rounds: 3, weight: 0.40 },
+    medium: { rounds: 5, weight: 0.35 },
+    long: { rounds: 8, weight: 0.25 },
+  },
   weights: {
     overallAverage: 0.3,
     recentForm: 0.35,
@@ -8,6 +41,14 @@ export const PROJECTION_WEIGHTS = {
     homeAdvantage: 0.05,
   },
   homeAdvantageMultiplier: 1.08,
+  volatility: {
+    lowThreshold: 1.5,
+    highThreshold: 4.0,
+    ceilingMultiplierHigh: 1.8,
+    ceilingMultiplierLow: 1.5,
+    floorMultiplierHigh: 0.3,
+    floorMultiplierLow: 0.45,
+  },
   riskPenalty: {
     lowProbability: 0.6,
     mediumProbability: 0.8,
@@ -26,6 +67,13 @@ export const PROJECTION_WEIGHTS = {
   valueScoreDivisor: 5.0,
   floors: {
     minExpectedMinutes: 30,
+  },
+  differential: {
+    lowPopularityThreshold: 0.2,
+    highProjectionThreshold: 5.0,
+    trapPopularityThreshold: 0.6,
+    trapRiskThreshold: 0.4,
+    trapFormDeclineThreshold: 0.7,
   },
 };
 

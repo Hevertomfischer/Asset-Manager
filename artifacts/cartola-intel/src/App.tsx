@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard";
 import Players from "@/pages/players";
 import Lineup from "@/pages/lineup";
 import Admin from "@/pages/admin";
+import Confrontos from "@/pages/confrontos";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +33,7 @@ function App() {
               <Route path="/jogadores" element={<Players />} />
               <Route path="/escalacao" element={<Lineup />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/confrontos" element={<Confrontos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

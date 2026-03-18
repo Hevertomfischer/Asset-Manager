@@ -63,9 +63,10 @@ artifacts-monorepo/
 
 ## Frontend Pages
 
-- **Dashboard** (`/`) — Round status, top projections by position, data pipeline status, quick sync button
-- **Players** (`/players`) — Searchable/filterable player table with projections, club badges, position badges
-- **Lineup Builder** (`/lineup`) — Formation/strategy/budget selector, visual pitch display, save lineup
+- **Dashboard** (`/`) — Round status, top projections by position, diferenciais da rodada, armadilhas da rodada, risk alerts, data pipeline status
+- **Players** (`/jogadores`) — Searchable/filterable player table with projections, club badges, position badges
+- **Lineup Builder** (`/escalacao`) — Formation/strategy/budget selector, visual pitch display, save lineup (4 strategies)
+- **Confrontos** (`/confrontos`) — Match-by-match difficulty analysis: offensive/defensive strength bars, goal expectation, recommended positions to exploit
 - **System Admin** (`/admin`) — Projection weight sliders, sync controls, provider status, data collection logs
 
 ## API Endpoints
@@ -77,9 +78,10 @@ All endpoints under `/api`:
 - `GET /api/players` — Player list with filters (position, clubId, minPrice, maxPrice, probableOnly, minProjection, round)
 - `GET /api/players/:id` — Player detail
 - `GET /api/players/projections/current` — All projections for current round (sorted by recommendationScore)
-- `GET /api/matches` — Matches (filter by round)
+- `GET /api/matches/current` — Current round matches
+- `GET /api/matches/confrontos` — Match difficulty analysis (offensive/defensive strength, goal expectation, recommended positions)
 - `GET /api/availability` — Player availability (playProbability, injury, suspension)
-- `POST /api/lineup/generate` — Generate lineup (body: budget, formation, strategy, round?)
+- `POST /api/lineup/generate` — Generate lineup (body: budget, formation, strategy [`safe`|`aggressive`|`cost-benefit`|`antimassa`], round?)
 - `GET /api/lineup` — Saved lineups (filter by round)
 - `POST /api/lineup/:id/save` — Save a lineup
 - `GET /api/admin/providers/status` — Data provider status
@@ -95,7 +97,8 @@ All endpoints under `/api`:
 | Provider | Source | Data |
 |---|---|---|
 | `cartolaApiProvider` | api.cartola.globo.com | Players, clubs, market status |
-| `geProbablesProvider` | ge.globo.com | Probable starters |
+| `cartolaStatusProvider` | api.cartola.globo.com/atletas/mercado | Player availability by status_id |
+| `geProbablesProvider` | ge.globo.com | Probable starters (scraped HTML) |
 | `gatoMestreProvider` | gatomestre.com.br | Player stats |
 | `historicalCartolaProvider` | api.cartola.globo.com | Historical round scouts |
 
@@ -103,12 +106,18 @@ All providers: fetch → Zod validation → transform → snapshot save → upse
 
 ## Engines
 
-- **availabilityEngine**: Calculates `playProbability`, `expectedMinutes`, `riskScore` per player based on status, probable lists, injury/suspension, recent minutes
-- **projectionEngine**: Calculates `expectedPoints`, `floorPoints`, `ceilingPoints`, `riskScore`, `formScore`, `matchupScore`, `valueScore`, `cleanSheetProbability`, `recommendationScore` using configurable weights (no AI)
+- **availabilityEngine**: Calculates `playProbability`, `expectedMinutes`, `riskScore` per player based on status, probable lists, injury/suspension, recent minutes. Enriched by `cartolaStatusProvider` for structured availability data.
+- **projectionEngine**: Multi-window form scoring (3/5/8 rounds weighted 40/35/25%), volatility (std deviation), position-specific scout re-scoring (GOL: saves/CS, ZAG: tackles/CS, LAT: assists/tackles, MEI: goals+assists, ATA: goals+shots). Outputs `expectedPoints`, `floorPoints`, `ceilingPoints`, `riskScore`, `formScore`, `valueScore`, `differentialScore`, `isTrap`, `recommendationScore`.
 
 ## Lineup Optimizer
 
-3 strategies: `safe` (high floor), `aggressive` (high ceiling), `cost-benefit` (value/cartoleta). Respects: budget, formation, position limits, max 5 per club, 1 GK, 1 coach.
+4 strategies:
+- `safe` — high floor, minimizes risk
+- `aggressive` — high ceiling, accepts volatility
+- `cost-benefit` — best value/cartoleta ratio
+- `antimassa` — diferencial players: high projection × (1 - popularity_normalized), avoids armadilhas
+
+Captain is selected strategy-aware (for antimassa: best expected × (1 - pop×0.5)). Expected points include captain doubling (captainExpectedPointsDoubled). Respects: budget, formation, position limits, max 5 per club, 1 GK, 1 coach.
 
 ## Scheduled Jobs
 

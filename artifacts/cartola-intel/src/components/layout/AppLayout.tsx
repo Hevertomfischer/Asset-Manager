@@ -1,6 +1,6 @@
 import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Shield, Settings, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Shield, Settings, Activity, Swords } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Jogadores", url: "/jogadores", icon: Users },
   { title: "Escalação", url: "/escalacao", icon: Shield },
+  { title: "Confrontos", url: "/confrontos", icon: Swords },
   { title: "Admin", url: "/admin", icon: Settings },
 ];
 

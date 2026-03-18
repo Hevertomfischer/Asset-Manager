@@ -1,0 +1,265 @@
+Agora quero que você audite o projeto que acabou de criar e faça uma segunda fase de melhoria, correção e robustez.
+
+Objetivo da fase 2
+
+Revisar tudo o que foi implementado e corrigir qualquer ponto em que:
+
+ainda haja dados fictícios
+
+alguma integração real esteja incompleta
+
+a projeção esteja rasa demais
+
+o otimizador esteja fraco
+
+a UI esteja inconsistente
+
+o ETL esteja frágil
+
+faltem logs, cache ou fallback
+
+Quero que você trate esta fase como hardening funcional.
+
+Tarefas obrigatórias da fase 2
+1. Eliminar qualquer resquício de mock
+
+Verifique todo o projeto e remova:
+
+arrays fixos de jogadores
+
+partidas simuladas
+
+projeções inventadas
+
+dados de clubes fictícios
+
+seeds esportivas falsas
+
+Pode manter apenas:
+
+configurações internas
+
+pesos
+
+formações válidas
+
+parâmetros por posição
+
+2. Melhorar providers
+
+Torne os providers mais robustos com:
+
+timeout por provider
+
+retry com backoff
+
+validação Zod mais rigorosa
+
+logs melhores
+
+mensagens claras de erro
+
+persistência de snapshots
+
+detecção de schema inválido
+
+3. Melhorar o availabilityEngine
+
+Aumentar qualidade do cálculo de playProbability usando:
+
+status oficial
+
+provável/não provável
+
+suspensão
+
+lesão
+
+recência da informação
+
+regularidade de minutagem
+
+incerteza por antecedência da rodada
+
+Quero regras explícitas e comentadas com clareza.
+
+4. Melhorar projectionEngine
+
+Tornar o motor mais inteligente, incluindo:
+
+média últimos 3 jogos
+
+média últimos 5 jogos
+
+média últimos 8 jogos
+
+regularidade
+
+volatilidade
+
+mando
+
+confronto
+
+forma do time
+
+chance de SG
+
+chance de participação em gol
+
+penalidade de risco
+
+valor por cartoleta
+
+componente específico por posição
+
+Quero as fórmulas em arquivo de configuração e funções separadas por posição:
+
+goleiro
+
+zagueiro/lateral
+
+meia
+
+atacante
+
+técnico
+
+5. Melhorar lineupOptimizer
+
+Substituir ou reforçar a lógica de montagem para ficar mais confiável.
+
+Implementar:
+
+seguro
+
+agressivo
+
+custo-benefício
+
+antimassa
+
+Restrições:
+
+orçamento
+
+formação
+
+limite por clube
+
+seleção correta por posição
+
+capitão sugerido
+
+técnico sugerido
+
+Se necessário, use abordagem mais forte como:
+
+branch and bound
+
+programação linear inteira
+
+busca heurística com poda
+
+6. Completar UI
+
+Melhorar o frontend com:
+
+badges visuais de risco
+
+badges de projeção
+
+cards de “diferenciais da rodada”
+
+cards de “armadilhas da rodada”
+
+comparação entre dois jogadores
+
+feedback visual de loading e erro
+
+tabela com ordenação
+
+filtro textual
+
+7. Criar página de confrontos
+
+Adicionar rota:
+
+/confrontos
+
+Mostrar:
+
+confrontos da rodada
+
+mando
+
+força ofensiva
+
+força defensiva
+
+chance de SG
+
+atletas mais recomendados por partida
+
+8. Melhorar admin
+
+Adicionar:
+
+tabela de últimas coletas
+
+status por provider
+
+mensagens de falha
+
+botão para reprocessar snapshots
+
+botão para sincronizar tudo
+
+botão para recalcular projeções
+
+indicador visual de fonte degradada
+
+9. Melhorar banco e repositórios
+
+Revisar schema Prisma e relações.
+Garantir:
+
+índices
+
+unicidade por externalSource/externalId
+
+upsert confiável
+
+consultas eficientes
+
+10. Atualizar README
+
+Expandir o README com:
+
+como configurar
+
+como fazer sync
+
+como testar providers
+
+como recalcular projeções
+
+como funciona a arquitetura
+
+limitações atuais
+
+como trocar fontes
+
+Entrega da fase 2
+
+Ao final:
+
+listar tudo que foi corrigido
+
+destacar o que estava frágil e foi melhorado
+
+mostrar os principais arquivos alterados
+
+explicar se ainda existe alguma limitação real por causa das fontes externas
+
+deixar o projeto mais próximo possível de um produto real

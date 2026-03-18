@@ -23,7 +23,7 @@ router.post("/lineup/generate", async (req, res) => {
       }
     }
 
-    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit"];
+    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa"];
     const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
       ? (strategy as StrategyType)
       : "safe";
@@ -44,6 +44,7 @@ router.post("/lineup/generate", async (req, res) => {
         budgetLimit: result.budgetLimit,
         totalCost: result.totalCost,
         expectedPoints: result.expectedPoints,
+        captainExpectedPointsDoubled: result.captainExpectedPointsDoubled,
         riskScore: result.riskScore,
         captainPlayerId: result.captainPlayerId,
         coachPlayerId: result.coachPlayerId,

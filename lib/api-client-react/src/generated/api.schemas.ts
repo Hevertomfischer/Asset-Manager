@@ -85,6 +85,12 @@ export interface ProjectionItem {
   riskScore?: number | null;
   recommendationScore?: number | null;
   valueScore?: number | null;
+  playProbability?: number | null;
+  formScore?: number | null;
+  matchupScore?: number | null;
+  cleanSheetProbability?: number | null;
+  attackParticipationProbability?: number | null;
+  explanationJson?: Record<string, unknown> | null;
   player?: ProjectionItemPlayer;
 }
 
@@ -134,6 +140,7 @@ export const LineupGenerateRequestStrategy = {
   safe: "safe",
   aggressive: "aggressive",
   "cost-benefit": "cost-benefit",
+  antimassa: "antimassa",
 } as const;
 
 export interface LineupGenerateRequest {
