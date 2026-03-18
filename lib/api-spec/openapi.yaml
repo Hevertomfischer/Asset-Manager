@@ -3,13 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Cartola Intel API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: round
+    description: Round and market operations
+  - name: players
+    description: Player operations
+  - name: matches
+    description: Match operations
+  - name: availability
+    description: Player availability
+  - name: lineup
+    description: Lineup generation
+  - name: admin
+    description: Admin operations
 paths:
   /healthz:
     get:
@@ -24,6 +36,194 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /round/current:
+    get:
+      operationId: getCurrentRound
+      tags: [round]
+      summary: Get current round info
+      responses:
+        "200":
+          description: Current round info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundStatus"
+
+  /players:
+    get:
+      operationId: getPlayers
+      tags: [players]
+      summary: List players with projections and availability
+      parameters:
+        - name: position
+          in: query
+          schema:
+            type: string
+        - name: clubId
+          in: query
+          schema:
+            type: integer
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: probableOnly
+          in: query
+          schema:
+            type: string
+        - name: minProjection
+          in: query
+          schema:
+            type: number
+        - name: round
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerListResponse"
+
+  /players/projections/current:
+    get:
+      operationId: getCurrentProjections
+      tags: [players]
+      summary: Get current round projections for all players
+      parameters:
+        - name: round
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player projections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionListResponse"
+
+  /players/{id}:
+    get:
+      operationId: getPlayerById
+      tags: [players]
+      summary: Get player details by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerDetail"
+        "404":
+          description: Not found
+
+  /matches/current:
+    get:
+      operationId: getCurrentMatches
+      tags: [matches]
+      summary: Get current round matches
+      responses:
+        "200":
+          description: Match list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchListResponse"
+
+  /availability/current:
+    get:
+      operationId: getCurrentAvailability
+      tags: [availability]
+      summary: Get current player availability
+      parameters:
+        - name: round
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Availability list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+
+  /lineup/generate:
+    post:
+      operationId: generateLineup
+      tags: [lineup]
+      summary: Generate a lineup suggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineupGenerateRequest"
+      responses:
+        "200":
+          description: Generated lineup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineupGenerateResponse"
+        "500":
+          description: Generation failed
+
+  /admin/sync/current-round:
+    post:
+      operationId: syncCurrentRound
+      tags: [admin]
+      summary: Trigger ETL sync for current round
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "429":
+          description: Sync already in progress
+
+  /admin/recalculate-projections:
+    post:
+      operationId: recalculateProjections
+      tags: [admin]
+      summary: Recalculate projections for current round
+      responses:
+        "200":
+          description: Recalculation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecalcResult"
+
+  /admin/providers/status:
+    get:
+      operationId: getProvidersStatus
+      tags: [admin]
+      summary: Get status of all data providers
+      responses:
+        "200":
+          description: Provider statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvidersStatusResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +234,449 @@ components:
       required:
         - status
 
+    RoundStatus:
+      type: object
+      properties:
+        round:
+          type: integer
+        marketStatus:
+          type: integer
+        marketOpen:
+          type: boolean
+        closingTimestamp:
+          type: integer
+          nullable: true
+        closingDate:
+          type: string
+          nullable: true
+        timesEscalados:
+          type: integer
+        warning:
+          type: string
+      required:
+        - round
+        - marketStatus
+        - marketOpen
+
+    Club:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        abbreviation:
+          type: string
+          nullable: true
+        badgeUrl:
+          type: string
+          nullable: true
+
+    PlayerProjectionSummary:
+      type: object
+      properties:
+        expectedPoints:
+          type: number
+          nullable: true
+        floorPoints:
+          type: number
+          nullable: true
+        ceilingPoints:
+          type: number
+          nullable: true
+        riskScore:
+          type: number
+          nullable: true
+        recommendationScore:
+          type: number
+          nullable: true
+        valueScore:
+          type: number
+          nullable: true
+        explanationJson:
+          type: object
+          nullable: true
+
+    PlayerAvailabilitySummary:
+      type: object
+      properties:
+        playProbability:
+          type: number
+          nullable: true
+        expectedMinutes:
+          type: number
+          nullable: true
+        probableStatus:
+          type: string
+          nullable: true
+        injuryStatus:
+          type: string
+          nullable: true
+        suspensionStatus:
+          type: string
+          nullable: true
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        position:
+          type: string
+        status:
+          type: string
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        averagePoints:
+          type: number
+          nullable: true
+        club:
+          $ref: "#/components/schemas/Club"
+          nullable: true
+        projection:
+          $ref: "#/components/schemas/PlayerProjectionSummary"
+        availability:
+          $ref: "#/components/schemas/PlayerAvailabilitySummary"
+      required:
+        - id
+        - name
+        - position
+
+    PlayerListResponse:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+        total:
+          type: integer
+      required:
+        - players
+        - total
+
+    PlayerDetail:
+      allOf:
+        - $ref: "#/components/schemas/Player"
+        - type: object
+          properties:
+            projections:
+              type: array
+              items:
+                type: object
+
+    ProjectionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        round:
+          type: integer
+        expectedPoints:
+          type: number
+          nullable: true
+        floorPoints:
+          type: number
+          nullable: true
+        ceilingPoints:
+          type: number
+          nullable: true
+        riskScore:
+          type: number
+          nullable: true
+        recommendationScore:
+          type: number
+          nullable: true
+        valueScore:
+          type: number
+          nullable: true
+        player:
+          type: object
+          nullable: true
+
+    ProjectionListResponse:
+      type: object
+      properties:
+        projections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectionItem"
+        round:
+          type: integer
+      required:
+        - projections
+        - round
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: integer
+        round:
+          type: integer
+        homeClub:
+          $ref: "#/components/schemas/Club"
+          nullable: true
+        awayClub:
+          $ref: "#/components/schemas/Club"
+          nullable: true
+        matchDate:
+          type: string
+          nullable: true
+        stadium:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+
+    MatchListResponse:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        round:
+          type: integer
+      required:
+        - matches
+        - round
+
+    AvailabilityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        round:
+          type: integer
+        playProbability:
+          type: number
+          nullable: true
+        expectedMinutes:
+          type: number
+          nullable: true
+        probableStatus:
+          type: string
+          nullable: true
+        injuryStatus:
+          type: string
+          nullable: true
+        suspensionStatus:
+          type: string
+          nullable: true
+        player:
+          type: object
+          nullable: true
+
+    AvailabilityListResponse:
+      type: object
+      properties:
+        availability:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityItem"
+        round:
+          type: integer
+      required:
+        - availability
+        - round
+
+    LineupGenerateRequest:
+      type: object
+      properties:
+        budget:
+          type: number
+        formation:
+          type: string
+        strategy:
+          type: string
+          enum: [safe, aggressive, cost-benefit]
+        round:
+          type: integer
+      required:
+        - strategy
+
+    LineupPlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        position:
+          type: string
+        slot:
+          type: string
+        orderIndex:
+          type: integer
+        isCaptain:
+          type: boolean
+        name:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        averagePoints:
+          type: number
+          nullable: true
+        expectedPoints:
+          type: number
+          nullable: true
+        floorPoints:
+          type: number
+          nullable: true
+        ceilingPoints:
+          type: number
+          nullable: true
+        riskScore:
+          type: number
+          nullable: true
+        recommendationScore:
+          type: number
+          nullable: true
+        explanation:
+          type: object
+          nullable: true
+
+    LineupSuggestion:
+      type: object
+      properties:
+        id:
+          type: integer
+        round:
+          type: integer
+        strategyType:
+          type: string
+        formation:
+          type: string
+        budgetLimit:
+          type: number
+        totalCost:
+          type: number
+        expectedPoints:
+          type: number
+        riskScore:
+          type: number
+        captainPlayerId:
+          type: integer
+          nullable: true
+        coachPlayerId:
+          type: integer
+          nullable: true
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineupPlayer"
+
+    LineupGenerateResponse:
+      type: object
+      properties:
+        lineup:
+          $ref: "#/components/schemas/LineupSuggestion"
+      required:
+        - lineup
+
+    SyncResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        round:
+          type: integer
+        clubsUpserted:
+          type: integer
+        playersUpserted:
+          type: integer
+        availabilityProcessed:
+          type: boolean
+        projectionsGenerated:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+        - success
+        - round
+
+    RecalcResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        round:
+          type: integer
+        message:
+          type: string
+      required:
+        - success
+        - round
+
+    ProviderLog:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+          nullable: true
+        entityType:
+          type: string
+        collectedAt:
+          type: string
+
+    ProviderStatus:
+      type: object
+      properties:
+        source:
+          type: string
+        status:
+          type: string
+        lastCollectedAt:
+          type: string
+          nullable: true
+        lastMessage:
+          type: string
+          nullable: true
+        recentErrorCount:
+          type: integer
+        recentLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderLog"
+      required:
+        - source
+        - status
+
+    ProvidersStatusResponse:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderStatus"
+        overall:
+          type: string
+        syncInProgress:
+          type: boolean
+      required:
+        - providers
+        - overall
+        - syncInProgress
