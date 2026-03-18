@@ -45,7 +45,7 @@ export default function Dashboard() {
   const { data: projectionsData, isLoading: projLoading, isError: projError } = useGetCurrentProjections({
     round: roundData?.round ?? undefined,
   });
-  const { data: matchesData, isError: matchesError } = useGetCurrentMatches();
+  const { data: matchesData, isLoading: matchesLoading, isError: matchesError } = useGetCurrentMatches();
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError } = useGetCurrentAvailability({});
 
   const providers = providersData?.providers ?? [];
@@ -406,38 +406,43 @@ export default function Dashboard() {
           </div>
 
           {/* Matches/Fixtures */}
-          {matches.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                <h3 className="text-xl font-display font-bold">Partidas</h3>
-              </div>
-              {matchesError ? (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  Erro ao carregar partidas
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {matches.slice(0, 6).map((match) => (
-                    <Card key={match.id} className="bg-card border-border/50">
-                      <div className="p-3 flex items-center justify-between gap-2">
-                        <div className="flex-1 text-right">
-                          <p className="font-semibold text-sm truncate">{match.homeClub?.name ?? "?"}</p>
-                        </div>
-                        <div className="px-2 py-1 rounded-lg bg-secondary text-xs font-bold font-mono text-muted-foreground whitespace-nowrap">
-                          vs
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold text-sm truncate">{match.awayClub?.name ?? "?"}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <h3 className="text-xl font-display font-bold">Partidas</h3>
             </div>
-          )}
+            {matchesLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                Carregando partidas...
+              </div>
+            ) : matchesError ? (
+              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Erro ao carregar partidas
+              </div>
+            ) : matches.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-3">Nenhuma partida disponível para esta rodada.</p>
+            ) : (
+              <div className="space-y-2">
+                {matches.slice(0, 6).map((match) => (
+                  <Card key={match.id} className="bg-card border-border/50">
+                    <div className="p-3 flex items-center justify-between gap-2">
+                      <div className="flex-1 text-right">
+                        <p className="font-semibold text-sm truncate">{match.homeClub?.name ?? "?"}</p>
+                      </div>
+                      <div className="px-2 py-1 rounded-lg bg-secondary text-xs font-bold font-mono text-muted-foreground whitespace-nowrap">
+                        vs
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-semibold text-sm truncate">{match.awayClub?.name ?? "?"}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

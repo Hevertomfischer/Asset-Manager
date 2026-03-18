@@ -27,6 +27,7 @@ export default function Players() {
 
   const { data, isLoading, isError } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
+    clubId: clubFilter === "ALL" ? undefined : Number(clubFilter),
     minPrice: minPrice > 0 ? minPrice : undefined,
     maxPrice,
     probableOnly: probableOnly ? "true" : "false",
