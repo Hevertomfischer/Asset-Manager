@@ -46,7 +46,7 @@ export default function Dashboard() {
     round: roundData?.round ?? undefined,
   });
   const { data: matchesData, isError: matchesError } = useGetCurrentMatches();
-  const { data: availabilityData } = useGetCurrentAvailability({});
+  const { data: availabilityData, isError: availabilityError } = useGetCurrentAvailability({});
 
   const providers = providersData?.providers ?? [];
   const projections = projectionsData?.projections ?? [];
@@ -160,7 +160,11 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Jogadores Disponíveis</p>
-              <p className="text-2xl font-mono font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
+              {availabilityError ? (
+                <p className="text-sm text-destructive font-medium">Erro</p>
+              ) : (
+                <p className="text-2xl font-mono font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
+              )}
             </div>
           </CardContent>
         </Card>

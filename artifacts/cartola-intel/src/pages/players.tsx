@@ -24,7 +24,7 @@ export default function Players() {
   const [page, setPage] = useState(0);
   const pageSize = 20;
 
-  const { data, isLoading } = useGetPlayers({
+  const { data, isLoading, isError } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
     maxPrice,
     probableOnly: probableOnly ? "true" : "false",
@@ -194,6 +194,16 @@ export default function Players() {
                     </div>
                   </TableCell>
                 </TableRow>
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-64 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 text-destructive">
+                      <AlertCircle className="w-8 h-8 opacity-70" />
+                      <p className="text-sm font-medium">Erro ao carregar jogadores.</p>
+                      <p className="text-xs text-muted-foreground">Verifique se o servidor está disponível.</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ) : paginatedPlayers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="h-64 text-center text-muted-foreground">
@@ -204,7 +214,7 @@ export default function Players() {
               ) : (
                 paginatedPlayers.map((player) => {
                   const prob = player.availability?.playProbability ?? null;
-                  const riskScore = (player.availability as any)?.riskScore ?? null;
+                  const riskScore = player.availability?.riskScore ?? null;
                   const isRisky = prob !== null && prob < 0.5;
                   return (
                     <TableRow key={player.id} className="hover:bg-secondary/20 transition-colors cursor-pointer group border-b-border/30">
