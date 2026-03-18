@@ -23,6 +23,12 @@ Full-stack Cartola FC fantasy football intelligence app. Suggests the best lineu
 ```text
 artifacts-monorepo/
 ├── artifacts/
+│   ├── api-server/          # Express API server
+│   ├── cartola-intel/       # React + Vite frontend (served at /)
+│   │   └── src/
+│   │       ├── pages/       # Dashboard, Players, Lineup, Admin
+│   │       ├── components/  # AppLayout, Pitch (formation display)
+│   │       └── hooks/       # use-custom-api.ts (React Query hooks)
 │   └── api-server/          # Express API server
 │       └── src/
 │           ├── providers/   # Data providers (Cartola API, GE, GatoMestre, Historical)
@@ -55,6 +61,13 @@ artifacts-monorepo/
 └── package.json
 ```
 
+## Frontend Pages
+
+- **Dashboard** (`/`) — Round status, top projections by position, data pipeline status, quick sync button
+- **Players** (`/players`) — Searchable/filterable player table with projections, club badges, position badges
+- **Lineup Builder** (`/lineup`) — Formation/strategy/budget selector, visual pitch display, save lineup
+- **System Admin** (`/admin`) — Projection weight sliders, sync controls, provider status, data collection logs
+
 ## API Endpoints
 
 All endpoints under `/api`:
@@ -63,13 +76,19 @@ All endpoints under `/api`:
 - `GET /api/round/current` — Current round + market status
 - `GET /api/players` — Player list with filters (position, clubId, minPrice, maxPrice, probableOnly, minProjection, round)
 - `GET /api/players/:id` — Player detail
-- `GET /api/players/projections/current` — All projections for current round
-- `GET /api/matches/current` — Current round matches
-- `GET /api/availability/current` — Player availability (play probability, injury, suspension)
-- `POST /api/lineup/generate` — Generate lineup (body: budget, formation, strategy, round)
-- `POST /api/admin/sync/current-round` — Trigger full ETL sync
-- `POST /api/admin/recalculate-projections` — Recalculate projections only
+- `GET /api/players/projections/current` — All projections for current round (sorted by recommendationScore)
+- `GET /api/matches` — Matches (filter by round)
+- `GET /api/availability` — Player availability (playProbability, injury, suspension)
+- `POST /api/lineup/generate` — Generate lineup (body: budget, formation, strategy, round?)
+- `GET /api/lineup` — Saved lineups (filter by round)
+- `POST /api/lineup/:id/save` — Save a lineup
 - `GET /api/admin/providers/status` — Data provider status
+- `POST /api/admin/sync/full` — Trigger full ETL sync
+- `POST /api/admin/sync/market` — Trigger market-only sync
+- `GET /api/admin/projection-weights` — Get configurable projection weights
+- `POST /api/admin/projection-weights` — Update projection weights
+- `POST /api/admin/recalculate-projections` — Recalculate projections for current round
+- `GET /api/admin/logs` — Data collection logs (limit=20)
 
 ## Data Providers
 

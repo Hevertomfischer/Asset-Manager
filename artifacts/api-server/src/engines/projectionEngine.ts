@@ -177,7 +177,6 @@ export async function runProjectionEngine(round: number): Promise<void> {
 
   let processed = 0;
   for (const player of players) {
-    if (player.position === "TEC") continue;
 
     const avail = availMap.get(player.id);
     const playProbability = avail?.playProbability ?? 0.7;

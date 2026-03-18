@@ -1,0 +1,15 @@
+packages:
+  "recharts": "For rendering player projection history and data analytics charts"
+  "date-fns": "For formatting logs and timestamps nicely"
+  "clsx": "Utility for constructing className strings"
+  "tailwind-merge": "Utility for merging tailwind classes"
+
+images:
+  - path: "artifacts/cartola-intel/public/images/hero-bg.png"
+    description: "Abstract dark green and deep navy gradient mesh with subtle data visualization nodes, high tech sports analytics vibe, professional dark mode"
+    aspect_ratio: "16:9"
+
+notes:
+  - The API base URL is determined by import.meta.env.VITE_API_BASE_URL or falls back to /api
+  - The frontend relies on generated OpenAPI hooks from @workspace/api-client-react where possible, and custom TanStack query hooks for missing endpoints
+  - Uses CSS grids and positioning for the lineup pitch component

@@ -2,6 +2,7 @@ import axios from "axios";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { roundSnapshotTable, dataCollectionLogTable } from "@workspace/db/schema";
+import { desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
 const BASE_URL = "https://api.cartola.globo.com";
@@ -127,6 +128,56 @@ async function saveSnapshot(round: number, source: string, payload: unknown) {
   });
 }
 
+async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
+  const snapshot = await db.query.roundSnapshotTable
+    .findFirst({
+      where: (t) => eq(t.source, "cartola_api"),
+      orderBy: (t) => [desc(t.collectedAt)],
+    })
+    .catch(() => null);
+
+  if (!snapshot) return null;
+
+  const payload = snapshot.payloadJson as { market?: unknown; status?: unknown };
+  const marketParsed = CartolaMarketSchema.safeParse(payload.market);
+  const roundParsed = CartolaRoundSchema.safeParse(payload.status);
+
+  if (!marketParsed.success) return null;
+
+  const market = marketParsed.data;
+  const clubs: CartolaClub[] = Object.entries(market.clubes).map(([, clube]) => ({
+    externalSource: "cartola_api",
+    externalId: String(clube.id),
+    name: clube.nome,
+    shortName: clube.nome_fantasia ?? clube.nome,
+    abbreviation: clube.abreviacao,
+    badgeUrl: clube.escudos?.["60x60"] ?? clube.escudo_url ?? null,
+  }));
+
+  const players: CartolaPlayer[] = market.atletas.map((atleta) => ({
+    externalSource: "cartola_api",
+    externalId: String(atleta.atleta_id),
+    clubExternalId: String(atleta.clube_id),
+    name: atleta.nome,
+    nickname: atleta.apelido ?? null,
+    position: POSITION_MAP[atleta.posicao_id] ?? "MEI",
+    status: atleta.status_id != null ? (STATUS_MAP[atleta.status_id] ?? null) : null,
+    price: atleta.preco_num ?? null,
+    averagePoints: atleta.media_num ?? null,
+    popularity: null,
+  }));
+
+  return {
+    clubs,
+    players,
+    round: {
+      roundNumber: roundParsed.success ? roundParsed.data.rodada_atual : snapshot.round,
+      marketStatus: roundParsed.success ? (roundParsed.data.mercado_status ?? 0) : 0,
+      closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? null) : null,
+    },
+  };
+}
+
 export async function fetchMarket(): Promise<CartolaMarketResult> {
   const source = "cartola_api";
   try {
@@ -181,6 +232,15 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     await logCollection(source, "market", "error", msg);
+
+    // Fallback: use last valid snapshot and mark source as degraded
+    const lastSnapshot = await getLastMarketSnapshot();
+    if (lastSnapshot) {
+      await logCollection(source, "market", "degraded", `Using last valid snapshot from DB after error: ${msg}`);
+      return lastSnapshot;
+    }
+
+    // No snapshot available — rethrow
     throw error;
   }
 }
@@ -209,7 +269,8 @@ export async function fetchScouts(round: number): Promise<Map<string, Record<str
     return scouts;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    await logCollection(source, "scouts", "error", msg);
-    throw error;
+    await logCollection(source, "scouts", "degraded", `Scout fetch failed (non-blocking): ${msg}`);
+    // Scouts failure is non-fatal — return empty map and fall through
+    return new Map();
   }
 }
