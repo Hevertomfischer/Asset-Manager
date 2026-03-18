@@ -1,0 +1,698 @@
+Quero que você desenvolva um aplicativo web full stack funcional chamado Cartola Intel, com foco em sugerir a melhor escalação para cada rodada do Cartola FC usando dados reais, sem dados mockados.
+
+Objetivo da fase 1
+
+Nesta fase, quero a primeira versão funcional de verdade, com:
+
+frontend e backend rodando no Replit
+
+PostgreSQL + Prisma configurados
+
+coleta real de dados
+
+armazenamento local no banco
+
+dashboard funcional
+
+listagem real de jogadores
+
+projeções básicas reais
+
+geração inicial de escalação automática
+
+painel admin para sincronização manual
+
+Não use mocks para jogadores, partidas, clubes, scouts ou projeções.
+Só pode haver dados estruturais internos, como pesos, formações e configurações.
+
+Stack obrigatória
+Frontend
+
+React
+
+TypeScript
+
+Vite
+
+Tailwind CSS
+
+shadcn/ui
+
+React Query
+
+Recharts
+
+Backend
+
+Node.js
+
+Express
+
+TypeScript
+
+Banco
+
+PostgreSQL
+
+ORM
+
+Prisma
+
+ETL / scraping / integração
+
+Axios
+
+Cheerio
+
+Zod
+
+node-cron
+
+Bottleneck ou p-limit
+
+dotenv
+
+Arquitetura obrigatória
+
+Quero uma arquitetura limpa e modular.
+
+Estrutura esperada
+/cartola-intel
+  /client
+    /src
+      /components
+      /pages
+      /hooks
+      /lib
+      /store
+      /types
+      /services
+  /server
+    /src
+      /config
+      /controllers
+      /routes
+      /providers
+      /etl
+      /normalizers
+      /repositories
+      /engines
+      /optimizers
+      /jobs
+      /utils
+      /schemas
+  /prisma
+  /shared
+  package.json
+  README.md
+Providers reais obrigatórios
+
+Criar providers independentes, com timeout, validação e tratamento de erro:
+
+cartolaApiProvider
+
+geProbablesProvider
+
+gatoMestreProvider
+
+historicalCartolaProvider
+
+Cada provider deve ter:
+
+função de coleta
+
+schema Zod
+
+transformação para modelo interno
+
+log de falha
+
+retorno tipado
+
+Regras de dados
+
+Não usar nenhum dado mockado esportivo.
+
+O sistema deve:
+
+buscar dados reais
+
+validar
+
+normalizar
+
+salvar snapshots
+
+persistir no banco
+
+exibir somente dados vindos das fontes reais
+
+Se uma fonte falhar:
+
+usar último snapshot válido da mesma fonte
+
+registrar erro no log
+
+marcar a fonte como degradada no admin
+
+Nunca inventar dados.
+
+Modelagem Prisma obrigatória
+
+Crie schema Prisma com pelo menos estas entidades:
+
+Club
+
+id
+
+externalSource
+
+externalId
+
+name
+
+shortName
+
+abbreviation
+
+badgeUrl
+
+createdAt
+
+updatedAt
+
+Player
+
+id
+
+externalSource
+
+externalId
+
+clubId
+
+name
+
+nickname
+
+position
+
+status
+
+price
+
+averagePoints
+
+popularity
+
+createdAt
+
+updatedAt
+
+Match
+
+id
+
+externalSource
+
+externalId
+
+round
+
+homeClubId
+
+awayClubId
+
+matchDate
+
+stadium
+
+status
+
+createdAt
+
+updatedAt
+
+PlayerAvailability
+
+id
+
+playerId
+
+round
+
+source
+
+probableStatus
+
+playProbability
+
+expectedMinutes
+
+injuryStatus
+
+suspensionStatus
+
+note
+
+collectedAt
+
+PlayerScoutRound
+
+id
+
+playerId
+
+round
+
+source
+
+points
+
+minutesPlayed
+
+goals
+
+assists
+
+shots
+
+shotsOnTarget
+
+tackles
+
+interceptions
+
+foulsSuffered
+
+foulsCommitted
+
+saves
+
+goalsConceded
+
+cleanSheet
+
+yellowCards
+
+redCards
+
+penaltyMissed
+
+penaltySaved
+
+ownGoals
+
+collectedAt
+
+PlayerProjection
+
+id
+
+playerId
+
+round
+
+expectedPoints
+
+floorPoints
+
+ceilingPoints
+
+riskScore
+
+playProbability
+
+expectedMinutes
+
+matchupScore
+
+formScore
+
+valueScore
+
+cleanSheetProbability
+
+attackParticipationProbability
+
+recommendationScore
+
+strategyType
+
+explanationJson
+
+generatedAt
+
+LineupSuggestion
+
+id
+
+round
+
+strategyType
+
+formation
+
+budgetLimit
+
+totalCost
+
+expectedPoints
+
+riskScore
+
+captainPlayerId
+
+coachPlayerId
+
+generatedAt
+
+LineupSuggestionPlayer
+
+id
+
+lineupSuggestionId
+
+playerId
+
+slot
+
+position
+
+orderIndex
+
+RoundSnapshot
+
+id
+
+round
+
+source
+
+payloadJson
+
+collectedAt
+
+hash
+
+DataCollectionLog
+
+id
+
+source
+
+entityType
+
+status
+
+message
+
+metadataJson
+
+collectedAt
+
+ETL obrigatório
+
+Criar pipeline real de ingestão com estas etapas:
+
+fetch
+
+validação Zod
+
+normalização
+
+snapshot bruto
+
+upsert no banco
+
+log de sucesso/erro
+
+Criar rota/admin job para:
+
+sincronizar rodada atual
+
+importar atletas
+
+importar clubes
+
+importar partidas
+
+importar status do mercado
+
+importar prováveis/suspensos/lesionados
+
+recalcular projeções
+
+Engine inicial de disponibilidade
+
+Criar módulo availabilityEngine.
+
+A probabilidade de jogar deve considerar:
+
+status oficial
+
+presença em prováveis
+
+presença em lista de lesionados
+
+presença em suspensos
+
+recência da informação
+
+padrão recente de minutagem
+
+Persistir:
+
+playProbability
+
+expectedMinutes
+
+probableStatus
+
+riskScore inicial
+
+Engine inicial de projeção
+
+Criar módulo projectionEngine sem IA externa.
+
+A projeção deve usar:
+
+média geral
+
+média últimos jogos, quando houver histórico suficiente
+
+scouts recentes
+
+mando de campo
+
+confronto
+
+chance de SG
+
+chance de participação em gol
+
+probabilidade de jogar
+
+minutos esperados
+
+preço
+
+valor por cartoleta
+
+Criar pesos configuráveis em arquivo separado.
+
+Otimizador inicial de escalação
+
+Criar módulo lineupOptimizer.
+
+Precisa respeitar:
+
+orçamento
+
+formação
+
+limite por clube
+
+1 goleiro
+
+posições corretas
+
+1 técnico
+
+Implementar inicialmente 3 estratégias:
+
+seguro
+
+agressivo
+
+custo-benefício
+
+Pode usar busca heurística otimizada nesta fase.
+
+Frontend obrigatório nesta fase
+Rotas
+
+/
+
+/jogadores
+
+/escalacao
+
+/admin
+
+Dashboard
+
+Mostrar:
+
+rodada atual
+
+mercado aberto/fechado
+
+hora de fechamento
+
+total de atletas disponíveis
+
+melhores por posição
+
+alertas de risco
+
+confrontos principais
+
+Página de jogadores
+
+Tabela real com:
+
+nome
+
+posição
+
+clube
+
+preço
+
+média
+
+projeção
+
+risco
+
+probabilidade de jogar
+
+Filtros:
+
+posição
+
+clube
+
+faixa de preço
+
+só prováveis
+
+projeção mínima
+
+Página de escalação
+
+Formulário com:
+
+orçamento
+
+formação
+
+estratégia
+
+Resultado:
+
+escalação sugerida
+
+capitão
+
+técnico
+
+custo total
+
+pontos esperados
+
+explicação por atleta
+
+Página admin
+
+Mostrar:
+
+status dos providers
+
+última coleta
+
+botão “sincronizar rodada atual”
+
+botão “recalcular projeções”
+
+API obrigatória
+
+Criar estas rotas:
+
+GET /api/health
+
+GET /api/round/current
+
+GET /api/players
+
+GET /api/players/:id
+
+GET /api/players/projections/current
+
+GET /api/matches/current
+
+GET /api/availability/current
+
+POST /api/lineup/generate
+
+POST /api/admin/sync/current-round
+
+POST /api/admin/recalculate-projections
+
+GET /api/admin/providers/status
+
+Configuração Replit
+
+Quero:
+
+projeto pronto para rodar no Replit
+
+scripts de dev
+
+scripts de build
+
+.env.example
+
+Prisma configurado
+
+migrations
+
+instruções claras no README
+
+Entrega da fase 1
+
+Ao terminar:
+
+mostrar a estrutura criada
+
+mostrar os arquivos principais
+
+explicar como rodar
+
+explicar como fazer a primeira sincronização real
+
+indicar claramente onde ficam:
+
+providers
+
+ETL
+
+engine de projeção
+
+engine de disponibilidade
+
+otimizador
+
+Não pare em protótipos.
+Implemente o código real.
