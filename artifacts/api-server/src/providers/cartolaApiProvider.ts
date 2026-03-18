@@ -270,8 +270,35 @@ export async function fetchScouts(round: number): Promise<Map<string, Record<str
     return scouts;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    await logCollection(source, "scouts", "degraded", `Scout fetch failed (non-blocking): ${msg}`);
-    // Scouts failure is non-fatal — return empty map and fall through
+    await logCollection(source, "scouts", "degraded", `Scout fetch failed: ${msg}`);
+
+    // Try to fall back to last valid scouts snapshot
+    const lastSnapshot = await db.query.roundSnapshotTable
+      .findFirst({
+        where: (t) => eq(t.source, `${source}_scouts`),
+        orderBy: (t) => [desc(t.collectedAt)],
+      })
+      .catch(() => null);
+
+    if (lastSnapshot) {
+      await logCollection(source, "scouts", "degraded", `Using last valid scouts snapshot from ${lastSnapshot.collectedAt.toISOString()}`);
+      const payload = lastSnapshot.payloadJson as { atletas?: Record<string, Record<string, unknown>> };
+      const scouts = new Map<string, Record<string, number>>();
+      if (payload?.atletas) {
+        for (const [atletaId, data] of Object.entries(payload.atletas)) {
+          const scout: Record<string, number> = {};
+          if (data.scout) {
+            for (const [k, v] of Object.entries(data.scout as Record<string, number>)) {
+              scout[k] = v;
+            }
+          }
+          scout["pontos"] = (data as Record<string, number>).pontos_num ?? 0;
+          scouts.set(atletaId, scout);
+        }
+      }
+      return scouts;
+    }
+
     return new Map();
   }
 }
