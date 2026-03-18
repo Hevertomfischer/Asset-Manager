@@ -129,7 +129,7 @@ export default function Lineup() {
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade." },
     { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro." },
-    { value: "antimassa", label: "Antimaçonaria (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação." },
+    { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação." },
   ];
 
   const fieldPlayers = currentLineup?.players?.filter((p) => p.position !== "TEC") ?? [];
