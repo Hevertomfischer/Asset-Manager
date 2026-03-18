@@ -293,7 +293,7 @@ router.get("/history/lineup-backtest", async (req, res) => {
             actual: actualPoints !== null ? Number(actualPoints.toFixed(2)) : null,
             actualRaw: actualRaw !== null ? Number(actualRaw.toFixed(2)) : null,
             error: projectedPoints !== null && actualPoints !== null
-              ? Number((projectedPoints - (isCaptain ? projectedPoints : actualPoints)).toFixed(2))
+              ? Number((projectedPoints - actualPoints).toFixed(2))
               : null,
           };
         });
@@ -312,7 +312,10 @@ router.get("/history/lineup-backtest", async (req, res) => {
         projectedTotal: projectedTotal !== null ? Number(projectedTotal.toFixed(2)) : null,
         actualTotal: actualTotal !== null ? Number(actualTotal.toFixed(2)) : null,
         difference: projectedTotal !== null && actualTotal !== null
-          ? Number((projectedTotal - actualTotal).toFixed(2))
+          ? Number(Math.abs(projectedTotal - actualTotal).toFixed(2))
+          : null,
+        differenceSign: projectedTotal !== null && actualTotal !== null
+          ? (actualTotal >= projectedTotal ? "above" : "below")
           : null,
         hasActualData,
         players: playerRows,

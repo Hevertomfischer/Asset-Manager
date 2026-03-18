@@ -70,6 +70,7 @@ interface LineupBacktestRound {
   projectedTotal: number | null;
   actualTotal: number | null;
   difference: number | null;
+  differenceSign: "above" | "below" | null;
   hasActualData: boolean;
   players: LineupBacktestPlayer[];
 }
@@ -144,20 +145,20 @@ function PlayerRow({ player, rank, isGood }: { player: BacktestPlayer; rank: num
   );
 }
 
-function DiffIndicator({ value }: { value: number | null }) {
+function DiffIndicator({ value, sign }: { value: number | null; sign?: "above" | "below" | null }) {
   if (value === null) return <span className="text-muted-foreground font-mono text-xs">—</span>;
-  if (Math.abs(value) < 0.5) return (
+  if (value < 0.5) return (
     <span className="flex items-center gap-1 text-muted-foreground text-xs font-mono font-bold">
       <Minus className="w-3 h-3" /> {value.toFixed(2)}
     </span>
   );
-  return value > 0 ? (
-    <span className="flex items-center gap-1 text-red-400 text-xs font-mono font-bold">
-      <TrendingDown className="w-3 h-3" /> −{Math.abs(value).toFixed(2)}
+  return sign === "above" ? (
+    <span className="flex items-center gap-1 text-green-500 text-xs font-mono font-bold">
+      <TrendingUp className="w-3 h-3" /> +{value.toFixed(2)}
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-green-500 text-xs font-mono font-bold">
-      <TrendingUp className="w-3 h-3" /> +{Math.abs(value).toFixed(2)}
+    <span className="flex items-center gap-1 text-red-400 text-xs font-mono font-bold">
+      <TrendingDown className="w-3 h-3" /> −{value.toFixed(2)}
     </span>
   );
 }
@@ -177,9 +178,6 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               Rodada {data.round}
-              {!data.hasActualData && (
-                <Badge variant="outline" className="text-[10px] text-yellow-500 border-yellow-500/40">Aguardando pontuação real</Badge>
-              )}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               {strategyLabels[data.strategyType] ?? data.strategyType} · {data.formation} · C$ {data.totalCost?.toFixed(2) ?? "—"}
@@ -195,15 +193,15 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Real</p>
                   <p className={`text-2xl font-bold font-mono ${
-                    (data.actualTotal ?? 0) >= (data.projectedTotal ?? 0) ? "text-green-500" : "text-red-400"
+                    data.differenceSign === "above" ? "text-green-500" : "text-red-400"
                   }`}>
                     {data.actualTotal?.toFixed(2) ?? "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Diferença</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Dif. Abs.</p>
                   <div className="text-2xl font-bold font-mono mt-0.5">
-                    <DiffIndicator value={data.difference} />
+                    <DiffIndicator value={data.difference} sign={data.differenceSign} />
                   </div>
                 </div>
               </>
@@ -212,77 +210,78 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/40">
-                <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Jogador</th>
-                <th className="text-center py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider w-16">Pos</th>
-                <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Projetado</th>
-                {data.hasActualData && (
-                  <>
-                    <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Real</th>
-                    <th className="text-right py-2 pl-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Dif.</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {data.players.map((p) => {
-                const diff = p.actual !== null && p.projected !== null ? p.actual - p.projected : null;
-                const rowBg = p.isCaptain
-                  ? "bg-yellow-500/5"
-                  : p.isCoach
-                  ? "bg-primary/5"
-                  : "";
-                return (
-                  <tr key={p.playerId} className={`border-b border-border/20 last:border-0 ${rowBg}`}>
-                    <td className="py-2 pr-3">
-                      <div className="flex items-center gap-2">
-                        {p.isCaptain && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
-                        <div>
-                          <p className="font-semibold text-foreground leading-tight">{p.name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {p.clubAbbr ?? p.clubName ?? ""}
-                            {p.isCaptain && <span className="ml-1 text-yellow-500 font-bold">× 2</span>}
-                          </p>
+        {!data.hasActualData ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center border border-dashed border-border/40 rounded-lg bg-muted/10">
+            <History className="w-8 h-8 text-muted-foreground/40" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pontuação real ainda não disponível</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Os dados reais desta rodada ainda não foram sincronizados. Aguarde o encerramento da rodada e sincronize pelo Admin.
+              </p>
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground/50">
+              Escalação projetada: <span className="font-mono font-bold text-foreground">{data.projectedTotal?.toFixed(2) ?? "—"} pts</span> com {data.players.length} jogadores
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40">
+                  <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Jogador</th>
+                  <th className="text-center py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider w-16">Pos</th>
+                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Projetado</th>
+                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Real</th>
+                  <th className="text-right py-2 pl-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Dif.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.players.map((p) => {
+                  const diff = p.actual !== null && p.projected !== null ? p.actual - p.projected : null;
+                  const rowBg = p.isCaptain ? "bg-yellow-500/5" : p.isCoach ? "bg-primary/5" : "";
+                  return (
+                    <tr key={p.playerId} className={`border-b border-border/20 last:border-0 ${rowBg}`}>
+                      <td className="py-2 pr-3">
+                        <div className="flex items-center gap-2">
+                          {p.isCaptain && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                          <div>
+                            <p className="font-semibold text-foreground leading-tight">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {p.clubAbbr ?? p.clubName ?? ""}
+                              {p.isCaptain && <span className="ml-1 text-yellow-500 font-bold">× 2</span>}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-2 px-2 text-center">
-                      <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(p.position)}`}>
-                        {p.position}
-                      </Badge>
-                    </td>
-                    <td className="py-2 px-2 text-right font-mono text-sm text-foreground">
-                      {p.projected !== null ? p.projected.toFixed(2) : "—"}
-                    </td>
-                    {data.hasActualData && (
-                      <>
-                        <td className="py-2 px-2 text-right font-mono text-sm text-foreground">
-                          {p.actual !== null ? (
-                            <span className={(p.actual ?? 0) >= (p.projected ?? 0) ? "text-green-500" : "text-red-400"}>
-                              {p.actual.toFixed(2)}
-                              {p.isCaptain && p.actualRaw !== null && (
-                                <span className="text-[10px] text-muted-foreground ml-1">({p.actualRaw.toFixed(2)}×2)</span>
-                              )}
-                            </span>
-                          ) : "—"}
-                        </td>
-                        <td className="py-2 pl-2 text-right">
-                          {diff !== null ? (
-                            <span className={`font-mono text-xs font-bold ${diff >= 0 ? "text-green-500" : "text-red-400"}`}>
-                              {diff >= 0 ? "+" : ""}{diff.toFixed(2)}
-                            </span>
-                          ) : "—"}
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-            {data.hasActualData && (
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(p.position)}`}>
+                          {p.position}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono text-sm text-foreground">
+                        {p.projected !== null ? p.projected.toFixed(2) : "—"}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono text-sm">
+                        {p.actual !== null ? (
+                          <span className={(p.actual ?? 0) >= (p.projected ?? 0) ? "text-green-500" : "text-red-400"}>
+                            {p.actual.toFixed(2)}
+                            {p.isCaptain && p.actualRaw !== null && (
+                              <span className="text-[10px] text-muted-foreground ml-1">({p.actualRaw.toFixed(2)}×2)</span>
+                            )}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="py-2 pl-2 text-right">
+                        {diff !== null ? (
+                          <span className={`font-mono text-xs font-bold ${diff >= 0 ? "text-green-500" : "text-red-400"}`}>
+                            {diff >= 0 ? "+" : ""}{diff.toFixed(2)}
+                          </span>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
               <tfoot>
                 <tr className="border-t border-border/60 bg-secondary/20">
                   <td colSpan={2} className="py-2 pr-3 font-bold text-sm text-foreground">Total</td>
@@ -290,18 +289,18 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
                     {data.projectedTotal?.toFixed(2) ?? "—"}
                   </td>
                   <td className="py-2 px-2 text-right font-mono font-bold">
-                    <span className={(data.actualTotal ?? 0) >= (data.projectedTotal ?? 0) ? "text-green-500" : "text-red-400"}>
+                    <span className={data.differenceSign === "above" ? "text-green-500" : "text-red-400"}>
                       {data.actualTotal?.toFixed(2) ?? "—"}
                     </span>
                   </td>
                   <td className="py-2 pl-2 text-right">
-                    <DiffIndicator value={data.difference} />
+                    <DiffIndicator value={data.difference} sign={data.differenceSign} />
                   </td>
                 </tr>
               </tfoot>
-            )}
-          </table>
-        </div>
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
