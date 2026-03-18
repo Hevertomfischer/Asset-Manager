@@ -1,7 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { playerProjectionTable, playerScoutRoundTable, playersTable } from "@workspace/db/schema";
-import { eq, and, inArray, isNotNull } from "drizzle-orm";
+import {
+  playerProjectionTable,
+  playerScoutRoundTable,
+  playersTable,
+  lineupSuggestionTable,
+  lineupSuggestionPlayerTable,
+  clubsTable,
+} from "@workspace/db/schema";
+import { eq, and, inArray, isNotNull, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("history");
@@ -158,6 +165,178 @@ router.get("/history/rounds", async (_req, res) => {
   } catch (err) {
     log.error("Failed to list rounds", { error: err instanceof Error ? err.message : String(err) });
     res.status(500).json({ error: "Failed to list rounds" });
+  }
+});
+
+router.get("/history/lineup-backtest", async (req, res) => {
+  try {
+    const roundParam = req.query["round"] ? Number(req.query["round"]) : null;
+    log.info("Fetching lineup backtest", { round: roundParam });
+
+    const allLineups = await db
+      .select()
+      .from(lineupSuggestionTable)
+      .orderBy(desc(lineupSuggestionTable.expectedPoints));
+
+    if (allLineups.length === 0) {
+      res.json({ rounds: [], message: "Nenhuma escalação salva. Gere uma escalação pela página de Escalação primeiro." });
+      return;
+    }
+
+    const bestByRound = new Map<number, typeof allLineups[number]>();
+    for (const lineup of allLineups) {
+      if (roundParam !== null && lineup.round !== roundParam) continue;
+      if (!bestByRound.has(lineup.round)) {
+        bestByRound.set(lineup.round, lineup);
+      }
+    }
+
+    const targetLineups = Array.from(bestByRound.values()).sort((a, b) => a.round - b.round);
+
+    if (targetLineups.length === 0) {
+      res.json({ rounds: [], message: "Nenhuma escalação encontrada para a rodada selecionada." });
+      return;
+    }
+
+    const lineupIds = targetLineups.map((l) => l.id);
+    const lineupRounds = targetLineups.map((l) => l.round);
+
+    const [lineupPlayers, allClubs, actuals] = await Promise.all([
+      db
+        .select({
+          lineupSuggestionId: lineupSuggestionPlayerTable.lineupSuggestionId,
+          playerId: lineupSuggestionPlayerTable.playerId,
+          position: lineupSuggestionPlayerTable.position,
+          slot: lineupSuggestionPlayerTable.slot,
+          orderIndex: lineupSuggestionPlayerTable.orderIndex,
+          playerName: playersTable.name,
+          playerNickname: playersTable.nickname,
+          clubId: playersTable.clubId,
+        })
+        .from(lineupSuggestionPlayerTable)
+        .innerJoin(playersTable, eq(lineupSuggestionPlayerTable.playerId, playersTable.id))
+        .where(inArray(lineupSuggestionPlayerTable.lineupSuggestionId, lineupIds)),
+      db.select().from(clubsTable),
+      db
+        .select({
+          playerId: playerScoutRoundTable.playerId,
+          round: playerScoutRoundTable.round,
+          points: playerScoutRoundTable.points,
+        })
+        .from(playerScoutRoundTable)
+        .where(
+          and(
+            inArray(playerScoutRoundTable.round, lineupRounds),
+            isNotNull(playerScoutRoundTable.points),
+            eq(playerScoutRoundTable.source, "cartola")
+          )
+        ),
+    ]);
+
+    const projections = await db
+      .select({
+        playerId: playerProjectionTable.playerId,
+        round: playerProjectionTable.round,
+        expectedPoints: playerProjectionTable.expectedPoints,
+      })
+      .from(playerProjectionTable)
+      .where(
+        and(
+          inArray(playerProjectionTable.round, lineupRounds),
+          isNotNull(playerProjectionTable.expectedPoints)
+        )
+      );
+
+    const clubMap = new Map(allClubs.map((c) => [c.id, c]));
+    const actualMap = new Map<string, number>();
+    for (const a of actuals) {
+      actualMap.set(`${a.playerId}-${a.round}`, a.points ?? 0);
+    }
+    const projMap = new Map<string, number>();
+    for (const p of projections) {
+      projMap.set(`${p.playerId}-${p.round}`, p.expectedPoints ?? 0);
+    }
+
+    const playersByLineup = new Map<number, typeof lineupPlayers>();
+    for (const lp of lineupPlayers) {
+      if (!playersByLineup.has(lp.lineupSuggestionId)) {
+        playersByLineup.set(lp.lineupSuggestionId, []);
+      }
+      playersByLineup.get(lp.lineupSuggestionId)!.push(lp);
+    }
+
+    const result = targetLineups.map((lineup) => {
+      const players = playersByLineup.get(lineup.id) ?? [];
+      const captainId = lineup.captainPlayerId;
+      const hasActualData = players.some((p) => actualMap.has(`${p.playerId}-${lineup.round}`));
+
+      const playerRows = players
+        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+        .map((p) => {
+          const isCaptain = p.playerId === captainId;
+          const isCoach = p.position === "TEC";
+          const actualRaw = actualMap.get(`${p.playerId}-${lineup.round}`) ?? null;
+          const actualPoints = actualRaw !== null ? (isCaptain ? actualRaw * 2 : actualRaw) : null;
+          const projectedPoints = projMap.get(`${p.playerId}-${lineup.round}`) ?? null;
+          const club = p.clubId ? clubMap.get(p.clubId) : undefined;
+
+          return {
+            playerId: p.playerId,
+            name: p.playerName,
+            nickname: p.playerNickname ?? null,
+            position: p.position ?? "?",
+            isCaptain,
+            isCoach,
+            clubAbbr: club?.abbreviation ?? club?.shortName ?? null,
+            clubName: club?.name ?? null,
+            projected: projectedPoints !== null ? Number(projectedPoints.toFixed(2)) : null,
+            actual: actualPoints !== null ? Number(actualPoints.toFixed(2)) : null,
+            actualRaw: actualRaw !== null ? Number(actualRaw.toFixed(2)) : null,
+            error: projectedPoints !== null && actualPoints !== null
+              ? Number((projectedPoints - (isCaptain ? projectedPoints : actualPoints)).toFixed(2))
+              : null,
+          };
+        });
+
+      const projectedTotal = lineup.expectedPoints ?? null;
+      const actualTotal = hasActualData
+        ? playerRows.reduce((sum, p) => sum + (p.actual ?? 0), 0)
+        : null;
+
+      return {
+        round: lineup.round,
+        lineupId: lineup.id,
+        strategyType: lineup.strategyType,
+        formation: lineup.formation,
+        totalCost: lineup.totalCost,
+        projectedTotal: projectedTotal !== null ? Number(projectedTotal.toFixed(2)) : null,
+        actualTotal: actualTotal !== null ? Number(actualTotal.toFixed(2)) : null,
+        difference: projectedTotal !== null && actualTotal !== null
+          ? Number((projectedTotal - actualTotal).toFixed(2))
+          : null,
+        hasActualData,
+        players: playerRows,
+      };
+    });
+
+    log.info("Lineup backtest computed", { rounds: result.length });
+    res.json({ rounds: result, message: null });
+  } catch (err) {
+    log.error("Lineup backtest failed", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Failed to compute lineup backtest" });
+  }
+});
+
+router.get("/history/lineup-rounds", async (_req, res) => {
+  try {
+    const rows = await db
+      .selectDistinct({ round: lineupSuggestionTable.round })
+      .from(lineupSuggestionTable)
+      .orderBy(lineupSuggestionTable.round);
+    res.json({ rounds: rows.map((r) => r.round) });
+  } catch (err) {
+    log.error("Failed to list lineup rounds", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Failed to list lineup rounds" });
   }
 });
 
