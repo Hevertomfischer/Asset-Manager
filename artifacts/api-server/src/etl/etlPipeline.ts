@@ -4,6 +4,8 @@ import { fetchMarket, fetchScouts } from "../providers/cartolaApiProvider";
 import { fetchProbables } from "../providers/geProbablesProvider";
 import { fetchPlayerStats } from "../providers/gatoMestreProvider";
 import { fetchHistoricalRound } from "../providers/historicalCartolaProvider";
+import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
+import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
 import { upsertPlayer, findPlayerByExternalId } from "../repositories/playerRepository";
 import { upsertMatch } from "../repositories/matchRepository";
@@ -232,6 +234,22 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     await logETL("etl", "probables", "degraded", msg);
   }
 
+  // === Step 4b: Cartola Status Provider ===
+  let cartolaStatusResult: CartolaStatusResult | undefined;
+  try {
+    cartolaStatusResult = await fetchPlayerStatuses(round);
+    await logETL(
+      "etl",
+      "player_status",
+      "success",
+      `Cartola status: ${cartolaStatusResult.players.length} players, ${cartolaStatusResult.unavailableCount} unavailable`
+    );
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    warnings.push(`Cartola status fetch degraded: ${msg}`);
+    await logETL("etl", "player_status", "degraded", msg);
+  }
+
   // === Step 5: GatoMestre stats (best-effort) ===
   try {
     await fetchPlayerStats(round);
@@ -243,7 +261,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   // === Step 6: Availability engine ===
   let availabilityProcessed = false;
   try {
-    await runAvailabilityEngine(round, probables);
+    await runAvailabilityEngine(round, probables, cartolaStatusResult);
     availabilityProcessed = true;
     await logETL("etl", "availability", "success", `Availability engine complete for round ${round}`);
   } catch (error) {

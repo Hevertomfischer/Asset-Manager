@@ -146,7 +146,7 @@ router.post("/admin/recalculate-projections", async (_req, res) => {
 
 router.get("/admin/providers/status", async (_req, res) => {
   try {
-    const sources = ["cartola_api", "ge_probables", "gato_mestre", "historical_cartola"];
+    const sources = ["cartola_api", "cartola_status", "ge_probables", "gato_mestre", "historical_cartola"];
 
     const statusResults = await Promise.all(
       sources.map(async (source) => {

@@ -205,21 +205,39 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {providers.map((p) => (
-                    <div key={p.source} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
-                      <div>
-                        <span className="font-medium text-sm capitalize">{p.source.replace(/_/g, " ")}</span>
-                        <p className="text-xs text-muted-foreground">
-                          {p.lastCollectedAt
-                            ? new Date(p.lastCollectedAt).toLocaleString("pt-BR")
-                            : "Nunca sincronizado"}
-                        </p>
+                  {providers.map((p) => {
+                    const labelMap: Record<string, string> = {
+                      cartola_api: "Cartola API",
+                      cartola_status: "Cartola Status (Disponibilidade)",
+                      ge_probables: "GE Prováveis",
+                      gato_mestre: "Gato Mestre",
+                      historical_cartola: "Histórico Cartola",
+                    };
+                    const label = labelMap[p.source] ?? p.source.replace(/_/g, " ");
+                    return (
+                      <div key={p.source} className="flex items-start justify-between p-3 rounded-lg border border-border bg-background gap-2">
+                        <div className="min-w-0">
+                          <span className="font-medium text-sm">{label}</span>
+                          <p className="text-xs text-muted-foreground">
+                            {p.lastCollectedAt
+                              ? new Date(p.lastCollectedAt).toLocaleString("pt-BR")
+                              : "Nunca sincronizado"}
+                          </p>
+                          {p.lastMessage && (
+                            <p className="text-xs text-muted-foreground/70 truncate max-w-xs" title={p.lastMessage}>
+                              {p.lastMessage}
+                            </p>
+                          )}
+                        </div>
+                        <Badge
+                          variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}
+                          className="shrink-0"
+                        >
+                          {p.status === "ok" ? "OK" : p.status === "never_synced" ? "Não sincronizado" : p.status === "degraded" ? "Degradado" : "Erro"}
+                        </Badge>
                       </div>
-                      <Badge variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}>
-                        {p.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
