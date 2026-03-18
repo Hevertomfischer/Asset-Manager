@@ -17,7 +17,9 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminLogsResponse,
   AvailabilityListResponse,
+  GetAdminLogsParams,
   GetCurrentAvailabilityParams,
   GetCurrentProjectionsParams,
   GetPlayersParams,
@@ -28,9 +30,12 @@ import type {
   PlayerDetail,
   PlayerListResponse,
   ProjectionListResponse,
+  ProjectionWeightsRequest,
+  ProjectionWeightsResponse,
   ProvidersStatusResponse,
   RecalcResult,
   RoundStatus,
+  SaveLineup200,
   SyncResult,
 } from "./api.schemas";
 
@@ -746,6 +751,166 @@ export const useGenerateLineup = <
 };
 
 /**
+ * @summary Trigger full ETL sync (all providers)
+ */
+export const getSyncFullUrl = () => {
+  return `/api/admin/sync/full`;
+};
+
+export const syncFull = async (options?: RequestInit): Promise<SyncResult> => {
+  return customFetch<SyncResult>(getSyncFullUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncFullMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncFull>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncFull>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncFull"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncFull>>,
+    void
+  > = () => {
+    return syncFull(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncFullMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncFull>>
+>;
+
+export type SyncFullMutationError = ErrorType<void>;
+
+/**
+ * @summary Trigger full ETL sync (all providers)
+ */
+export const useSyncFull = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncFull>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncFull>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncFullMutationOptions(options));
+};
+
+/**
+ * @summary Trigger market-only ETL sync
+ */
+export const getSyncMarketUrl = () => {
+  return `/api/admin/sync/market`;
+};
+
+export const syncMarket = async (
+  options?: RequestInit,
+): Promise<SyncResult> => {
+  return customFetch<SyncResult>(getSyncMarketUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncMarketMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncMarket>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncMarket>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncMarket"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncMarket>>,
+    void
+  > = () => {
+    return syncMarket(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncMarketMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncMarket>>
+>;
+
+export type SyncMarketMutationError = ErrorType<void>;
+
+/**
+ * @summary Trigger market-only ETL sync
+ */
+export const useSyncMarket = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncMarket>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncMarket>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncMarketMutationOptions(options));
+};
+
+/**
  * @summary Trigger ETL sync for current round
  */
 export const getSyncCurrentRoundUrl = () => {
@@ -981,3 +1146,346 @@ export function useGetProvidersStatus<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get recent data collection logs
+ */
+export const getGetAdminLogsUrl = (params?: GetAdminLogsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/logs?${stringifiedParams}`
+    : `/api/admin/logs`;
+};
+
+export const getAdminLogs = async (
+  params?: GetAdminLogsParams,
+  options?: RequestInit,
+): Promise<AdminLogsResponse> => {
+  return customFetch<AdminLogsResponse>(getGetAdminLogsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminLogsQueryKey = (params?: GetAdminLogsParams) => {
+  return [`/api/admin/logs`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAdminLogsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminLogs>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAdminLogsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminLogsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminLogs>>> = ({
+    signal,
+  }) => getAdminLogs(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminLogs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminLogsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminLogs>>
+>;
+export type GetAdminLogsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recent data collection logs
+ */
+
+export function useGetAdminLogs<
+  TData = Awaited<ReturnType<typeof getAdminLogs>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAdminLogsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminLogs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminLogsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get current projection engine weights
+ */
+export const getGetProjectionWeightsUrl = () => {
+  return `/api/admin/projection-weights`;
+};
+
+export const getProjectionWeights = async (
+  options?: RequestInit,
+): Promise<ProjectionWeightsResponse> => {
+  return customFetch<ProjectionWeightsResponse>(getGetProjectionWeightsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectionWeightsQueryKey = () => {
+  return [`/api/admin/projection-weights`] as const;
+};
+
+export const getGetProjectionWeightsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectionWeights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectionWeights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjectionWeightsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectionWeights>>
+  > = ({ signal }) => getProjectionWeights({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectionWeights>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectionWeightsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectionWeights>>
+>;
+export type GetProjectionWeightsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current projection engine weights
+ */
+
+export function useGetProjectionWeights<
+  TData = Awaited<ReturnType<typeof getProjectionWeights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectionWeights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectionWeightsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update projection engine weights
+ */
+export const getUpdateProjectionWeightsUrl = () => {
+  return `/api/admin/projection-weights`;
+};
+
+export const updateProjectionWeights = async (
+  projectionWeightsRequest: ProjectionWeightsRequest,
+  options?: RequestInit,
+): Promise<ProjectionWeightsResponse> => {
+  return customFetch<ProjectionWeightsResponse>(
+    getUpdateProjectionWeightsUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(projectionWeightsRequest),
+    },
+  );
+};
+
+export const getUpdateProjectionWeightsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectionWeights>>,
+    TError,
+    { data: BodyType<ProjectionWeightsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectionWeights>>,
+  TError,
+  { data: BodyType<ProjectionWeightsRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateProjectionWeights"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectionWeights>>,
+    { data: BodyType<ProjectionWeightsRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateProjectionWeights(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectionWeightsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectionWeights>>
+>;
+export type UpdateProjectionWeightsMutationBody =
+  BodyType<ProjectionWeightsRequest>;
+export type UpdateProjectionWeightsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update projection engine weights
+ */
+export const useUpdateProjectionWeights = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectionWeights>>,
+    TError,
+    { data: BodyType<ProjectionWeightsRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectionWeights>>,
+  TError,
+  { data: BodyType<ProjectionWeightsRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateProjectionWeightsMutationOptions(options));
+};
+
+/**
+ * @summary Mark a lineup suggestion as saved/favourite
+ */
+export const getSaveLineupUrl = (id: number) => {
+  return `/api/lineup/${id}/save`;
+};
+
+export const saveLineup = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SaveLineup200> => {
+  return customFetch<SaveLineup200>(getSaveLineupUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSaveLineupMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLineup>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveLineup>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["saveLineup"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveLineup>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return saveLineup(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveLineupMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveLineup>>
+>;
+
+export type SaveLineupMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a lineup suggestion as saved/favourite
+ */
+export const useSaveLineup = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveLineup>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveLineup>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getSaveLineupMutationOptions(options));
+};

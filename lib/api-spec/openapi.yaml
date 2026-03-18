@@ -183,6 +183,36 @@ paths:
         "500":
           description: Generation failed
 
+  /admin/sync/full:
+    post:
+      operationId: syncFull
+      tags: [admin]
+      summary: Trigger full ETL sync (all providers)
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "429":
+          description: Sync already in progress
+
+  /admin/sync/market:
+    post:
+      operationId: syncMarket
+      tags: [admin]
+      summary: Trigger market-only ETL sync
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "429":
+          description: Sync already in progress
+
   /admin/sync/current-round:
     post:
       operationId: syncCurrentRound
@@ -223,6 +253,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProvidersStatusResponse"
+
+  /admin/logs:
+    get:
+      operationId: getAdminLogs
+      tags: [admin]
+      summary: Get recent data collection logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Logs list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLogsResponse"
+
+  /admin/projection-weights:
+    get:
+      operationId: getProjectionWeights
+      tags: [admin]
+      summary: Get current projection engine weights
+      responses:
+        "200":
+          description: Projection weights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionWeightsResponse"
+    post:
+      operationId: updateProjectionWeights
+      tags: [admin]
+      summary: Update projection engine weights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectionWeightsRequest"
+      responses:
+        "200":
+          description: Updated weights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionWeightsResponse"
+
+  /lineup/{id}/save:
+    post:
+      operationId: saveLineup
+      tags: [lineup]
+      summary: Mark a lineup suggestion as saved/favourite
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lineup saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
 
 components:
   schemas:
@@ -304,6 +404,9 @@ components:
           type: number
           nullable: true
         expectedMinutes:
+          type: number
+          nullable: true
+        riskScore:
           type: number
           nullable: true
         probableStatus:
@@ -628,6 +731,57 @@ components:
       required:
         - success
         - round
+
+    AdminLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+        entityType:
+          type: string
+          nullable: true
+        status:
+          type: string
+        message:
+          type: string
+          nullable: true
+        round:
+          type: integer
+          nullable: true
+        collectedAt:
+          type: string
+        createdAt:
+          type: string
+
+    AdminLogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminLog"
+        total:
+          type: integer
+      required:
+        - logs
+        - total
+
+    ProjectionWeightsResponse:
+      type: object
+      properties:
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+      required:
+        - weights
+
+    ProjectionWeightsRequest:
+      type: object
+      additionalProperties:
+        type: number
 
     ProviderLog:
       type: object

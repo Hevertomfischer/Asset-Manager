@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, Shield, Settings, Activity } from "lucide-react";
 import {
   Sidebar,
@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 export const AppSidebar = () => {
-  const [location] = useLocation();
+  const location = useLocation();
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
@@ -43,21 +43,21 @@ export const AppSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu className="px-3">
               {navItems.map((item) => {
-                const isActive = location === item.url;
+                const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       className={`
                         mb-1 h-11 px-3 rounded-xl transition-all duration-200
-                        ${isActive 
-                          ? 'bg-primary/15 text-primary font-semibold hover:bg-primary/20' 
-                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        ${isActive
+                          ? "bg-primary/15 text-primary font-semibold hover:bg-primary/20"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                         }
                       `}
                     >
-                      <Link href={item.url} className="flex items-center gap-3">
-                        <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'opacity-70'}`} />
+                      <Link to={item.url} className="flex items-center gap-3">
+                        <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "opacity-70"}`} />
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -88,15 +88,13 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             </div>
             <div className="flex items-center gap-3">
-               <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border">
-                 v0.1.0-alpha
-               </div>
+              <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border">
+                v0.1.0-alpha
+              </div>
             </div>
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 relative">
-            <div className="max-w-7xl mx-auto w-full">
-              {children}
-            </div>
+            <div className="max-w-7xl mx-auto w-full">{children}</div>
           </main>
         </div>
       </div>

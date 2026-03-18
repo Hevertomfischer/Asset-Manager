@@ -74,6 +74,7 @@ export const GetPlayersResponse = zod.object({
         .object({
           playProbability: zod.number().nullish(),
           expectedMinutes: zod.number().nullish(),
+          riskScore: zod.number().nullish(),
           probableStatus: zod.string().nullish(),
           injuryStatus: zod.string().nullish(),
           suspensionStatus: zod.string().nullish(),
@@ -148,6 +149,7 @@ export const GetPlayerByIdResponse = zod
       .object({
         playProbability: zod.number().nullish(),
         expectedMinutes: zod.number().nullish(),
+        riskScore: zod.number().nullish(),
         probableStatus: zod.string().nullish(),
         injuryStatus: zod.string().nullish(),
         suspensionStatus: zod.string().nullish(),
@@ -263,6 +265,34 @@ export const GenerateLineupResponse = zod.object({
 });
 
 /**
+ * @summary Trigger full ETL sync (all providers)
+ */
+export const SyncFullResponse = zod.object({
+  success: zod.boolean(),
+  round: zod.number(),
+  clubsUpserted: zod.number().optional(),
+  playersUpserted: zod.number().optional(),
+  availabilityProcessed: zod.boolean().optional(),
+  projectionsGenerated: zod.boolean().optional(),
+  errors: zod.array(zod.string()).optional(),
+  warnings: zod.array(zod.string()).optional(),
+});
+
+/**
+ * @summary Trigger market-only ETL sync
+ */
+export const SyncMarketResponse = zod.object({
+  success: zod.boolean(),
+  round: zod.number(),
+  clubsUpserted: zod.number().optional(),
+  playersUpserted: zod.number().optional(),
+  availabilityProcessed: zod.boolean().optional(),
+  projectionsGenerated: zod.boolean().optional(),
+  errors: zod.array(zod.string()).optional(),
+  warnings: zod.array(zod.string()).optional(),
+});
+
+/**
  * @summary Trigger ETL sync for current round
  */
 export const SyncCurrentRoundResponse = zod.object({
@@ -310,4 +340,57 @@ export const GetProvidersStatusResponse = zod.object({
   ),
   overall: zod.string(),
   syncInProgress: zod.boolean(),
+});
+
+/**
+ * @summary Get recent data collection logs
+ */
+export const GetAdminLogsQueryParams = zod.object({
+  limit: zod.coerce.number().optional(),
+});
+
+export const GetAdminLogsResponse = zod.object({
+  logs: zod.array(
+    zod.object({
+      id: zod.number().optional(),
+      source: zod.string().optional(),
+      entityType: zod.string().nullish(),
+      status: zod.string().optional(),
+      message: zod.string().nullish(),
+      round: zod.number().nullish(),
+      collectedAt: zod.string().optional(),
+      createdAt: zod.string().optional(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get current projection engine weights
+ */
+export const GetProjectionWeightsResponse = zod.object({
+  weights: zod.record(zod.string(), zod.number()),
+});
+
+/**
+ * @summary Update projection engine weights
+ */
+export const UpdateProjectionWeightsBody = zod.record(
+  zod.string(),
+  zod.number(),
+);
+
+export const UpdateProjectionWeightsResponse = zod.object({
+  weights: zod.record(zod.string(), zod.number()),
+});
+
+/**
+ * @summary Mark a lineup suggestion as saved/favourite
+ */
+export const SaveLineupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SaveLineupResponse = zod.object({
+  success: zod.boolean().optional(),
 });

@@ -9,6 +9,7 @@
 export interface PlayerAvailabilitySummary {
   playProbability?: number | null;
   expectedMinutes?: number | null;
+  riskScore?: number | null;
   probableStatus?: string | null;
   injuryStatus?: string | null;
   suspensionStatus?: string | null;

@@ -43,6 +43,7 @@ export interface PlayerProjectionSummary {
 export interface PlayerAvailabilitySummary {
   playProbability?: number | null;
   expectedMinutes?: number | null;
+  riskScore?: number | null;
   probableStatus?: string | null;
   injuryStatus?: string | null;
   suspensionStatus?: string | null;
@@ -197,6 +198,32 @@ export interface RecalcResult {
   message?: string;
 }
 
+export interface AdminLog {
+  id?: number;
+  source?: string;
+  entityType?: string | null;
+  status?: string;
+  message?: string | null;
+  round?: number | null;
+  collectedAt?: string;
+  createdAt?: string;
+}
+
+export interface AdminLogsResponse {
+  logs: AdminLog[];
+  total: number;
+}
+
+export type ProjectionWeightsResponseWeights = { [key: string]: number };
+
+export interface ProjectionWeightsResponse {
+  weights: ProjectionWeightsResponseWeights;
+}
+
+export interface ProjectionWeightsRequest {
+  [key: string]: number;
+}
+
 export interface ProviderLog {
   status?: string;
   message?: string | null;
@@ -235,4 +262,12 @@ export type GetCurrentProjectionsParams = {
 
 export type GetCurrentAvailabilityParams = {
   round?: number;
+};
+
+export type GetAdminLogsParams = {
+  limit?: number;
+};
+
+export type SaveLineup200 = {
+  success?: boolean;
 };

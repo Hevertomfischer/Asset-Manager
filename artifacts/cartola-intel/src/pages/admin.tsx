@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
-import { 
-  useLogs, 
-  useProjectionWeights, 
-  useUpdateProjectionWeights,
+import {
+  useGetProvidersStatus,
+  useRecalculateProjections,
+  useSyncCurrentRound,
   useSyncFull,
-  useSyncMarket
-} from "@/hooks/use-custom-api";
-import { useGetProvidersStatus, useRecalculateProjections, useSyncCurrentRound } from "@workspace/api-client-react";
+  useSyncMarket,
+  useGetAdminLogs,
+  useGetProjectionWeights,
+  useUpdateProjectionWeights,
+  type AdminLog,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,62 +17,62 @@ import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play } from "lucide-react";
+import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle } from "lucide-react";
 
 export default function Admin() {
   const { toast } = useToast();
-  
-  // Data hooks
-  const { data: logsData } = useLogs(20);
-  const { data: weightsData } = useProjectionWeights();
-  const { data: providersData } = useGetProvidersStatus();
-  
-  // Mutations
+
+  const { data: logsData, isError: logsError } = useGetAdminLogs({ limit: 20 });
+  const { data: weightsData, isError: weightsError } = useGetProjectionWeights();
+  const { data: providersData, isError: providersError } = useGetProvidersStatus();
+
   const updateWeights = useUpdateProjectionWeights();
   const syncFull = useSyncFull();
   const syncMarket = useSyncMarket();
   const syncCurrentRound = useSyncCurrentRound();
   const recalcProjections = useRecalculateProjections();
 
-  // Local state for weights form
   const [weights, setWeights] = useState<Record<string, number>>({
     formWeight: 0.3,
     availabilityWeight: 0.3,
     fixtureWeight: 0.2,
     valueWeight: 0.1,
-    historyWeight: 0.1
+    historyWeight: 0.1,
   });
 
   useEffect(() => {
     if (weightsData?.weights) {
-      setWeights(weightsData.weights);
+      setWeights(weightsData.weights as Record<string, number>);
     }
   }, [weightsData]);
 
   const handleSaveWeights = () => {
-    updateWeights.mutate(weights, {
-      onSuccess: () => toast({ title: "Weights updated successfully" }),
-      onError: (err) => toast({ title: "Update failed", description: err.message, variant: "destructive" })
-    });
+    updateWeights.mutate(
+      { data: weights },
+      {
+        onSuccess: () => toast({ title: "Pesos atualizados com sucesso" }),
+        onError: (err) => toast({ title: "Falha ao atualizar pesos", description: err.message, variant: "destructive" }),
+      }
+    );
   };
 
   const handleRecalc = () => {
     recalcProjections.mutate(undefined, {
-      onSuccess: (data: any) => toast({ title: "Projeções recalculadas", description: data.message }),
-      onError: (err: any) => toast({ title: "Recalculo falhou", description: err.message, variant: "destructive" })
+      onSuccess: (data) => toast({ title: "Projeções recalculadas", description: data?.message }),
+      onError: (err) => toast({ title: "Recalculo falhou", description: err.message, variant: "destructive" }),
     });
   };
 
-  const handleSync = (type: 'full' | 'market' | 'current-round') => {
-    const mutation = type === 'full' ? syncFull : type === 'market' ? syncMarket : syncCurrentRound;
-    const labels: Record<string, string> = { full: 'Full', market: 'Market', 'current-round': 'Rodada Atual' };
-    mutation.mutate(undefined as any, {
+  const handleSync = (type: "full" | "market" | "current-round") => {
+    const mutation = type === "full" ? syncFull : type === "market" ? syncMarket : syncCurrentRound;
+    const labels: Record<string, string> = { full: "Full", market: "Mercado", "current-round": "Rodada Atual" };
+    mutation.mutate(undefined, {
       onSuccess: () => toast({ title: `Sync ${labels[type]} disparado com sucesso` }),
-      onError: (err: any) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" })
+      onError: (err) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" }),
     });
   };
 
-  const logs = logsData?.logs || [];
+  const logs: AdminLog[] = logsData?.logs || [];
   const providers = providersData?.providers || [];
 
   return (
@@ -77,60 +80,66 @@ export default function Admin() {
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Settings className="w-8 h-8 text-primary" />
-          System Administration
+          Administração
         </h1>
-        <p className="text-muted-foreground mt-1">Manage projection engine weights, data pipelines, and system logs.</p>
+        <p className="text-muted-foreground mt-1">Gerencie pesos, pipelines de dados e logs do sistema.</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        
         {/* Engine Configuration */}
         <Card className="bg-card shadow-lg border-border/50">
           <CardHeader className="bg-secondary/20 border-b border-border/50">
             <CardTitle className="flex items-center gap-2">
               <Database className="w-5 h-5 text-accent" />
-              Engine Configuration
+              Configuração do Motor
             </CardTitle>
-            <CardDescription>Adjust the weights used by the projection ML algorithm.</CardDescription>
+            <CardDescription>Ajuste os pesos usados pelo algoritmo de projeção.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <div className="space-y-6">
-              {Object.entries(weights).map(([key, value]) => (
-                <div key={key} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold capitalize text-foreground">
-                      {key.replace('Weight', '')} Weight
-                    </Label>
-                    <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+            {weightsError ? (
+              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Erro ao carregar pesos. Tente novamente.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(weights).map(([key, value]) => (
+                  <div key={key} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold capitalize text-foreground">
+                        {key.replace("Weight", "")} Weight
+                      </Label>
+                      <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+                    </div>
+                    <Slider
+                      value={[value]}
+                      max={1}
+                      min={0}
+                      step={0.05}
+                      onValueChange={(v) => setWeights((prev) => ({ ...prev, [key]: v[0] }))}
+                    />
                   </div>
-                  <Slider 
-                    value={[value]} 
-                    max={1} 
-                    min={0} 
-                    step={0.05} 
-                    onValueChange={(v) => setWeights(prev => ({ ...prev, [key]: v[0] }))}
-                  />
-                </div>
-              ))}
-            </div>
-            
+                ))}
+              </div>
+            )}
+
             <div className="pt-4 border-t border-border/50 flex gap-4">
-              <Button 
-                onClick={handleSaveWeights} 
-                disabled={updateWeights.isPending}
+              <Button
+                onClick={handleSaveWeights}
+                disabled={updateWeights.isPending || weightsError}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Weights
+                Salvar Pesos
               </Button>
-              <Button 
+              <Button
                 variant="secondary"
-                onClick={handleRecalc} 
+                onClick={handleRecalc}
                 disabled={recalcProjections.isPending}
                 className="flex-1 border border-border"
               >
                 {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                Recalculate Now
+                Recalcular Agora
               </Button>
             </div>
           </CardContent>
@@ -141,34 +150,34 @@ export default function Admin() {
           <CardHeader className="bg-secondary/20 border-b border-border/50">
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="w-5 h-5 text-primary" />
-              Pipeline Controls
+              Controles do Pipeline
             </CardTitle>
-            <CardDescription>Trigger manual data ingestion and view source status.</CardDescription>
+            <CardDescription>Dispare ingestão manual de dados e veja o status dos provedores.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             <div className="grid grid-cols-1 gap-3">
-              <Button 
+              <Button
                 className="h-14 flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all shadow-lg shadow-primary/20"
-                onClick={() => handleSync('current-round')}
+                onClick={() => handleSync("current-round")}
                 disabled={syncCurrentRound.isPending}
               >
                 {syncCurrentRound.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
                 <span className="font-bold">Sincronizar Rodada Atual</span>
               </Button>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-12 flex items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
-                  onClick={() => handleSync('full')}
+                  onClick={() => handleSync("full")}
                   disabled={syncFull.isPending}
                 >
                   {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
                   <span className="font-semibold text-sm">Sync Full</span>
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-12 flex items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
-                  onClick={() => handleSync('market')}
+                  onClick={() => handleSync("market")}
                   disabled={syncMarket.isPending}
                 >
                   {syncMarket.isPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <Play className="w-4 h-4 text-accent" />}
@@ -178,17 +187,24 @@ export default function Admin() {
             </div>
 
             <div className="space-y-3 pt-4">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Provider Status</Label>
-              <div className="space-y-2">
-                {providers.map((p: any) => (
-                  <div key={p.source} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
-                    <span className="font-medium text-sm capitalize">{p.source.replace('_', ' ')}</span>
-                    <Badge variant={p.status === 'ok' ? 'default' : p.status === 'error' ? 'destructive' : 'secondary'}>
-                      {p.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Status dos Provedores</Label>
+              {providersError ? (
+                <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Erro ao carregar status dos provedores.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {providers.map((p) => (
+                    <div key={p.source} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
+                      <span className="font-medium text-sm capitalize">{p.source.replace(/_/g, " ")}</span>
+                      <Badge variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}>
+                        {p.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -199,54 +215,66 @@ export default function Admin() {
         <CardHeader className="bg-secondary/20 border-b border-border/50">
           <CardTitle className="flex items-center gap-2">
             <TerminalSquare className="w-5 h-5 text-muted-foreground" />
-            System Event Logs
+            Logs do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/50">
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Round</TableHead>
-                  <TableHead className="w-1/2">Message</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                      No logs available
-                    </TableCell>
+          {logsError ? (
+            <div className="flex items-center gap-2 text-destructive text-sm p-6 bg-destructive/10">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Erro ao carregar logs. Tente novamente.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/50">
+                    <TableHead className="w-[180px]">Timestamp</TableHead>
+                    <TableHead>Fonte</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Round</TableHead>
+                    <TableHead className="w-1/2">Mensagem</TableHead>
                   </TableRow>
-                ) : (
-                  logs.map((log: any, i: number) => (
-                    <TableRow key={i} className="border-border/30 hover:bg-secondary/20 transition-colors">
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {new Date(log.collectedAt || log.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold capitalize">{log.source?.replace('_', ' ')}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`text-[10px] uppercase border ${
-                          log.status === 'success' || log.status === 'ok' ? 'text-green-500 border-green-500/30 bg-green-500/10' :
-                          log.status === 'error' ? 'text-red-500 border-red-500/30 bg-red-500/10' :
-                          'text-yellow-500 border-yellow-500/30 bg-yellow-500/10'
-                        }`}>
-                          {log.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{log.round || '-'}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-md truncate" title={log.message}>
-                        {log.message}
+                </TableHeader>
+                <TableBody>
+                  {logs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                        Nenhum log disponível
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    logs.map((log, i) => (
+                      <TableRow key={i} className="border-border/30 hover:bg-secondary/20 transition-colors">
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {new Date(log.collectedAt || log.createdAt || "").toLocaleString("pt-BR")}
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold capitalize">{log.source?.replace(/_/g, " ")}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] uppercase border ${
+                              log.status === "success" || log.status === "ok"
+                                ? "text-green-500 border-green-500/30 bg-green-500/10"
+                                : log.status === "error"
+                                  ? "text-red-500 border-red-500/30 bg-red-500/10"
+                                  : "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                            }`}
+                          >
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{log.round ?? "-"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-md truncate" title={log.message ?? ""}>
+                          {log.message}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
