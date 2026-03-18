@@ -22,9 +22,9 @@ import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, Ale
 export default function Admin() {
   const { toast } = useToast();
 
-  const { data: logsData, isError: logsError } = useGetAdminLogs({ limit: 20 });
-  const { data: weightsData, isError: weightsError } = useGetProjectionWeights();
-  const { data: providersData, isError: providersError } = useGetProvidersStatus();
+  const { data: logsData, isLoading: logsLoading, isError: logsError } = useGetAdminLogs({ limit: 20 });
+  const { data: weightsData, isLoading: weightsLoading, isError: weightsError } = useGetProjectionWeights();
+  const { data: providersData, isLoading: providersLoading, isError: providersError } = useGetProvidersStatus();
 
   const updateWeights = useUpdateProjectionWeights();
   const syncFull = useSyncFull();
@@ -96,7 +96,12 @@ export default function Admin() {
             <CardDescription>Ajuste os pesos usados pelo algoritmo de projeção.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            {weightsError ? (
+            {weightsLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                Carregando configuração...
+              </div>
+            ) : weightsError ? (
               <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 Erro ao carregar pesos. Tente novamente.
@@ -188,7 +193,12 @@ export default function Admin() {
 
             <div className="space-y-3 pt-4">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Status dos Provedores</Label>
-              {providersError ? (
+              {providersLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  Carregando provedores...
+                </div>
+              ) : providersError ? (
                 <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   Erro ao carregar status dos provedores.
@@ -197,7 +207,14 @@ export default function Admin() {
                 <div className="space-y-2">
                   {providers.map((p) => (
                     <div key={p.source} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
-                      <span className="font-medium text-sm capitalize">{p.source.replace(/_/g, " ")}</span>
+                      <div>
+                        <span className="font-medium text-sm capitalize">{p.source.replace(/_/g, " ")}</span>
+                        <p className="text-xs text-muted-foreground">
+                          {p.lastCollectedAt
+                            ? new Date(p.lastCollectedAt).toLocaleString("pt-BR")
+                            : "Nunca sincronizado"}
+                        </p>
+                      </div>
                       <Badge variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}>
                         {p.status}
                       </Badge>
@@ -219,7 +236,12 @@ export default function Admin() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {logsError ? (
+          {logsLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-6">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              Carregando logs...
+            </div>
+          ) : logsError ? (
             <div className="flex items-center gap-2 text-destructive text-sm p-6 bg-destructive/10">
               <AlertCircle className="w-4 h-4 shrink-0" />
               Erro ao carregar logs. Tente novamente.

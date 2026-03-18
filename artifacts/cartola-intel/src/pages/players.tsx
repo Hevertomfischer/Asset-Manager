@@ -18,6 +18,7 @@ export default function Players() {
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState<string>("ALL");
   const [clubFilter, setClubFilter] = useState<string>("ALL");
+  const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(30);
   const [minProjection, setMinProjection] = useState<string>("");
   const [probableOnly, setProbableOnly] = useState(true);
@@ -26,6 +27,7 @@ export default function Players() {
 
   const { data, isLoading, isError } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
+    minPrice: minPrice > 0 ? minPrice : undefined,
     maxPrice,
     probableOnly: probableOnly ? "true" : "false",
     minProjection: minProjection ? Number(minProjection) : undefined,
@@ -122,16 +124,21 @@ export default function Players() {
             </Select>
           </div>
 
-          {/* Max Price */}
+          {/* Price Range */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase">Preço máx.</Label>
-              <span className="text-xs font-mono font-bold text-primary">C$ {maxPrice}</span>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase">Faixa de Preço</Label>
+              <span className="text-xs font-mono font-bold text-primary">C$ {minPrice} – {maxPrice}</span>
             </div>
             <Slider 
-              value={[maxPrice]} 
-              onValueChange={(v) => { setMaxPrice(v[0]); setPage(0); }} 
+              value={[minPrice, maxPrice]} 
+              onValueChange={(v) => { 
+                setMinPrice(v[0]); 
+                setMaxPrice(v[1]); 
+                setPage(0); 
+              }} 
               max={30} 
+              min={0}
               step={1}
               className="py-2"
             />
