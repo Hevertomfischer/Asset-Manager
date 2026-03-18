@@ -11,15 +11,19 @@ router.get("/round/current", async (_req, res) => {
     const response = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 10000 });
     const data = response.data as {
       rodada_atual?: number;
+      status_mercado?: number;
       mercado_status?: number;
       fechamento?: { seconds?: number };
       times_escalados?: number;
     };
 
+    // Cartola API may use either key depending on the endpoint/season
+    const marketStatusValue = data.status_mercado ?? data.mercado_status ?? 0;
+
     res.json({
       round: data.rodada_atual ?? 1,
-      marketStatus: data.mercado_status ?? 0,
-      marketOpen: data.mercado_status === 1,
+      marketStatus: marketStatusValue,
+      marketOpen: marketStatusValue === 1,
       closingTimestamp: data.fechamento?.seconds ?? null,
       closingDate: data.fechamento?.seconds ? new Date(data.fechamento.seconds * 1000).toISOString() : null,
       timesEscalados: data.times_escalados ?? 0,

@@ -89,6 +89,12 @@ router.post("/admin/sync/current-round", async (_req, res) => {
   syncInProgress = true;
   try {
     const result = await runCurrentRoundETL();
+    await logAdminAction(
+      "admin_current_round_sync",
+      result.success ? "success" : "error",
+      `Current round sync ${result.success ? "completed" : "completed with errors"} for round ${result.round}` +
+        (result.errors.length > 0 ? `: ${result.errors.join("; ")}` : "")
+    );
     res.json({
       success: result.success,
       round: result.round,
@@ -102,6 +108,7 @@ router.post("/admin/sync/current-round", async (_req, res) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[admin/sync]", error);
+    await logAdminAction("admin_current_round_sync", "error", `Current round sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
   } finally {
     syncInProgress = false;

@@ -8,6 +8,18 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, gte, lte, SQL, desc } from "drizzle-orm";
 import { getPlayerById } from "../repositories/playerRepository";
+import axios from "axios";
+
+async function resolveCurrentRound(override?: string): Promise<number> {
+  if (override) return Number(override);
+  try {
+    const r = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 5000 });
+    const data = r.data as { rodada_atual?: number };
+    return data.rodada_atual ?? 1;
+  } catch {
+    return 1;
+  }
+}
 
 const router = Router();
 
@@ -23,7 +35,7 @@ router.get("/players", async (req, res) => {
       round,
     } = req.query as Record<string, string>;
 
-    const currentRound = round ? Number(round) : 1;
+    const currentRound = await resolveCurrentRound(round);
     const conditions: SQL[] = [];
 
     if (position) conditions.push(eq(playersTable.position, position));
@@ -99,7 +111,7 @@ router.get("/players", async (req, res) => {
 router.get("/players/projections/current", async (req, res) => {
   try {
     const { round } = req.query as Record<string, string>;
-    const currentRound = round ? Number(round) : 1;
+    const currentRound = await resolveCurrentRound(round);
 
     const projections = await db
       .select()

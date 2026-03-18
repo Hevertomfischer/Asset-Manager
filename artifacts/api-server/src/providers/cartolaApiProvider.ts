@@ -46,6 +46,7 @@ const CartolaMarketSchema = z.object({
 const CartolaRoundSchema = z.object({
   rodada_atual: z.number(),
   rodada_id: z.number().optional(),
+  status_mercado: z.number().optional(),
   mercado_status: z.number().optional(),
   fechamento: z.object({ seconds: z.number() }).optional(),
   times_escalados: z.number().optional(),
@@ -172,7 +173,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     players,
     round: {
       roundNumber: roundParsed.success ? roundParsed.data.rodada_atual : snapshot.round,
-      marketStatus: roundParsed.success ? (roundParsed.data.mercado_status ?? 0) : 0,
+      marketStatus: roundParsed.success ? (roundParsed.data.status_mercado ?? roundParsed.data.mercado_status ?? 0) : 0,
       closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? null) : null,
     },
   };
@@ -223,7 +224,7 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
 
     const roundData: CartolaRound = {
       roundNumber,
-      marketStatus: roundParsed.success ? (roundParsed.data.mercado_status ?? 0) : 0,
+      marketStatus: roundParsed.success ? (roundParsed.data.status_mercado ?? roundParsed.data.mercado_status ?? 0) : 0,
       closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? null) : null,
     };
 
