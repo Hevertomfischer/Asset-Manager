@@ -6,7 +6,7 @@ import {
   useSyncFull,
   useSyncMarket
 } from "@/hooks/use-custom-api";
-import { useGetProvidersStatus, useRecalculateProjections } from "@workspace/api-client-react";
+import { useGetProvidersStatus, useRecalculateProjections, useSyncCurrentRound } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ export default function Admin() {
   const updateWeights = useUpdateProjectionWeights();
   const syncFull = useSyncFull();
   const syncMarket = useSyncMarket();
+  const syncCurrentRound = useSyncCurrentRound();
   const recalcProjections = useRecalculateProjections();
 
   // Local state for weights form
@@ -54,16 +55,17 @@ export default function Admin() {
 
   const handleRecalc = () => {
     recalcProjections.mutate(undefined, {
-      onSuccess: (data) => toast({ title: "Recalculated", description: data.message }),
-      onError: (err) => toast({ title: "Recalc failed", description: err.message, variant: "destructive" })
+      onSuccess: (data: any) => toast({ title: "Projeções recalculadas", description: data.message }),
+      onError: (err: any) => toast({ title: "Recalculo falhou", description: err.message, variant: "destructive" })
     });
   };
 
-  const handleSync = (type: 'full' | 'market') => {
-    const mutation = type === 'full' ? syncFull : syncMarket;
-    mutation.mutate(undefined, {
-      onSuccess: () => toast({ title: `${type.toUpperCase()} Sync triggered` }),
-      onError: (err) => toast({ title: "Sync failed", description: err.message, variant: "destructive" })
+  const handleSync = (type: 'full' | 'market' | 'current-round') => {
+    const mutation = type === 'full' ? syncFull : type === 'market' ? syncMarket : syncCurrentRound;
+    const labels: Record<string, string> = { full: 'Full', market: 'Market', 'current-round': 'Rodada Atual' };
+    mutation.mutate(undefined as any, {
+      onSuccess: () => toast({ title: `Sync ${labels[type]} disparado com sucesso` }),
+      onError: (err: any) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" })
     });
   };
 
@@ -144,25 +146,35 @@ export default function Admin() {
             <CardDescription>Trigger manual data ingestion and view source status.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3">
               <Button 
-                variant="outline" 
-                className="h-20 flex flex-col items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
-                onClick={() => handleSync('full')}
-                disabled={syncFull.isPending}
+                className="h-14 flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all shadow-lg shadow-primary/20"
+                onClick={() => handleSync('current-round')}
+                disabled={syncCurrentRound.isPending}
               >
-                {syncFull.isPending ? <Loader2 className="w-6 h-6 animate-spin text-primary" /> : <Play className="w-6 h-6 text-primary" />}
-                <span className="font-semibold">Run Full Sync</span>
+                {syncCurrentRound.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+                <span className="font-bold">Sincronizar Rodada Atual</span>
               </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
-                onClick={() => handleSync('market')}
-                disabled={syncMarket.isPending}
-              >
-                {syncMarket.isPending ? <Loader2 className="w-6 h-6 animate-spin text-accent" /> : <Play className="w-6 h-6 text-accent" />}
-                <span className="font-semibold">Run Market Sync</span>
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="h-12 flex items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
+                  onClick={() => handleSync('full')}
+                  disabled={syncFull.isPending}
+                >
+                  {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
+                  <span className="font-semibold text-sm">Sync Full</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-12 flex items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
+                  onClick={() => handleSync('market')}
+                  disabled={syncMarket.isPending}
+                >
+                  {syncMarket.isPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <Play className="w-4 h-4 text-accent" />}
+                  <span className="font-semibold text-sm">Sync Mercado</span>
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-3 pt-4">

@@ -16,9 +16,9 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Players", url: "/players", icon: Users },
-  { title: "Lineup Builder", url: "/lineup", icon: Shield },
-  { title: "System Admin", url: "/admin", icon: Settings },
+  { title: "Jogadores", url: "/jogadores", icon: Users },
+  { title: "Escalação", url: "/escalacao", icon: Shield },
+  { title: "Admin", url: "/admin", icon: Settings },
 ];
 
 export const AppSidebar = () => {

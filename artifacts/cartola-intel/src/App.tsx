@@ -24,8 +24,8 @@ function Router() {
     <AppLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
-        <Route path="/players" component={Players} />
-        <Route path="/lineup" component={Lineup} />
+        <Route path="/jogadores" component={Players} />
+        <Route path="/escalacao" component={Lineup} />
         <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
