@@ -75,6 +75,7 @@ export async function runAvailabilityEngine(
       probableStatus,
       playProbability,
       expectedMinutes,
+      riskScore,
       injuryStatus,
       suspensionStatus,
       note: `Auto-calculated from status: ${player.status ?? "unknown"}, probable: ${isProbable}`,

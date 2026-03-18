@@ -41,7 +41,7 @@ export async function fetchProbables(round: number): Promise<GeProbablePlayer[]>
     });
 
     const $ = cheerio.load(response.data as string);
-    const players: GeProbablePlayer[] = [];
+    const rawPlayers: unknown[] = [];
 
     $(".escalacao-clube").each((_i, clubEl) => {
       const clubName = $(clubEl).find(".escalacao-clube-nome").text().trim();
@@ -51,10 +51,25 @@ export async function fetchProbables(round: number): Promise<GeProbablePlayer[]>
           const name = $(playerEl).find(".escalacao-atleta-nome").text().trim();
           const probable = !$(playerEl).hasClass("escalacao-atleta--duvidoso");
           if (name) {
-            players.push({ name, clubName, probable });
+            rawPlayers.push({ name, clubName, probable });
           }
         });
     });
+
+    const players: GeProbablePlayer[] = [];
+    let parseErrors = 0;
+    for (const raw of rawPlayers) {
+      const parsed = GeProbablePlayerSchema.safeParse(raw);
+      if (parsed.success) {
+        players.push(parsed.data);
+      } else {
+        parseErrors++;
+      }
+    }
+
+    if (parseErrors > 0) {
+      console.warn(`[geProbablesProvider] ${parseErrors} player entries failed Zod validation and were skipped`);
+    }
 
     const payloadStr = JSON.stringify({ players, fetchedAt: new Date().toISOString() });
     const hash = crypto.createHash("sha256").update(payloadStr).digest("hex");
@@ -66,7 +81,7 @@ export async function fetchProbables(round: number): Promise<GeProbablePlayer[]>
       hash,
     });
 
-    await logCollection("success", `Scraped ${players.length} probable players from GE for round ${round}`);
+    await logCollection("success", `Scraped ${players.length} probable players from GE for round ${round} (${parseErrors} skipped)`);
     return players;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

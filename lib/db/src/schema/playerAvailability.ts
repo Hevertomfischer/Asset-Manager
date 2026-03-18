@@ -11,6 +11,7 @@ export const playerAvailabilityTable = pgTable("player_availability", {
   probableStatus: text("probable_status"),
   playProbability: real("play_probability"),
   expectedMinutes: real("expected_minutes"),
+  riskScore: real("risk_score"),
   injuryStatus: text("injury_status"),
   suspensionStatus: text("suspension_status"),
   note: text("note"),
