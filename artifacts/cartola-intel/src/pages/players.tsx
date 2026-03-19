@@ -256,7 +256,7 @@ export default function Players() {
                               {player.priceVariation > 0
                                 ? <TrendingUp className="w-3 h-3" />
                                 : <TrendingDown className="w-3 h-3" />}
-                              {player.priceVariation > 0 ? '+' : ''}{player.priceVariation.toFixed(2)}
+                              {player.priceVariation > 0 ? '+' : ''}C${player.priceVariation.toFixed(2)}
                             </span>
                           )}
                         </div>

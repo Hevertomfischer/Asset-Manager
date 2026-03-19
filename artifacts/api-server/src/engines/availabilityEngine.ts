@@ -47,10 +47,10 @@ function calculatePlayProbability(
     base = 0.7;
   }
 
-  // If the player is likely to play (Provável) but sat out last round, apply a confidence penalty.
-  // This captures rest/rotation risk not reflected in the official status alone.
-  const isLikelyToPlay = base >= 0.7;
-  if (isLikelyToPlay && playedLastRound === false) {
+  // Apply a confidence penalty only to players explicitly listed as Provável (or confirmed probable
+  // by the GE feed) who sat out last round. This captures rotation/rest risk.
+  const isProvavel = status === PROBABLE_STATUS || isProbable;
+  if (isProvavel && playedLastRound === false) {
     base = Math.max(0, base - PLAYED_LAST_ROUND_PENALTY);
   }
 
