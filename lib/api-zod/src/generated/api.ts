@@ -51,6 +51,24 @@ export const GetPlayersResponse = zod.object({
       status: zod.string().nullish(),
       price: zod.number().nullish(),
       averagePoints: zod.number().nullish(),
+      priceVariation: zod
+        .number()
+        .nullish()
+        .describe(
+          "Price change from last round (variacao_num). Positive = player performed well.",
+        ),
+      playedLastRound: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "Whether the player actually entered the field last round (entrou_em_campo).",
+        ),
+      gamesPlayed: zod
+        .number()
+        .nullish()
+        .describe(
+          "Number of games played this season (jogos_num). Used for confidence scaling.",
+        ),
       club: zod
         .object({
           id: zod.number().optional(),
@@ -126,6 +144,24 @@ export const GetPlayerByIdResponse = zod
     status: zod.string().nullish(),
     price: zod.number().nullish(),
     averagePoints: zod.number().nullish(),
+    priceVariation: zod
+      .number()
+      .nullish()
+      .describe(
+        "Price change from last round (variacao_num). Positive = player performed well.",
+      ),
+    playedLastRound: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "Whether the player actually entered the field last round (entrou_em_campo).",
+      ),
+    gamesPlayed: zod
+      .number()
+      .nullish()
+      .describe(
+        "Number of games played this season (jogos_num). Used for confidence scaling.",
+      ),
     club: zod
       .object({
         id: zod.number().optional(),

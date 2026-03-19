@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle } from "lucide-react";
+import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -247,7 +247,19 @@ export default function Players() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-foreground">
-                        C$ {player.price?.toFixed(2) ?? '-'}
+                        <div className="flex items-center justify-end gap-1">
+                          <span>C$ {player.price?.toFixed(2) ?? '-'}</span>
+                          {player.priceVariation != null && player.priceVariation !== 0 && (
+                            <span className={`flex items-center gap-0.5 text-[10px] font-bold ${
+                              player.priceVariation > 0 ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                              {player.priceVariation > 0
+                                ? <TrendingUp className="w-3 h-3" />
+                                : <TrendingDown className="w-3 h-3" />}
+                              {player.priceVariation > 0 ? '+' : ''}{player.priceVariation.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">
                         {player.averagePoints?.toFixed(1) ?? '-'}

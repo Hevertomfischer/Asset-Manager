@@ -57,6 +57,12 @@ export interface Player {
   status?: string | null;
   price?: number | null;
   averagePoints?: number | null;
+  /** Price change from last round (variacao_num). Positive = player performed well. */
+  priceVariation?: number | null;
+  /** Whether the player actually entered the field last round (entrou_em_campo). */
+  playedLastRound?: boolean | null;
+  /** Number of games played this season (jogos_num). Used for confidence scaling. */
+  gamesPlayed?: number | null;
   club?: Club | null;
   projection?: PlayerProjectionSummary;
   availability?: PlayerAvailabilitySummary;
@@ -85,12 +91,6 @@ export interface ProjectionItem {
   riskScore?: number | null;
   recommendationScore?: number | null;
   valueScore?: number | null;
-  playProbability?: number | null;
-  formScore?: number | null;
-  matchupScore?: number | null;
-  cleanSheetProbability?: number | null;
-  attackParticipationProbability?: number | null;
-  explanationJson?: Record<string, unknown> | null;
   player?: ProjectionItemPlayer;
 }
 
@@ -140,7 +140,6 @@ export const LineupGenerateRequestStrategy = {
   safe: "safe",
   aggressive: "aggressive",
   "cost-benefit": "cost-benefit",
-  antimassa: "antimassa",
 } as const;
 
 export interface LineupGenerateRequest {
@@ -168,9 +167,6 @@ export interface LineupPlayer {
   riskScore?: number | null;
   recommendationScore?: number | null;
   explanation?: LineupPlayerExplanation;
-  clubId?: number | null;
-  clubAbbr?: string | null;
-  clubName?: string | null;
 }
 
 export interface LineupSuggestion {

@@ -17,6 +17,12 @@ export interface Player {
   status?: string | null;
   price?: number | null;
   averagePoints?: number | null;
+  /** Price change from last round (variacao_num). Positive = player performed well. */
+  priceVariation?: number | null;
+  /** Whether the player actually entered the field last round (entrou_em_campo). */
+  playedLastRound?: boolean | null;
+  /** Number of games played this season (jogos_num). Used for confidence scaling. */
+  gamesPlayed?: number | null;
   club?: Club | null;
   projection?: PlayerProjectionSummary;
   availability?: PlayerAvailabilitySummary;

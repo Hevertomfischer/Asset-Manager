@@ -107,6 +107,15 @@ function isAttackerPosition(position: string): boolean {
   return ["ATA", "MEI"].includes(position);
 }
 
+// Confidence scaling for players with few games in their history
+const MIN_GAMES_FULL_CONFIDENCE = 4;
+const LOW_GAMES_FLOOR_WIDENING = 0.15; // extra floor spread per missing game (up to MIN_GAMES)
+const LOW_GAMES_RECOMMENDATION_PENALTY = 3.0; // penalty to recommendationScore per missing game
+
+// Price-variation form multiplier: each cartoleta of variation adjusts expected points by this %
+const PRICE_VARIATION_FACTOR = 0.03; // 3% per C$1.00
+const PRICE_VARIATION_CAP = 0.15;    // capped at ±15%
+
 async function calculateProjection(
   player: Player,
   round: number,
@@ -120,6 +129,8 @@ async function calculateProjection(
   const averagePoints = player.averagePoints ?? 0;
   const price = player.price ?? 1;
   const popularity = (player.popularity ?? 0.5) / 100;
+  const priceVariation = player.priceVariation ?? 0;
+  const gamesPlayed = player.gamesPlayed ?? null;
 
   const { shortAvg, mediumAvg, longAvg, blendedFormScore, volatility } = weightedWindowAverage(longScouts);
 
@@ -137,6 +148,10 @@ async function calculateProjection(
     : averagePoints;
 
   const matchupScore = isHome ? PROJECTION_WEIGHTS.homeAdvantageMultiplier : 1.0;
+
+  // Price-variation form multiplier: a player whose price rose last round was performing well.
+  // Bounded to ±15% to avoid overweighting a single signal.
+  const priceVariationMultiplier = 1 + clamp(priceVariation * PRICE_VARIATION_FACTOR, -PRICE_VARIATION_CAP, PRICE_VARIATION_CAP);
 
   const cleanSheetProbability = isDefensivePosition(player.position)
     ? clamp(0.3 * matchupScore, 0, 0.9)
@@ -158,6 +173,9 @@ async function calculateProjection(
 
   baseExpected = Math.max(0, baseExpected);
 
+  // Apply price-variation multiplier as a form signal on top of the base score
+  baseExpected *= priceVariationMultiplier;
+
   const probMultiplier =
     playProbability >= PROJECTION_WEIGHTS.riskPenalty.mediumThreshold
       ? PROJECTION_WEIGHTS.riskPenalty.highProbability
@@ -171,6 +189,10 @@ async function calculateProjection(
   const isHighVolatility = volatility > vol.highThreshold;
   const isLowVolatility = volatility < vol.lowThreshold;
 
+  // gamesPlayed confidence scaling: widen floor/ceiling for players with few games
+  const missingGames = gamesPlayed !== null ? Math.max(0, MIN_GAMES_FULL_CONFIDENCE - gamesPlayed) : 0;
+  const lowConfidence = missingGames > 0;
+
   const ceilingMultiplier = isHighVolatility
     ? vol.ceilingMultiplierHigh
     : isLowVolatility
@@ -182,7 +204,12 @@ async function calculateProjection(
       ? vol.floorMultiplierLow
       : 0.38;
 
-  const floorPoints = clamp(expectedPoints * floorMultiplier, 0, expectedPoints);
+  // For low-confidence players, widen the spread: lower floor, raise ceiling
+  const adjustedFloorMultiplier = lowConfidence
+    ? Math.max(0, floorMultiplier - missingGames * LOW_GAMES_FLOOR_WIDENING)
+    : floorMultiplier;
+
+  const floorPoints = clamp(expectedPoints * adjustedFloorMultiplier, 0, expectedPoints);
   const ceilingPoints = clamp(expectedPoints * ceilingMultiplier + cleanSheetBonus, expectedPoints, 60);
 
   const formTrend = shortAvg > mediumAvg ? 1.0 : shortAvg > longAvg ? 0.5 : 0.0;
@@ -208,7 +235,8 @@ async function calculateProjection(
     formScore * 0.2 +
     (1 - riskScore) * 5 +
     cleanSheetBonus * 0.3 +
-    formTrend * 2,
+    formTrend * 2 -
+    missingGames * LOW_GAMES_RECOMMENDATION_PENALTY,
     0,
     100
   );
@@ -238,6 +266,11 @@ async function calculateProjection(
     isTrap,
     isHighVolatility,
     isLowVolatility,
+    priceVariation,
+    priceVariationMultiplier: Number(priceVariationMultiplier.toFixed(3)),
+    gamesPlayed,
+    lowConfidence,
+    missingGames,
   };
 
   return {

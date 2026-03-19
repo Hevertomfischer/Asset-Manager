@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { clubsTable } from "./clubs";
@@ -15,6 +15,9 @@ export const playersTable = pgTable("players", {
   price: real("price"),
   averagePoints: real("average_points"),
   popularity: real("popularity"),
+  priceVariation: real("price_variation"),
+  playedLastRound: boolean("played_last_round"),
+  gamesPlayed: integer("games_played"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

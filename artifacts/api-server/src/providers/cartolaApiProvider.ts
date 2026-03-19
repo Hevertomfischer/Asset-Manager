@@ -27,6 +27,8 @@ const CartolaAtletaSchema = z.object({
   media_num: z.number().optional(),
   pontos_num: z.number().optional(),
   variacao_num: z.number().optional(),
+  entrou_em_campo: z.boolean().optional(),
+  jogos_num: z.number().optional(),
   minimo_para_valorizar: z.number().optional(),
   foto: z.string().optional(),
 });
@@ -90,6 +92,9 @@ export type CartolaPlayer = {
   price: number | null;
   averagePoints: number | null;
   popularity: number | null;
+  priceVariation: number | null;
+  playedLastRound: boolean | null;
+  gamesPlayed: number | null;
 };
 
 export type CartolaRound = {
@@ -166,6 +171,9 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     price: atleta.preco_num ?? null,
     averagePoints: atleta.media_num ?? null,
     popularity: null,
+    priceVariation: atleta.variacao_num ?? null,
+    playedLastRound: atleta.entrou_em_campo ?? null,
+    gamesPlayed: atleta.jogos_num ?? null,
   }));
 
   return {
@@ -220,6 +228,9 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
       price: atleta.preco_num ?? null,
       averagePoints: atleta.media_num ?? null,
       popularity: null,
+      priceVariation: atleta.variacao_num ?? null,
+      playedLastRound: atleta.entrou_em_campo ?? null,
+      gamesPlayed: atleta.jogos_num ?? null,
     }));
 
     const roundData: CartolaRound = {

@@ -440,6 +440,18 @@ components:
         averagePoints:
           type: number
           nullable: true
+        priceVariation:
+          type: number
+          nullable: true
+          description: Price change from last round (variacao_num). Positive = player performed well.
+        playedLastRound:
+          type: boolean
+          nullable: true
+          description: Whether the player actually entered the field last round (entrou_em_campo).
+        gamesPlayed:
+          type: integer
+          nullable: true
+          description: Number of games played this season (jogos_num). Used for confidence scaling.
         club:
           $ref: "#/components/schemas/Club"
           nullable: true

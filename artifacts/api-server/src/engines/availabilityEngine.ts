@@ -18,24 +18,43 @@ function normalizePlayerName(name: string): string {
     .trim();
 }
 
+const PLAYED_LAST_ROUND_PENALTY = 0.10;
+
 function calculatePlayProbability(
   status: string | null,
   isProbable: boolean,
-  cartolaStatusRecord: PlayerStatusRecord | null
+  cartolaStatusRecord: PlayerStatusRecord | null,
+  playedLastRound: boolean | null
 ): number {
+  let base: number;
+
   if (cartolaStatusRecord !== null) {
     const p = cartolaStatusRecord.playProbability;
-    if (cartolaStatusRecord.statusId === 2 && isProbable) return Math.max(p, 0.55);
-    return p;
+    base = cartolaStatusRecord.statusId === 2 && isProbable ? Math.max(p, 0.55) : p;
+  } else if (status === INJURY_STATUS) {
+    base = 0.05;
+  } else if (status === SUSPENSION_STATUS) {
+    base = 0.02;
+  } else if (status === NULL_STATUS) {
+    base = 0.0;
+  } else if (status === DOUBT_STATUS) {
+    base = isProbable ? 0.6 : 0.3;
+  } else if (isProbable) {
+    base = 0.9;
+  } else if (status === PROBABLE_STATUS) {
+    base = 0.88;
+  } else {
+    base = 0.7;
   }
 
-  if (status === INJURY_STATUS) return 0.05;
-  if (status === SUSPENSION_STATUS) return 0.02;
-  if (status === NULL_STATUS) return 0.0;
-  if (status === DOUBT_STATUS) return isProbable ? 0.6 : 0.3;
-  if (isProbable) return 0.9;
-  if (status === PROBABLE_STATUS) return 0.88;
-  return 0.7;
+  // If the player is likely to play (Provável) but sat out last round, apply a confidence penalty.
+  // This captures rest/rotation risk not reflected in the official status alone.
+  const isLikelyToPlay = base >= 0.7;
+  if (isLikelyToPlay && playedLastRound === false) {
+    base = Math.max(0, base - PLAYED_LAST_ROUND_PENALTY);
+  }
+
+  return base;
 }
 
 function calculateExpectedMinutes(playProbability: number, recentAvgMinutes: number): number {
@@ -86,7 +105,7 @@ export async function runAvailabilityEngine(
         : 0;
 
     const effectiveStatus = cartolaStatusRecord?.statusLabel ?? player.status;
-    const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord);
+    const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null);
     const expectedMinutes = calculateExpectedMinutes(playProbability, recentAvgMinutes);
     const riskScore = calculateRiskScore(playProbability, effectiveStatus);
 
@@ -130,7 +149,7 @@ export function getPlayerAvailabilitySync(
     ? (cartolaStatusMap.get(player.externalId) ?? null)
     : null;
   const effectiveStatus = cartolaStatusRecord?.statusLabel ?? player.status;
-  const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord);
+  const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null);
   const expectedMinutes = calculateExpectedMinutes(playProbability, 75);
   const riskScore = calculateRiskScore(playProbability, effectiveStatus);
   return { playProbability, expectedMinutes, riskScore };
