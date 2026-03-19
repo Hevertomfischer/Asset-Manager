@@ -108,6 +108,7 @@ All providers: fetch → Zod validation → transform → snapshot save → upse
 
 - **availabilityEngine**: Calculates `playProbability`, `expectedMinutes`, `riskScore` per player based on status, probable lists, injury/suspension, recent minutes. Enriched by `cartolaStatusProvider` for structured availability data.
 - **projectionEngine**: Multi-window form scoring (3/5/8 rounds weighted 40/35/25%), volatility (std deviation), position-specific scout re-scoring (GOL: saves/CS, ZAG: tackles/CS, LAT: assists/tackles, MEI: goals+assists, ATA: goals+shots). Outputs `expectedPoints`, `floorPoints`, `ceilingPoints`, `riskScore`, `formScore`, `valueScore`, `differentialScore`, `isTrap`, `recommendationScore`.
+- **matchupScore** is data-driven: base home/away factor + momentum bonus from `aproveitamento` form array (V=+0.03, E=+0.01 per game, max +0.15) + opponent defensive weakness bonus (+0.05 if opponent `defensiveStrength < 0.4`).
 
 ## Lineup Optimizer
 

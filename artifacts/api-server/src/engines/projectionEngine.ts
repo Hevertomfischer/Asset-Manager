@@ -5,7 +5,7 @@ import {
   getAvailabilityByRound,
   upsertProjection,
 } from "../repositories/projectionRepository";
-import { getMatchesByRound } from "../repositories/matchRepository";
+import { getMatchesByRound, getClubStrengthFromMatches, type ClubStrength } from "../repositories/matchRepository";
 import type { Player, PlayerScoutRound } from "@workspace/db/schema";
 
 interface ProjectionResult {
@@ -116,12 +116,42 @@ const LOW_GAMES_RECOMMENDATION_PENALTY = 3.0; // penalty to recommendationScore 
 const PRICE_VARIATION_FACTOR = 0.03; // 3% per C$1.00
 const PRICE_VARIATION_CAP = 0.15;    // capped at ±15%
 
+/**
+ * Compute matchupScore from home/away advantage, club momentum (form array), and opponent defensive weakness.
+ * Form array entries: "v"=win, "e"=draw, "d"=loss.
+ */
+function computeMatchupScore(
+  isHome: boolean,
+  clubForm: string[] | null,
+  opponentStrength: ClubStrength | null
+): number {
+  const base = isHome ? PROJECTION_WEIGHTS.homeAdvantageMultiplier : 1.0;
+
+  let momentumBonus = 0;
+  if (clubForm && clubForm.length > 0) {
+    for (const result of clubForm.slice(0, 5)) {
+      if (result === "v") momentumBonus += 0.03;
+      else if (result === "e") momentumBonus += 0.01;
+    }
+    momentumBonus = Math.min(momentumBonus, 0.15);
+  }
+
+  let opponentWeaknessBonus = 0;
+  if (opponentStrength && opponentStrength.matchesAnalyzed > 0) {
+    if (opponentStrength.defensiveStrength < 0.4) opponentWeaknessBonus = 0.05;
+  }
+
+  return base + momentumBonus + opponentWeaknessBonus;
+}
+
 async function calculateProjection(
   player: Player,
   round: number,
   playProbability: number,
   expectedMinutes: number,
-  isHome: boolean
+  isHome: boolean,
+  clubForm: string[] | null,
+  opponentStrength: ClubStrength | null
 ): Promise<ProjectionResult> {
   const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
   const allScouts = await getScoutsByPlayer(player.id, 20);
@@ -147,7 +177,7 @@ async function calculateProjection(
     ? posAdjustedForm > 0 ? (blendedFormScore * 0.6 + posAdjustedForm * 0.4) : blendedFormScore
     : averagePoints;
 
-  const matchupScore = isHome ? PROJECTION_WEIGHTS.homeAdvantageMultiplier : 1.0;
+  const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength);
 
   // Price-variation form multiplier: a player whose price rose last round was performing well.
   // Bounded to ±15% to avoid overweighting a single signal.
@@ -298,6 +328,29 @@ export async function runProjectionEngine(round: number): Promise<void> {
   const availMap = new Map(availabilities.map((a) => [a.playerId, a]));
   const homeClubIds = new Set(matches.map((m) => m.homeClubId).filter(Boolean) as number[]);
 
+  const clubFormMap = new Map<number, string[]>();
+  const clubOpponentMap = new Map<number, number>();
+
+  for (const match of matches) {
+    if (match.homeClubId) {
+      if (match.homeForm) clubFormMap.set(match.homeClubId, match.homeForm);
+      if (match.awayClubId) clubOpponentMap.set(match.homeClubId, match.awayClubId);
+    }
+    if (match.awayClubId) {
+      if (match.awayForm) clubFormMap.set(match.awayClubId, match.awayForm);
+      if (match.homeClubId) clubOpponentMap.set(match.awayClubId, match.homeClubId);
+    }
+  }
+
+  const uniqueOpponentIds = [...new Set(clubOpponentMap.values())];
+  const opponentStrengthMap = new Map<number, ClubStrength>();
+  await Promise.all(
+    uniqueOpponentIds.map(async (opponentId) => {
+      const strength = await getClubStrengthFromMatches(opponentId, round);
+      opponentStrengthMap.set(opponentId, strength);
+    })
+  );
+
   let processed = 0;
   for (const player of players) {
     const avail = availMap.get(player.id);
@@ -305,7 +358,11 @@ export async function runProjectionEngine(round: number): Promise<void> {
     const expectedMinutes = avail?.expectedMinutes ?? 75;
     const isHome = player.clubId != null ? homeClubIds.has(player.clubId) : false;
 
-    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome);
+    const clubForm = player.clubId != null ? (clubFormMap.get(player.clubId) ?? null) : null;
+    const opponentId = player.clubId != null ? (clubOpponentMap.get(player.clubId) ?? null) : null;
+    const opponentStrength = opponentId != null ? (opponentStrengthMap.get(opponentId) ?? null) : null;
+
+    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength);
 
     await upsertProjection({
       playerId: player.id,

@@ -3,90 +3,10 @@ import axios from "axios";
 import { db } from "@workspace/db";
 import { matchesTable, clubsTable, playerScoutRoundTable, playersTable } from "@workspace/db/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { upsertMatch } from "../repositories/matchRepository";
-import { findClubByExternalId, upsertClub } from "../repositories/clubRepository";
+import { getClubStrengthFromMatches } from "../repositories/matchRepository";
+import { syncMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
 
 const router = Router();
-
-interface CartolaClube {
-  id: number;
-  nome: string;
-  abreviacao: string;
-  nome_fantasia?: string;
-  escudos?: { "60x60"?: string; "45x45"?: string; "30x30"?: string };
-}
-
-interface CartolaPartida {
-  partida_id: number;
-  clube_casa_id: number;
-  clube_visitante_id: number;
-  local?: string;
-  partida_data?: string;
-  placar_oficial_mandante?: number | null;
-  placar_oficial_visitante?: number | null;
-  periodo_tr?: string;
-  valida?: boolean;
-}
-
-interface CartolaPartidasResponse {
-  rodada: number;
-  clubes: Record<string, CartolaClube>;
-  partidas: CartolaPartida[];
-}
-
-async function syncMatchesFromCartolaApi(round: number): Promise<void> {
-  const res = await axios.get<CartolaPartidasResponse>("https://api.cartola.globo.com/partidas", { timeout: 15000 });
-  const { partidas, clubes } = res.data;
-
-  if (!Array.isArray(partidas) || partidas.length === 0) return;
-
-  for (const partida of partidas) {
-    const casaInfo = clubes[String(partida.clube_casa_id)];
-    const visitanteInfo = clubes[String(partida.clube_visitante_id)];
-
-    const [homeClubDb, awayClubDb] = await Promise.all([
-      (async () => {
-        let c = await findClubByExternalId("cartola_api", String(partida.clube_casa_id));
-        if (!c && casaInfo) {
-          c = await upsertClub({
-            externalSource: "cartola_api",
-            externalId: String(casaInfo.id),
-            name: casaInfo.nome_fantasia ?? casaInfo.nome,
-            shortName: casaInfo.nome,
-            abbreviation: casaInfo.abreviacao,
-            badgeUrl: casaInfo.escudos?.["60x60"] ?? null,
-          });
-        }
-        return c;
-      })(),
-      (async () => {
-        let c = await findClubByExternalId("cartola_api", String(partida.clube_visitante_id));
-        if (!c && visitanteInfo) {
-          c = await upsertClub({
-            externalSource: "cartola_api",
-            externalId: String(visitanteInfo.id),
-            name: visitanteInfo.nome_fantasia ?? visitanteInfo.nome,
-            shortName: visitanteInfo.nome,
-            abbreviation: visitanteInfo.abreviacao,
-            badgeUrl: visitanteInfo.escudos?.["60x60"] ?? null,
-          });
-        }
-        return c;
-      })(),
-    ]);
-
-    await upsertMatch({
-      externalSource: "cartola_api",
-      externalId: String(partida.partida_id),
-      round,
-      homeClubId: homeClubDb?.id ?? null,
-      awayClubId: awayClubDb?.id ?? null,
-      matchDate: partida.partida_data ? new Date(partida.partida_data) : null,
-      stadium: partida.local ?? null,
-      status: null,
-    });
-  }
-}
 
 router.get("/matches/current", async (_req, res) => {
   try {
@@ -179,76 +99,35 @@ router.get("/matches/confrontos", async (_req, res) => {
     }
 
     const RECENT_ROUNDS = 5;
-    async function getClubStats(clubId: number): Promise<{
-      avgGoalsScored: number;
-      avgGoalsConceded: number;
-      avgPointsGenerated: number;
-      offensiveStrength: number;
-      defensiveStrength: number;
-      bestPositions: string[];
-    }> {
+
+    async function getBestPositions(clubId: number): Promise<string[]> {
       const clubPlayers = playersByClub.get(clubId) ?? [];
-      if (clubPlayers.length === 0) {
-        return { avgGoalsScored: 0, avgGoalsConceded: 0, avgPointsGenerated: 0, offensiveStrength: 0.5, defensiveStrength: 0.5, bestPositions: [] };
-      }
+      if (clubPlayers.length === 0) return [];
 
-      const playerIds = clubPlayers.map((p) => p.id);
       const recentRoundMin = Math.max(1, round - RECENT_ROUNDS);
+      const positionPoints: Record<string, number[]> = {};
 
-      const scouts: Array<{ points: number | null; goals: number | null; goalsConceded: number | null; position: string }> = [];
-      for (const playerId of playerIds) {
+      for (const player of clubPlayers) {
         const playerScouts = await db
           .select()
           .from(playerScoutRoundTable)
-          .where(
-            and(
-              eq(playerScoutRoundTable.playerId, playerId)
-            )
-          )
+          .where(and(eq(playerScoutRoundTable.playerId, player.id)))
           .orderBy(desc(playerScoutRoundTable.round))
           .limit(RECENT_ROUNDS);
 
-        const player = allPlayers.find((p) => p.id === playerId);
         for (const s of playerScouts) {
           if (s.round >= recentRoundMin) {
-            scouts.push({
-              points: s.points,
-              goals: s.goals,
-              goalsConceded: s.goalsConceded,
-              position: player?.position ?? "MEI",
-            });
+            if (!positionPoints[player.position]) positionPoints[player.position] = [];
+            positionPoints[player.position]!.push(s.points ?? 0);
           }
         }
       }
 
-      if (scouts.length === 0) {
-        return { avgGoalsScored: 0, avgGoalsConceded: 0, avgPointsGenerated: 0, offensiveStrength: 0.5, defensiveStrength: 0.5, bestPositions: [] };
-      }
-
-      const totalGoals = scouts.reduce((s, r) => s + (r.goals ?? 0), 0);
-      const totalConceded = scouts.reduce((s, r) => s + (r.goalsConceded ?? 0), 0);
-      const totalPoints = scouts.reduce((s, r) => s + (r.points ?? 0), 0);
-      const roundsPlayed = RECENT_ROUNDS;
-
-      const avgGoalsScored = totalGoals / roundsPlayed;
-      const avgGoalsConceded = totalConceded / roundsPlayed;
-      const avgPointsGenerated = totalPoints / Math.max(scouts.length, 1);
-
-      const positionPoints: Record<string, number[]> = {};
-      for (const s of scouts) {
-        if (!positionPoints[s.position]) positionPoints[s.position] = [];
-        positionPoints[s.position]!.push(s.points ?? 0);
-      }
-      const posAvg = Object.entries(positionPoints).map(([pos, pts]) => ({
-        pos,
-        avg: pts.reduce((a, b) => a + b, 0) / pts.length,
-      })).sort((a, b) => b.avg - a.avg);
-      const bestPositions = posAvg.slice(0, 2).map((p) => p.pos);
-
-      const offensiveStrength = Math.min(1, avgGoalsScored / 2.5);
-      const defensiveStrength = Math.max(0, 1 - avgGoalsConceded / 2.5);
-
-      return { avgGoalsScored, avgGoalsConceded, avgPointsGenerated, offensiveStrength, defensiveStrength, bestPositions };
+      return Object.entries(positionPoints)
+        .map(([pos, pts]) => ({ pos, avg: pts.reduce((a, b) => a + b, 0) / pts.length }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 2)
+        .map((p) => p.pos);
     }
 
     type DifficultyLevel = "fácil" | "médio" | "difícil";
@@ -258,11 +137,18 @@ router.get("/matches/confrontos", async (_req, res) => {
         const homeClub = match.homeClubId ? clubMap.get(match.homeClubId) ?? null : null;
         const awayClub = match.awayClubId ? clubMap.get(match.awayClubId) ?? null : null;
 
-        const homeStats = match.homeClubId ? await getClubStats(match.homeClubId) : null;
-        const awayStats = match.awayClubId ? await getClubStats(match.awayClubId) : null;
+        const [homeStrength, awayStrength, homeBestPositions, awayBestPositions] = await Promise.all([
+          match.homeClubId ? getClubStrengthFromMatches(match.homeClubId, round) : null,
+          match.awayClubId ? getClubStrengthFromMatches(match.awayClubId, round) : null,
+          match.homeClubId ? getBestPositions(match.homeClubId) : Promise.resolve([]),
+          match.awayClubId ? getBestPositions(match.awayClubId) : Promise.resolve([]),
+        ]);
 
-        const homeGoalExpectation = ((homeStats?.offensiveStrength ?? 0.5) + (1 - (awayStats?.defensiveStrength ?? 0.5))) / 2;
-        const awayGoalExpectation = ((awayStats?.offensiveStrength ?? 0.5) + (1 - (homeStats?.defensiveStrength ?? 0.5))) / 2;
+        const homeStats = homeStrength ?? { avgGoalsScored: 0, avgGoalsConceded: 0, offensiveStrength: 0.5, defensiveStrength: 0.5 };
+        const awayStats = awayStrength ?? { avgGoalsScored: 0, avgGoalsConceded: 0, offensiveStrength: 0.5, defensiveStrength: 0.5 };
+
+        const homeGoalExpectation = (homeStats.offensiveStrength + (1 - awayStats.defensiveStrength)) / 2;
+        const awayGoalExpectation = (awayStats.offensiveStrength + (1 - homeStats.defensiveStrength)) / 2;
 
         const homeDifficulty: DifficultyLevel =
           awayGoalExpectation > 0.6 ? "difícil" : awayGoalExpectation > 0.35 ? "médio" : "fácil";
@@ -270,48 +156,38 @@ router.get("/matches/confrontos", async (_req, res) => {
           homeGoalExpectation > 0.6 ? "difícil" : homeGoalExpectation > 0.35 ? "médio" : "fácil";
 
         const recommendedPositionsHome: string[] = [];
-        if (homeStats && homeStats.offensiveStrength > 0.5) {
-          recommendedPositionsHome.push("ATA", "MEI");
-        }
-        if (awayStats && awayStats.defensiveStrength < 0.4) {
-          if (!recommendedPositionsHome.includes("ATA")) recommendedPositionsHome.push("ATA");
-        }
-        if (homeStats && homeStats.defensiveStrength > 0.6) {
-          recommendedPositionsHome.push("GOL", "ZAG");
-        }
+        if (homeStats.offensiveStrength > 0.5) recommendedPositionsHome.push("ATA", "MEI");
+        if (awayStats.defensiveStrength < 0.4 && !recommendedPositionsHome.includes("ATA")) recommendedPositionsHome.push("ATA");
+        if (homeStats.defensiveStrength > 0.6) recommendedPositionsHome.push("GOL", "ZAG");
 
         const recommendedPositionsAway: string[] = [];
-        if (awayStats && awayStats.offensiveStrength > 0.5) {
-          recommendedPositionsAway.push("ATA", "MEI");
-        }
-        if (homeStats && homeStats.defensiveStrength < 0.4) {
-          if (!recommendedPositionsAway.includes("ATA")) recommendedPositionsAway.push("ATA");
-        }
-        if (awayStats && awayStats.defensiveStrength > 0.6) {
-          recommendedPositionsAway.push("GOL", "ZAG");
-        }
+        if (awayStats.offensiveStrength > 0.5) recommendedPositionsAway.push("ATA", "MEI");
+        if (homeStats.defensiveStrength < 0.4 && !recommendedPositionsAway.includes("ATA")) recommendedPositionsAway.push("ATA");
+        if (awayStats.defensiveStrength > 0.6) recommendedPositionsAway.push("GOL", "ZAG");
 
         return {
           matchId: match.id,
           round,
           matchDate: match.matchDate,
           stadium: match.stadium,
+          homeForm: match.homeForm ?? null,
+          awayForm: match.awayForm ?? null,
           homeClub: homeClub ? { id: homeClub.id, name: homeClub.name, abbreviation: homeClub.abbreviation, badgeUrl: homeClub.badgeUrl } : null,
           awayClub: awayClub ? { id: awayClub.id, name: awayClub.name, abbreviation: awayClub.abbreviation, badgeUrl: awayClub.badgeUrl } : null,
-          homeStats: homeStats ? {
+          homeStats: {
             offensiveStrength: Number(homeStats.offensiveStrength.toFixed(2)),
             defensiveStrength: Number(homeStats.defensiveStrength.toFixed(2)),
             avgGoalsScored: Number(homeStats.avgGoalsScored.toFixed(2)),
             avgGoalsConceded: Number(homeStats.avgGoalsConceded.toFixed(2)),
-            bestPositions: homeStats.bestPositions,
-          } : null,
-          awayStats: awayStats ? {
+            bestPositions: homeBestPositions,
+          },
+          awayStats: {
             offensiveStrength: Number(awayStats.offensiveStrength.toFixed(2)),
             defensiveStrength: Number(awayStats.defensiveStrength.toFixed(2)),
             avgGoalsScored: Number(awayStats.avgGoalsScored.toFixed(2)),
             avgGoalsConceded: Number(awayStats.avgGoalsConceded.toFixed(2)),
-            bestPositions: awayStats.bestPositions,
-          } : null,
+            bestPositions: awayBestPositions,
+          },
           homeGoalExpectation: Number(homeGoalExpectation.toFixed(2)),
           awayGoalExpectation: Number(awayGoalExpectation.toFixed(2)),
           homeDifficulty,

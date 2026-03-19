@@ -28,6 +28,8 @@ interface Confronto {
   awayClub: ClubInfo | null;
   homeStats: ClubStats | null;
   awayStats: ClubStats | null;
+  homeForm: string[] | null;
+  awayForm: string[] | null;
   homeGoalExpectation: number;
   awayGoalExpectation: number;
   homeDifficulty: "fácil" | "médio" | "difícil";
@@ -61,6 +63,30 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
           style={{ width: `${pct}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function FormStrip({ form }: { form: string[] | null }) {
+  if (!form || form.length === 0) return <span className="text-[10px] text-muted-foreground/50">—</span>;
+  return (
+    <div className="flex items-center gap-0.5">
+      {form.slice(0, 5).map((result, i) => {
+        const dotStyle =
+          result === "v"
+            ? "bg-green-500 border-green-600"
+            : result === "e"
+            ? "bg-yellow-500 border-yellow-600"
+            : "bg-red-500 border-red-600";
+        const title = result === "v" ? "Vitória" : result === "e" ? "Empate" : "Derrota";
+        return (
+          <span
+            key={i}
+            title={title}
+            className={`w-2.5 h-2.5 rounded-full border ${dotStyle} shrink-0`}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -130,6 +156,10 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               </span>
               <DifficultyBadge level={c.awayDifficulty} />
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
+              <FormStrip form={c.homeForm} />
+            </div>
             {c.homeStats && (
               <div className="space-y-2">
                 <StrengthBar value={c.homeStats.offensiveStrength} label="Ataque" color="bg-red-500" />
@@ -165,6 +195,10 @@ function ConfrontoCard({ c }: { c: Confronto }) {
                 {c.awayClub?.abbreviation ?? c.awayClub?.name}
               </span>
               <DifficultyBadge level={c.homeDifficulty} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
+              <FormStrip form={c.awayForm} />
             </div>
             {c.awayStats && (
               <div className="space-y-2">
@@ -278,10 +312,10 @@ export default function Confrontos() {
         </Card>
       ) : (
         <>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card border border-border/50 rounded-2xl p-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground bg-card border border-border/50 rounded-2xl p-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              <span><span className="font-semibold text-green-500">Fácil</span> — adversário fraco, boa oportunidade</span>
+              <span><span className="font-semibold text-green-500">Fácil</span> — adversário fraco</span>
             </div>
             <div className="flex items-center gap-2">
               <Minus className="w-4 h-4 text-yellow-500" />
@@ -289,7 +323,15 @@ export default function Confrontos() {
             </div>
             <div className="flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-red-500" />
-              <span><span className="font-semibold text-red-500">Difícil</span> — adversário forte, cautela</span>
+              <span><span className="font-semibold text-red-500">Difícil</span> — adversário forte</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-600" />
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
+              </div>
+              <span>Forma: <span className="text-green-500">V</span> / <span className="text-yellow-500">E</span> / <span className="text-red-500">D</span> (últimos 5 jogos)</span>
             </div>
           </div>
 

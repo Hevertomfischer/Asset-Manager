@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { clubsTable } from "./clubs";
@@ -13,6 +13,10 @@ export const matchesTable = pgTable("matches", {
   matchDate: timestamp("match_date"),
   stadium: text("stadium"),
   status: text("status"),
+  homeScore: integer("home_score"),
+  awayScore: integer("away_score"),
+  homeForm: json("home_form").$type<string[]>(),
+  awayForm: json("away_form").$type<string[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -8,7 +8,7 @@ import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
 import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
 import { upsertPlayer, findPlayerByExternalId } from "../repositories/playerRepository";
-import { upsertMatch } from "../repositories/matchRepository";
+import { syncMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
 import {
   insertScoutRound,
   getScoutsByRound,
@@ -178,47 +178,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     await logETL("etl", "scouts", "degraded", msg);
   }
 
-  // === Step 3: Fetch matches from Cartola rounds API ===
+  // === Step 3: Fetch matches from Cartola /partidas API ===
   try {
-    const matchesRes = await axios.get(`https://api.cartola.globo.com/rodadas`, { timeout: 10000 });
-    const roundData = Array.isArray(matchesRes.data)
-      ? (matchesRes.data as Array<{ rodada_id?: number; partidas?: unknown[] }>).find(
-          (r) => r.rodada_id === round
-        )
-      : null;
-
-    if (roundData?.partidas) {
-      await saveSnapshot(round, "cartola_api_matches", { partidas: roundData.partidas });
-
-      for (const partida of roundData.partidas as Array<{
-        partida_id?: number;
-        clube_casa_id?: number;
-        clube_visitante_id?: number;
-        partida_data?: string;
-        local?: string;
-        status?: string;
-      }>) {
-        try {
-          const homeClub = await findClubByExternalId("cartola_api", String(partida.clube_casa_id ?? ""));
-          const awayClub = await findClubByExternalId("cartola_api", String(partida.clube_visitante_id ?? ""));
-
-          await upsertMatch({
-            externalSource: "cartola_api",
-            externalId: String(partida.partida_id ?? Math.random()),
-            round,
-            homeClubId: homeClub?.id ?? null,
-            awayClubId: awayClub?.id ?? null,
-            matchDate: partida.partida_data ? new Date(partida.partida_data) : null,
-            stadium: partida.local ?? null,
-            status: partida.status ?? null,
-          });
-          matchesUpserted++;
-        } catch {
-          // ignore individual match failures
-        }
-      }
-    }
-
+    matchesUpserted = await syncMatchesFromCartolaApi(round);
     await logETL("etl", "matches", "success", `Upserted ${matchesUpserted} matches for round ${round}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
