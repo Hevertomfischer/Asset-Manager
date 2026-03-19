@@ -34,7 +34,8 @@ const BASE_URL = "https://api.cartola.globo.com";
 
 export async function syncMatchesFromCartolaApi(round: number): Promise<number> {
   const res = await axios.get<CartolaPartidasResponse>(`${BASE_URL}/partidas`, { timeout: 15000 });
-  return syncPartidasResponse(res.data, round);
+  const effectiveRound = res.data.rodada ?? round;
+  return syncPartidasResponse(res.data, effectiveRound);
 }
 
 export async function syncHistoricalMatchesFromCartolaApi(round: number): Promise<number> {

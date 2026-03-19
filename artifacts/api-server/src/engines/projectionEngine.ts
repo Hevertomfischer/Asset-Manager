@@ -138,7 +138,9 @@ function computeMatchupScore(
 
   let opponentWeaknessBonus = 0;
   if (opponentStrength && opponentStrength.matchesAnalyzed > 0) {
-    if (opponentStrength.defensiveStrength < 0.4) opponentWeaknessBonus = 0.05;
+    // Continuous: bonus when opponent is weak (defensiveStrength < 0.5), penalty when strong (> 0.7)
+    // Maps [0 → +0.08, 0.5 → 0, 1.0 → -0.08], clamped to [-0.08, +0.08]
+    opponentWeaknessBonus = clamp((0.5 - opponentStrength.defensiveStrength) * 0.16, -0.08, 0.08);
   }
 
   return base + momentumBonus + opponentWeaknessBonus;
