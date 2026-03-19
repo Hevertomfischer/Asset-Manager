@@ -8,7 +8,7 @@ import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
 import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
 import { upsertPlayer, findPlayerByExternalId } from "../repositories/playerRepository";
-import { syncMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
+import { syncMatchesFromCartolaApi, syncHistoricalMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
 import {
   insertScoutRound,
   getScoutsByRound,
@@ -262,6 +262,16 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
 }
 
 export async function syncHistoricalRound(round: number): Promise<void> {
+  // Always sync historical match results (scores + form) for this round —
+  // this feeds getClubStrengthFromMatches and matchupScore in the projection engine.
+  try {
+    const matchesUpserted = await syncHistoricalMatchesFromCartolaApi(round);
+    console.log(`[ETL] Synced ${matchesUpserted} historical match records for round ${round}`);
+  } catch (error) {
+    console.warn(`[ETL] Historical match sync degraded for round ${round}:`, error instanceof Error ? error.message : error);
+    // Non-fatal: continue to player scout sync
+  }
+
   try {
     const scouts = await fetchHistoricalRound(round);
     const existing = await getScoutsByRound(round);
@@ -305,7 +315,7 @@ export async function syncHistoricalRound(round: number): Promise<void> {
 
     console.log(`[ETL] Saved ${scouts.length} historical scouts for round ${round}`);
   } catch (error) {
-    console.error(`[ETL] Historical sync failed for round ${round}:`, error);
+    console.error(`[ETL] Historical scout sync failed for round ${round}:`, error);
     throw error;
   }
 }
