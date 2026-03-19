@@ -154,7 +154,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {c.homeClub?.abbreviation ?? c.homeClub?.name}
               </span>
-              <DifficultyBadge level={c.awayDifficulty} />
+              <DifficultyBadge level={c.homeDifficulty} />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
@@ -194,7 +194,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {c.awayClub?.abbreviation ?? c.awayClub?.name}
               </span>
-              <DifficultyBadge level={c.homeDifficulty} />
+              <DifficultyBadge level={c.awayDifficulty} />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
