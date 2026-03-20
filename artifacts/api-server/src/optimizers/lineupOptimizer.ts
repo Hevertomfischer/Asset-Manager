@@ -175,14 +175,22 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const clubCount = new Map<number, number>();
   let totalCost = 0;
 
-  const minCostByPosition = new Map<string, number>();
-  for (const { position } of slotRequirements) {
-    const cheapest = playerProjections
-      .filter((pw) => pw.player.position === position && (pw.projection.playProbability ?? 0) > 0.1)
+  // Returns the actual minimum cost to fill N slots at a given position,
+  // excluding already-selected player IDs. Uses the sum of the N cheapest
+  // players (not cheapest × N, which underestimates when supply is scarce).
+  const getMinSumForNSlots = (position: string, n: number, excludeIds: Set<number>): number => {
+    return playerProjections
+      .filter(
+        (pw) =>
+          pw.player.position === position &&
+          !excludeIds.has(pw.player.id) &&
+          (pw.projection.playProbability ?? 0) > 0.1
+      )
       .map((pw) => pw.player.price ?? 0)
-      .sort((a, b) => a - b)[0] ?? 0;
-    minCostByPosition.set(position, cheapest);
-  }
+      .sort((a, b) => a - b)
+      .slice(0, n)
+      .reduce((sum, p) => sum + p, 0);
+  };
 
   for (let slotIdx = 0; slotIdx < slotRequirements.length; slotIdx++) {
     const { position, count } = slotRequirements[slotIdx]!;
@@ -200,19 +208,26 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       );
     });
 
-    let futureMinCost = 0;
-    for (let futureIdx = slotIdx + 1; futureIdx < slotRequirements.length; futureIdx++) {
-      const future = slotRequirements[futureIdx]!;
-      futureMinCost += (minCostByPosition.get(future.position) ?? 0) * future.count;
-    }
-
     let filled = 0;
     for (const candidate of candidates) {
       if (filled >= count) break;
       const price = candidate.player.price ?? 0;
 
+      const excludeIds = new Set(selected.map((s) => s.player.id));
+      excludeIds.add(candidate.player.id);
+
+      // Reserve the actual minimum cost to fill all future positions
+      let futureMinCost = 0;
+      for (let futureIdx = slotIdx + 1; futureIdx < slotRequirements.length; futureIdx++) {
+        const future = slotRequirements[futureIdx]!;
+        futureMinCost += getMinSumForNSlots(future.position, future.count, excludeIds);
+      }
+
+      // Also reserve for remaining slots at the current position (after this one)
       const currentPositionRemaining = count - filled - 1;
-      const minCostCurrentPosition = (minCostByPosition.get(position) ?? 0) * currentPositionRemaining;
+      const minCostCurrentPosition = currentPositionRemaining > 0
+        ? getMinSumForNSlots(position, currentPositionRemaining, excludeIds)
+        : 0;
 
       const remainingBudget = budgetLimit - totalCost;
       const reserveNeeded = futureMinCost + minCostCurrentPosition;

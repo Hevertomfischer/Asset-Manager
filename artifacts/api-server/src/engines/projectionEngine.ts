@@ -179,13 +179,33 @@ async function calculateProjection(
     player.position
   );
 
-  const overallScore = allScouts.length > 0
-    ? allScouts.reduce((sum, s) => sum + (s.points ?? 0), 0) / allScouts.length
-    : averagePoints;
+  // Confidence-weighted blend: how much to trust scout data vs. the API averagePoints.
+  // Scouts with 0 points (player didn't play / data missing) don't count toward confidence.
+  // Full confidence requires 4+ non-zero overall rounds, 3+ non-zero recent rounds.
+  const nonZeroAllScouts = allScouts.filter(s => (s.points ?? 0) > 0).length;
+  const nonZeroFormScouts = longScouts.filter(s => (s.points ?? 0) > 0).length;
+  const overallConfidence = Math.min(1, nonZeroAllScouts / 4);
+  const formConfidence = Math.min(1, nonZeroFormScouts / 3);
 
-  const formScore = longScouts.length > 0
-    ? posAdjustedForm > 0 ? (blendedFormScore * 0.6 + posAdjustedForm * 0.4) : blendedFormScore
-    : averagePoints;
+  const rawScoutOverall = allScouts.length > 0
+    ? allScouts.reduce((sum, s) => sum + (s.points ?? 0), 0) / allScouts.length
+    : 0;
+
+  const rawFormScore = longScouts.length > 0
+    ? posAdjustedForm > 0
+      ? blendedFormScore * 0.6 + posAdjustedForm * 0.4
+      : blendedFormScore
+    : 0;
+
+  // Blend: when scouts are sparse/all-zero, fall back to the Cartola API averagePoints.
+  // This is critical for the start of the season when we have few historical rounds.
+  const overallScore = averagePoints > 0
+    ? rawScoutOverall * overallConfidence + averagePoints * (1 - overallConfidence)
+    : rawScoutOverall;
+
+  const formScore = averagePoints > 0
+    ? rawFormScore * formConfidence + averagePoints * (1 - formConfidence)
+    : rawFormScore;
 
   const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength, attackXg);
 
