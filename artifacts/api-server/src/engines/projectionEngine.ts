@@ -118,12 +118,14 @@ const PRICE_VARIATION_CAP = 0.15;    // capped at ±15%
 
 /**
  * Compute matchupScore from home/away advantage, club momentum (form array), and opponent defensive weakness.
+ * When xG data (from Gato Mestre article) is provided, it overrides the form/history-based opponent weakness bonus.
  * Form array entries: "v"=win, "e"=draw, "d"=loss.
  */
 function computeMatchupScore(
   isHome: boolean,
   clubForm: string[] | null,
-  opponentStrength: ClubStrength | null
+  opponentStrength: ClubStrength | null,
+  matchXg?: number | null
 ): number {
   const base = isHome ? PROJECTION_WEIGHTS.homeAdvantageMultiplier : 1.0;
 
@@ -137,9 +139,13 @@ function computeMatchupScore(
   }
 
   let opponentWeaknessBonus = 0;
-  if (opponentStrength && opponentStrength.matchesAnalyzed > 0) {
-    // Continuous: bonus when opponent is weak (defensiveStrength < 0.5), penalty when strong (> 0.7)
-    // Maps [0 → +0.08, 0.5 → 0, 1.0 → -0.08], clamped to [-0.08, +0.08]
+  if (matchXg != null) {
+    // xG-based bonus: normalize to [0,1] with typical Brasileirão range 0.5–2.5.
+    // Expected value is 1.35. Bonus maps higher xG → bigger bonus (good attacking matchup).
+    // Range: xG=0.5 → -0.06, xG=1.35 → 0, xG=2.5 → +0.07
+    const xgNorm = (matchXg - 1.35) / 1.15; // normalised around league avg
+    opponentWeaknessBonus = clamp(xgNorm * 0.08, -0.06, 0.08);
+  } else if (opponentStrength && opponentStrength.matchesAnalyzed > 0) {
     opponentWeaknessBonus = clamp((0.5 - opponentStrength.defensiveStrength) * 0.16, -0.08, 0.08);
   }
 
@@ -153,7 +159,9 @@ async function calculateProjection(
   expectedMinutes: number,
   isHome: boolean,
   clubForm: string[] | null,
-  opponentStrength: ClubStrength | null
+  opponentStrength: ClubStrength | null,
+  attackXg?: number | null,
+  opponentAttackXg?: number | null
 ): Promise<ProjectionResult> {
   const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
   const allScouts = await getScoutsByPlayer(player.id, 20);
@@ -179,14 +187,18 @@ async function calculateProjection(
     ? posAdjustedForm > 0 ? (blendedFormScore * 0.6 + posAdjustedForm * 0.4) : blendedFormScore
     : averagePoints;
 
-  const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength);
+  const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength, attackXg);
 
   // Price-variation form multiplier: a player whose price rose last round was performing well.
   // Bounded to ±15% to avoid overweighting a single signal.
   const priceVariationMultiplier = 1 + clamp(priceVariation * PRICE_VARIATION_FACTOR, -PRICE_VARIATION_CAP, PRICE_VARIATION_CAP);
 
+  // cleanSheetProbability: when opponent xG is available from Gato Mestre article, use it directly.
+  // Lower opponent xG = higher clean sheet probability. Normalize: xG 0.5 → 0.7 prob, xG 1.35 → 0.35, xG 2.5 → 0.1
   const cleanSheetProbability = isDefensivePosition(player.position)
-    ? clamp(0.3 * matchupScore, 0, 0.9)
+    ? opponentAttackXg != null
+      ? clamp(0.7 - (opponentAttackXg / 3.0), 0.05, 0.85)
+      : clamp(0.3 * matchupScore, 0, 0.9)
     : 0;
 
   const attackParticipationProbability = isAttackerPosition(player.position)
@@ -332,15 +344,21 @@ export async function runProjectionEngine(round: number): Promise<void> {
 
   const clubFormMap = new Map<number, string[]>();
   const clubOpponentMap = new Map<number, number>();
+  const clubAttackXgMap = new Map<number, number>();
+  const clubOpponentAttackXgMap = new Map<number, number>();
 
   for (const match of matches) {
     if (match.homeClubId) {
       if (match.homeForm) clubFormMap.set(match.homeClubId, match.homeForm);
       if (match.awayClubId) clubOpponentMap.set(match.homeClubId, match.awayClubId);
+      if (match.homeXg != null) clubAttackXgMap.set(match.homeClubId, match.homeXg);
+      if (match.awayXg != null) clubOpponentAttackXgMap.set(match.homeClubId, match.awayXg);
     }
     if (match.awayClubId) {
       if (match.awayForm) clubFormMap.set(match.awayClubId, match.awayForm);
       if (match.homeClubId) clubOpponentMap.set(match.awayClubId, match.homeClubId);
+      if (match.awayXg != null) clubAttackXgMap.set(match.awayClubId, match.awayXg);
+      if (match.homeXg != null) clubOpponentAttackXgMap.set(match.awayClubId, match.homeXg);
     }
   }
 
@@ -363,8 +381,10 @@ export async function runProjectionEngine(round: number): Promise<void> {
     const clubForm = player.clubId != null ? (clubFormMap.get(player.clubId) ?? null) : null;
     const opponentId = player.clubId != null ? (clubOpponentMap.get(player.clubId) ?? null) : null;
     const opponentStrength = opponentId != null ? (opponentStrengthMap.get(opponentId) ?? null) : null;
+    const attackXg = player.clubId != null ? (clubAttackXgMap.get(player.clubId) ?? null) : null;
+    const opponentAttackXg = player.clubId != null ? (clubOpponentAttackXgMap.get(player.clubId) ?? null) : null;
 
-    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength);
+    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength, attackXg, opponentAttackXg);
 
     await upsertProjection({
       playerId: player.id,

@@ -4,6 +4,7 @@ import { dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { runCurrentRoundETL } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
+import { syncXgFromArticle } from "../helpers/geXgHelper";
 import axios from "axios";
 
 const router = Router();
@@ -230,6 +231,41 @@ router.post("/admin/projection-weights", async (req, res) => {
   } catch (error) {
     console.error("[admin/projection-weights POST]", error);
     res.status(500).json({ error: "Failed to update projection weights" });
+  }
+});
+
+router.post("/admin/sync/xg", async (req, res) => {
+  try {
+    const body = req.body as { url?: string; round?: number };
+    if (!body.url || typeof body.url !== "string") {
+      res.status(400).json({ error: "Missing 'url' in request body" });
+      return;
+    }
+
+    const round = typeof body.round === "number"
+      ? body.round
+      : await getCurrentRound();
+
+    await logAdminAction("admin_xg_sync", "info", `Starting xG sync for round ${round} from ${body.url}`);
+
+    const result = await syncXgFromArticle(body.url, round);
+
+    await logAdminAction(
+      "admin_xg_sync",
+      result.matchesUpdated > 0 ? "success" : "degraded",
+      `xG sync round ${round}: ${result.matchesUpdated} matches updated, ${result.clubStatsParsed} team stats parsed, ${result.clubsMapped} clubs mapped`
+    );
+
+    res.json({
+      success: true,
+      round,
+      ...result,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[admin/sync/xg]", error);
+    await logAdminAction("admin_xg_sync", "error", `xG sync failed: ${msg}`);
+    res.status(500).json({ error: "xG sync failed", details: msg });
   }
 });
 

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Swords, AlertCircle, TrendingUp, TrendingDown, Minus, Shield, Target } from "lucide-react";
+import { Swords, AlertCircle, TrendingUp, TrendingDown, Minus, Shield, Target, Zap } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 
 interface ClubStats {
@@ -30,6 +30,9 @@ interface Confronto {
   awayStats: ClubStats | null;
   homeForm: string[] | null;
   awayForm: string[] | null;
+  homeXg: number | null;
+  awayXg: number | null;
+  xgSource: "xg_article" | "form_estimate";
   homeGoalExpectation: number;
   awayGoalExpectation: number;
   homeDifficulty: "fácil" | "médio" | "difícil";
@@ -183,8 +186,17 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               }
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-muted-foreground">Expectativa de gols</p>
-              <p className="text-xl font-bold font-mono text-foreground">{c.homeGoalExpectation.toFixed(2)}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {c.xgSource === "xg_article" ? (
+                  <span className="inline-flex items-center gap-0.5">
+                    <Zap className="w-2.5 h-2.5 text-yellow-400" />
+                    xG esperado
+                  </span>
+                ) : "Expectativa de gols"}
+              </p>
+              <p className="text-xl font-bold font-mono text-foreground">
+                {c.homeXg != null ? c.homeXg.toFixed(2) : c.homeGoalExpectation.toFixed(2)}
+              </p>
             </div>
           </div>
 
@@ -223,8 +235,17 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               }
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-muted-foreground">Expectativa de gols</p>
-              <p className="text-xl font-bold font-mono text-foreground">{c.awayGoalExpectation.toFixed(2)}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {c.xgSource === "xg_article" ? (
+                  <span className="inline-flex items-center gap-0.5">
+                    <Zap className="w-2.5 h-2.5 text-yellow-400" />
+                    xG esperado
+                  </span>
+                ) : "Expectativa de gols"}
+              </p>
+              <p className="text-xl font-bold font-mono text-foreground">
+                {c.awayXg != null ? c.awayXg.toFixed(2) : c.awayGoalExpectation.toFixed(2)}
+              </p>
             </div>
           </div>
         </div>

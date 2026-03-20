@@ -189,13 +189,34 @@ router.get("/matches/confrontos", async (_req, res) => {
         const homeStats = blendStrength(homeStrength, homeFormStrength);
         const awayStats = blendStrength(awayStrength, awayFormStrength);
 
-        const homeGoalExpectation = (homeStats.offensiveStrength + (1 - awayStats.defensiveStrength)) / 2;
-        const awayGoalExpectation = (awayStats.offensiveStrength + (1 - homeStats.defensiveStrength)) / 2;
+        const formBasedHomeGoalExp = (homeStats.offensiveStrength + (1 - awayStats.defensiveStrength)) / 2;
+        const formBasedAwayGoalExp = (awayStats.offensiveStrength + (1 - homeStats.defensiveStrength)) / 2;
 
-        const homeDifficulty: DifficultyLevel =
-          awayGoalExpectation > 0.6 ? "difícil" : awayGoalExpectation > 0.35 ? "médio" : "fácil";
-        const awayDifficulty: DifficultyLevel =
-          homeGoalExpectation > 0.6 ? "difícil" : homeGoalExpectation > 0.35 ? "médio" : "fácil";
+        const formBasedHomeGoalExpNorm = formBasedHomeGoalExp;
+        const formBasedAwayGoalExpNorm = formBasedAwayGoalExp;
+
+        const xgSource: "xg_article" | "form_estimate" =
+          match.homeXg != null ? "xg_article" : "form_estimate";
+
+        // Difficulty from xG: use raw xG thresholds calibrated to Brasileirão data.
+        // League avg ≈ 1.35 gols/team/game. "fácil" < 1.15, "difícil" > 1.45, "médio" otherwise.
+        // For form-based, keep existing normalized thresholds.
+        let homeDifficulty: DifficultyLevel;
+        let awayDifficulty: DifficultyLevel;
+        let homeGoalExpectation: number;
+        let awayGoalExpectation: number;
+
+        if (match.homeXg != null && match.awayXg != null) {
+          homeGoalExpectation = match.homeXg;
+          awayGoalExpectation = match.awayXg;
+          homeDifficulty = match.awayXg > 1.55 ? "difícil" : match.awayXg < 1.15 ? "fácil" : "médio";
+          awayDifficulty = match.homeXg > 1.55 ? "difícil" : match.homeXg < 1.15 ? "fácil" : "médio";
+        } else {
+          homeGoalExpectation = formBasedHomeGoalExpNorm;
+          awayGoalExpectation = formBasedAwayGoalExpNorm;
+          homeDifficulty = awayGoalExpectation > 0.6 ? "difícil" : awayGoalExpectation > 0.35 ? "médio" : "fácil";
+          awayDifficulty = homeGoalExpectation > 0.6 ? "difícil" : homeGoalExpectation > 0.35 ? "médio" : "fácil";
+        }
 
         const recommendedPositionsHome: string[] = [];
         if (homeStats.offensiveStrength > 0.5) recommendedPositionsHome.push("ATA", "MEI");
@@ -214,6 +235,9 @@ router.get("/matches/confrontos", async (_req, res) => {
           stadium: match.stadium,
           homeForm: match.homeForm ?? null,
           awayForm: match.awayForm ?? null,
+          homeXg: match.homeXg ?? null,
+          awayXg: match.awayXg ?? null,
+          xgSource,
           homeClub: homeClub ? { id: homeClub.id, name: homeClub.name, abbreviation: homeClub.abbreviation, badgeUrl: homeClub.badgeUrl } : null,
           awayClub: awayClub ? { id: awayClub.id, name: awayClub.name, abbreviation: awayClub.abbreviation, badgeUrl: awayClub.badgeUrl } : null,
           homeStats: {

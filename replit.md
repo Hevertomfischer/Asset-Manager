@@ -66,7 +66,7 @@ artifacts-monorepo/
 - **Dashboard** (`/`) — Round status, top projections by position, diferenciais da rodada, armadilhas da rodada, risk alerts, data pipeline status
 - **Players** (`/jogadores`) — Searchable/filterable player table with projections, club badges, position badges
 - **Lineup Builder** (`/escalacao`) — Formation/strategy/budget selector, visual pitch display, save lineup (4 strategies)
-- **Confrontos** (`/confrontos`) — Match-by-match difficulty analysis: offensive/defensive strength bars, goal expectation, recommended positions to exploit
+- **Confrontos** (`/confrontos`) — Match-by-match difficulty analysis: offensive/defensive strength bars, xG (expected goals) from Gato Mestre articles, difficulty level (fácil/médio/difícil), recommended positions to exploit
 - **System Admin** (`/admin`) — Projection weight sliders, sync controls, provider status, data collection logs
 
 ## API Endpoints
@@ -91,6 +91,7 @@ All endpoints under `/api`:
 - `POST /api/admin/projection-weights` — Update projection weights
 - `POST /api/admin/recalculate-projections` — Recalculate projections for current round
 - `GET /api/admin/logs` — Data collection logs (limit=20)
+- `POST /api/admin/sync/xg` — Sync xG (expected goals) from Gato Mestre article URL for current round
 
 ## Data Providers
 

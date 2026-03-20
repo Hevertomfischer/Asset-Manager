@@ -14,10 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle } from "lucide-react";
+import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap } from "lucide-react";
 
 export default function Admin() {
   const { toast } = useToast();
@@ -39,6 +40,9 @@ export default function Admin() {
     valueWeight: 0.1,
     historyWeight: 0.1,
   });
+
+  const [xgUrl, setXgUrl] = useState("https://ge.globo.com/gato-mestre/dicas/noticia/2026/03/18/veja-a-expectativa-de-gols-xg-e-as-dicas-de-sg-para-a-rodada-7-do-cartola-2026.ghtml");
+  const [xgSyncing, setXgSyncing] = useState(false);
 
   useEffect(() => {
     if (weightsData?.weights) {
@@ -70,6 +74,34 @@ export default function Admin() {
       onSuccess: () => toast({ title: `Sync ${labels[type]} disparado com sucesso` }),
       onError: (err) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" }),
     });
+  };
+
+  const handleSyncXg = async () => {
+    if (!xgUrl.trim()) {
+      toast({ title: "URL inválida", description: "Cole a URL do artigo do Gato Mestre.", variant: "destructive" });
+      return;
+    }
+    setXgSyncing(true);
+    try {
+      const res = await fetch("/api/admin/sync/xg", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: xgUrl.trim() }),
+      });
+      const data = await res.json() as { success?: boolean; matchesUpdated?: number; clubStatsParsed?: number; clubsMapped?: number; warnings?: string[]; error?: string };
+      if (data.success) {
+        toast({
+          title: "xG sincronizado com sucesso",
+          description: `${data.matchesUpdated} partidas atualizadas, ${data.clubStatsParsed} stats de times extraídas, ${data.clubsMapped} times mapeados.`,
+        });
+      } else {
+        toast({ title: "Falha no sync xG", description: data.error ?? "Erro desconhecido", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Erro de rede", description: String(err), variant: "destructive" });
+    } finally {
+      setXgSyncing(false);
+    }
   };
 
   const logs: AdminLog[] = logsData?.logs || [];
@@ -244,6 +276,45 @@ export default function Admin() {
           </CardContent>
         </Card>
       </div>
+
+      {/* xG Sync */}
+      <Card className="bg-card shadow-lg border-border/50">
+        <CardHeader className="bg-secondary/20 border-b border-border/50">
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-400" />
+            Sincronizar xG (Expectativa de Gols)
+          </CardTitle>
+          <CardDescription>
+            Cole a URL do artigo do Gato Mestre com xG da rodada. Os valores serão extraídos e usados nas projeções e confrontos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">URL do Artigo (Gato Mestre / GE)</Label>
+            <Input
+              value={xgUrl}
+              onChange={(e) => setXgUrl(e.target.value)}
+              placeholder="https://ge.globo.com/gato-mestre/dicas/noticia/..."
+              className="font-mono text-xs h-10"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Padrão: <span className="font-mono">ge.globo.com/gato-mestre/dicas/noticia/YYYY/MM/DD/veja-a-expectativa-de-gols-xg-...-rodada-N-do-cartola-AAAA.ghtml</span>
+            </p>
+          </div>
+          <Button
+            onClick={handleSyncXg}
+            disabled={xgSyncing}
+            className="w-full h-12 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/40 font-bold"
+            variant="outline"
+          >
+            {xgSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+            Sincronizar xG da Rodada
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center">
+            Após sincronizar o xG, recalcule as projeções para atualizar goalkeepers e zagueiros com probabilidades de SG mais precisas.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* System Logs */}
       <Card className="bg-card shadow-lg border-border/50">
