@@ -223,6 +223,7 @@ router.get("/history/lineup-backtest", async (req, res) => {
           playerId: playerScoutRoundTable.playerId,
           round: playerScoutRoundTable.round,
           points: playerScoutRoundTable.points,
+          source: playerScoutRoundTable.source,
         })
         .from(playerScoutRoundTable)
         .where(
@@ -249,9 +250,21 @@ router.get("/history/lineup-backtest", async (req, res) => {
       );
 
     const clubMap = new Map(allClubs.map((c) => [c.id, c]));
+
+    // Build actualMap: process cartola_api first, then historical_cartola so it overwrites
+    // (historical_cartola has corrected computed points; cartola_api may have stale 0-point records)
     const actualMap = new Map<string, number>();
-    for (const a of actuals) {
-      actualMap.set(`${a.playerId}-${a.round}`, a.points ?? 0);
+    const sortedActuals = [...actuals].sort((a, b) => {
+      if (a.source === b.source) return 0;
+      return a.source === "historical_cartola" ? 1 : -1; // historical_cartola last → wins
+    });
+    for (const a of sortedActuals) {
+      const key = `${a.playerId}-${a.round}`;
+      const pts = a.points ?? 0;
+      // Only set if not already set, OR if this is historical_cartola (authoritative)
+      if (!actualMap.has(key) || a.source === "historical_cartola") {
+        actualMap.set(key, pts);
+      }
     }
     const projMap = new Map<string, number>();
     for (const p of projections) {
@@ -303,10 +316,24 @@ router.get("/history/lineup-backtest", async (req, res) => {
           };
         });
 
-      const projectedTotal = lineup.expectedPoints ?? null;
+      const projectedFullTotal = lineup.expectedPoints ?? null;
+
+      // For comparison, only count players where BOTH projected and actual are known
+      // This makes the diff apples-to-apples (not penalized for missing historical data)
+      const rowsWithBoth = playerRows.filter((p) => p.projected !== null && p.actual !== null);
       const actualTotal = hasActualData
         ? playerRows.reduce((sum, p) => sum + (p.actual ?? 0), 0)
         : null;
+      // comparable projected: sum of projected only for players with actual data
+      const projectedComparableTotal = hasActualData && rowsWithBoth.length > 0
+        ? rowsWithBoth.reduce((sum, p) => sum + (p.projected ?? 0), 0)
+        : null;
+      const actualComparableTotal = hasActualData && rowsWithBoth.length > 0
+        ? rowsWithBoth.reduce((sum, p) => sum + (p.actual ?? 0), 0)
+        : null;
+
+      const playersWithData = playerRows.filter((p) => p.actual !== null).length;
+      const allCoveredByData = playersWithData >= playerRows.filter((p) => p.position !== "TEC").length;
 
       return {
         round: lineup.round,
@@ -314,15 +341,18 @@ router.get("/history/lineup-backtest", async (req, res) => {
         strategyType: lineup.strategyType,
         formation: lineup.formation,
         totalCost: lineup.totalCost,
-        projectedTotal: projectedTotal !== null ? Number(projectedTotal.toFixed(2)) : null,
+        projectedTotal: projectedFullTotal !== null ? Number(projectedFullTotal.toFixed(2)) : null,
+        projectedComparableTotal: projectedComparableTotal !== null ? Number(projectedComparableTotal.toFixed(2)) : null,
         actualTotal: actualTotal !== null ? Number(actualTotal.toFixed(2)) : null,
-        difference: projectedTotal !== null && actualTotal !== null
-          ? Number(Math.abs(projectedTotal - actualTotal).toFixed(2))
+        difference: projectedComparableTotal !== null && actualComparableTotal !== null
+          ? Number(Math.abs(projectedComparableTotal - actualComparableTotal).toFixed(2))
           : null,
-        differenceSign: projectedTotal !== null && actualTotal !== null
-          ? (actualTotal >= projectedTotal ? "above" : "below")
+        differenceSign: projectedComparableTotal !== null && actualComparableTotal !== null
+          ? (actualComparableTotal >= projectedComparableTotal ? "above" : "below")
           : null,
         hasActualData,
+        playersWithData,
+        allCoveredByData,
         players: playerRows,
       };
     });

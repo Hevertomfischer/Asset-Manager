@@ -68,10 +68,13 @@ interface LineupBacktestRound {
   formation: string;
   totalCost: number | null;
   projectedTotal: number | null;
+  projectedComparableTotal: number | null;
   actualTotal: number | null;
   difference: number | null;
   differenceSign: "above" | "below" | null;
   hasActualData: boolean;
+  playersWithData: number;
+  allCoveredByData: boolean;
   players: LineupBacktestPlayer[];
 }
 
@@ -171,6 +174,9 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
     antimassa: "Antimassa",
   };
 
+  const totalPlayers = data.players.filter((p) => p.position !== "TEC").length;
+  const isPartial = !data.allCoveredByData && data.hasActualData;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -178,6 +184,11 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               Rodada {data.round}
+              {isPartial && (
+                <span className="text-[10px] font-normal text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded">
+                  {data.playersWithData}/{totalPlayers} com dados
+                </span>
+              )}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
               {strategyLabels[data.strategyType] ?? data.strategyType} · {data.formation} · C$ {data.totalCost?.toFixed(2) ?? "—"}
@@ -187,6 +198,9 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Projetado</p>
               <p className="text-2xl font-bold font-mono text-foreground">{data.projectedTotal?.toFixed(2) ?? "—"}</p>
+              {isPartial && data.projectedComparableTotal !== null && (
+                <p className="text-[10px] text-muted-foreground">({data.projectedComparableTotal.toFixed(2)} comparável)</p>
+              )}
             </div>
             {data.hasActualData && (
               <>
@@ -197,9 +211,12 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
                   }`}>
                     {data.actualTotal?.toFixed(2) ?? "—"}
                   </p>
+                  {isPartial && (
+                    <p className="text-[10px] text-muted-foreground">parcial</p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Dif. Abs.</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{isPartial ? "Dif. (compar.)" : "Dif. Abs."}</p>
                   <div className="text-2xl font-bold font-mono mt-0.5">
                     <DiffIndicator value={data.difference} sign={data.differenceSign} />
                   </div>
