@@ -174,8 +174,11 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
     antimassa: "Antimassa",
   };
 
-  const totalPlayers = data.players.filter((p) => p.position !== "TEC").length;
-  const isPartial = !data.allCoveredByData && data.hasActualData;
+  const totalPlayers = (data.players ?? []).filter((p) => p.position !== "TEC").length;
+  const playersWithData = data.playersWithData ?? 0;
+  const allCoveredByData = data.allCoveredByData ?? true;
+  const projectedComparableTotal = data.projectedComparableTotal ?? null;
+  const isPartial = !allCoveredByData && data.hasActualData;
 
   return (
     <Card>
@@ -186,7 +189,7 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
               Rodada {data.round}
               {isPartial && (
                 <span className="text-[10px] font-normal text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded">
-                  {data.playersWithData}/{totalPlayers} com dados
+                  {playersWithData}/{totalPlayers} com dados
                 </span>
               )}
             </CardTitle>
@@ -198,8 +201,8 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Projetado</p>
               <p className="text-2xl font-bold font-mono text-foreground">{data.projectedTotal?.toFixed(2) ?? "—"}</p>
-              {isPartial && data.projectedComparableTotal !== null && (
-                <p className="text-[10px] text-muted-foreground">({data.projectedComparableTotal.toFixed(2)} comparável)</p>
+              {isPartial && projectedComparableTotal != null && (
+                <p className="text-[10px] text-muted-foreground">({projectedComparableTotal.toFixed(2)} comparável)</p>
               )}
             </div>
             {data.hasActualData && (
