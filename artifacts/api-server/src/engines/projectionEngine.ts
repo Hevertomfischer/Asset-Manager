@@ -374,8 +374,15 @@ export async function runProjectionEngine(round: number): Promise<void> {
   let processed = 0;
   for (const player of players) {
     const avail = availMap.get(player.id);
-    const playProbability = avail?.playProbability ?? 0.7;
-    const expectedMinutes = avail?.expectedMinutes ?? 75;
+    // Fallback play probability based on player status when no availability record exists.
+    // Prevents suspended/nulo players from getting a 70% default.
+    const statusFallback =
+      player.status === "Suspenso" ? 0.02 :
+      player.status === "Nulo" ? 0.0 :
+      player.status === "Contundido" ? 0.05 :
+      0.7;
+    const playProbability = avail?.playProbability ?? statusFallback;
+    const expectedMinutes = avail?.expectedMinutes ?? (playProbability > 0.1 ? 75 : 0);
     const isHome = player.clubId != null ? homeClubIds.has(player.clubId) : false;
 
     const clubForm = player.clubId != null ? (clubFormMap.get(player.clubId) ?? null) : null;

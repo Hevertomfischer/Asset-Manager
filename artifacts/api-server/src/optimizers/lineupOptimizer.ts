@@ -1,4 +1,5 @@
 import { db } from "@workspace/db";
+import { playerAvailabilityTable } from "@workspace/db/schema";
 import { getProjectionsByRound } from "../repositories/projectionRepository";
 import { insertLineupSuggestion } from "../repositories/lineupRepository";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
@@ -123,19 +124,42 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const { round, strategy, formation = LINEUP_CONFIG.defaultFormation } = request;
   const budgetLimit = request.budgetLimit ?? LINEUP_CONFIG.defaultBudget;
 
-  const projections = await getProjectionsByRound(round);
-  const players = await db.query.playersTable.findMany();
+  const [projections, players, availabilities] = await Promise.all([
+    getProjectionsByRound(round),
+    db.query.playersTable.findMany(),
+    db.select().from(playerAvailabilityTable),
+  ]);
+
   const playerMap = new Map(players.map((p) => [p.id, p]));
+  const availMap = new Map(availabilities.map((a) => [a.playerId, a.playProbability]));
 
   if (projections.length === 0) {
     throw new Error(`No projections found for round ${round}. Please sync data first.`);
   }
 
+  const UNAVAILABLE_STATUSES = new Set(["Suspenso", "Nulo", "Contundido"]);
+
   const allPlayerProjections: PlayerWithProjection[] = projections
     .map((proj) => {
       const player = playerMap.get(proj.playerId);
       if (!player) return null;
-      return { player, projection: proj };
+
+      // Always take the most restrictive play_probability:
+      // - Use latest availability record if it's lower than the stored projection value
+      // - Hard-block suspended/nulo players regardless of what's stored in projections
+      const availPlayProb = availMap.get(proj.playerId);
+      let finalPlayProb: number | null = proj.playProbability;
+      if (availPlayProb != null) {
+        finalPlayProb = Math.min(proj.playProbability ?? 1, availPlayProb);
+      }
+      if (player.status != null && UNAVAILABLE_STATUSES.has(player.status)) {
+        finalPlayProb = 0;
+      }
+
+      return {
+        player,
+        projection: { ...proj, playProbability: finalPlayProb } as typeof proj,
+      };
     })
     .filter((x): x is PlayerWithProjection => x !== null);
 
