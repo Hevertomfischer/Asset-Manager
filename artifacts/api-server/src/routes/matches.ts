@@ -218,15 +218,44 @@ router.get("/matches/confrontos", async (_req, res) => {
           awayDifficulty = homeGoalExpectation > 0.6 ? "difícil" : homeGoalExpectation > 0.35 ? "médio" : "fácil";
         }
 
+        // When xG data is available, derive offensiveStrength/defensiveStrength from it
+        // so that clubs with no match history still get useful display values.
+        // offensiveStrength: how much the team is expected to score (0=weak, 1=strong)
+        // defensiveStrength: how little the opponent is expected to score (0=porous, 1=solid)
+        // Calibration: xG=0.8 → ~0.2, xG=1.35 (avg) → 0.5, xG=1.8 → ~0.8
+        const xgToOffensive = (xg: number) => Math.min(1, Math.max(0, (xg - 0.5) / 1.5));
+        const xgToDefensive = (oppXg: number) => Math.min(1, Math.max(0, (2.0 - oppXg) / 1.5));
+
+        const hasXg = match.homeXg != null && match.awayXg != null;
+        // Require at least 3 matches of history to trust historical strength over xG.
+        // With < 3 matches, a single outlier result (e.g., 0-3 away loss) dominates the average.
+        const MIN_HISTORY = 3;
+        const hasHomeHistory = homeStrength != null && homeStrength.matchesAnalyzed >= MIN_HISTORY;
+        const hasAwayHistory = awayStrength != null && awayStrength.matchesAnalyzed >= MIN_HISTORY;
+
+        const effectiveHomeOffensive = hasHomeHistory
+          ? homeStats.offensiveStrength
+          : hasXg ? xgToOffensive(match.homeXg!) : homeFormStrength.offensiveStrength;
+        const effectiveHomeDefensive = hasHomeHistory
+          ? homeStats.defensiveStrength
+          : hasXg ? xgToDefensive(match.awayXg!) : homeFormStrength.defensiveStrength;
+        const effectiveAwayOffensive = hasAwayHistory
+          ? awayStats.offensiveStrength
+          : hasXg ? xgToOffensive(match.awayXg!) : awayFormStrength.offensiveStrength;
+        const effectiveAwayDefensive = hasAwayHistory
+          ? awayStats.defensiveStrength
+          : hasXg ? xgToDefensive(match.homeXg!) : awayFormStrength.defensiveStrength;
+
+        // Recommended positions: which positions to prioritise for Cartola picks
+        // ATA/MEI: team expected to score ≥ ~1.10 goals (offensive ≥ 0.40)
+        // GOL/ZAG/LAT: opponent expected to score ≤ ~1.25 goals (defensive ≥ 0.50)
         const recommendedPositionsHome: string[] = [];
-        if (homeStats.offensiveStrength > 0.5) recommendedPositionsHome.push("ATA", "MEI");
-        if (awayStats.defensiveStrength < 0.4 && !recommendedPositionsHome.includes("ATA")) recommendedPositionsHome.push("ATA");
-        if (homeStats.defensiveStrength > 0.6) recommendedPositionsHome.push("GOL", "ZAG");
+        if (effectiveHomeOffensive >= 0.40) recommendedPositionsHome.push("ATA", "MEI");
+        if (effectiveHomeDefensive >= 0.50) recommendedPositionsHome.push("GOL", "ZAG", "LAT");
 
         const recommendedPositionsAway: string[] = [];
-        if (awayStats.offensiveStrength > 0.5) recommendedPositionsAway.push("ATA", "MEI");
-        if (homeStats.defensiveStrength < 0.4 && !recommendedPositionsAway.includes("ATA")) recommendedPositionsAway.push("ATA");
-        if (awayStats.defensiveStrength > 0.6) recommendedPositionsAway.push("GOL", "ZAG");
+        if (effectiveAwayOffensive >= 0.40) recommendedPositionsAway.push("ATA", "MEI");
+        if (effectiveAwayDefensive >= 0.50) recommendedPositionsAway.push("GOL", "ZAG", "LAT");
 
         return {
           matchId: match.id,
@@ -241,15 +270,15 @@ router.get("/matches/confrontos", async (_req, res) => {
           homeClub: homeClub ? { id: homeClub.id, name: homeClub.name, abbreviation: homeClub.abbreviation, badgeUrl: homeClub.badgeUrl } : null,
           awayClub: awayClub ? { id: awayClub.id, name: awayClub.name, abbreviation: awayClub.abbreviation, badgeUrl: awayClub.badgeUrl } : null,
           homeStats: {
-            offensiveStrength: Number(homeStats.offensiveStrength.toFixed(2)),
-            defensiveStrength: Number(homeStats.defensiveStrength.toFixed(2)),
+            offensiveStrength: Number(effectiveHomeOffensive.toFixed(2)),
+            defensiveStrength: Number(effectiveHomeDefensive.toFixed(2)),
             avgGoalsScored: Number(homeStats.avgGoalsScored.toFixed(2)),
             avgGoalsConceded: Number(homeStats.avgGoalsConceded.toFixed(2)),
             bestPositions: homeBestPositions,
           },
           awayStats: {
-            offensiveStrength: Number(awayStats.offensiveStrength.toFixed(2)),
-            defensiveStrength: Number(awayStats.defensiveStrength.toFixed(2)),
+            offensiveStrength: Number(effectiveAwayOffensive.toFixed(2)),
+            defensiveStrength: Number(effectiveAwayDefensive.toFixed(2)),
             avgGoalsScored: Number(awayStats.avgGoalsScored.toFixed(2)),
             avgGoalsConceded: Number(awayStats.avgGoalsConceded.toFixed(2)),
             bestPositions: awayBestPositions,
