@@ -270,9 +270,10 @@ router.get("/history/lineup-backtest", async (req, res) => {
       const players = playersByLineup.get(lineup.id) ?? [];
       const captainId = lineup.captainPlayerId;
       const nonCoachPlayers = players.filter((p) => p.position !== "TEC");
+      const playersWithActual = nonCoachPlayers.filter((p) => actualMap.has(`${p.playerId}-${lineup.round}`));
       const hasActualData =
         nonCoachPlayers.length > 0 &&
-        nonCoachPlayers.every((p) => actualMap.has(`${p.playerId}-${lineup.round}`));
+        playersWithActual.length >= Math.ceil(nonCoachPlayers.length * 0.5);
 
       const playerRows = players
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
