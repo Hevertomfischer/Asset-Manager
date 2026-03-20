@@ -50,10 +50,18 @@ const CartolaRoundSchema = z.object({
   rodada_id: z.number().optional(),
   status_mercado: z.number().optional(),
   mercado_status: z.number().optional(),
-  fechamento: z.object({ seconds: z.number() }).optional(),
+  fechamento: z.object({
+    seconds: z.number().optional(),
+    timestamp: z.number().optional(),
+    dia: z.number().optional(),
+    mes: z.number().optional(),
+    ano: z.number().optional(),
+    hora: z.number().optional(),
+    minuto: z.number().optional(),
+  }).optional(),
   times_escalados: z.number().optional(),
   variacao: z.number().optional(),
-});
+}).passthrough();
 
 const POSITION_MAP: Record<number, string> = {
   1: "GOL",
@@ -182,7 +190,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     round: {
       roundNumber: roundParsed.success ? roundParsed.data.rodada_atual : snapshot.round,
       marketStatus: roundParsed.success ? (roundParsed.data.status_mercado ?? roundParsed.data.mercado_status ?? 0) : 0,
-      closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? null) : null,
+      closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? roundParsed.data.fechamento?.timestamp ?? null) : null,
     },
   };
 }
@@ -236,7 +244,7 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
     const roundData: CartolaRound = {
       roundNumber,
       marketStatus: roundParsed.success ? (roundParsed.data.status_mercado ?? roundParsed.data.mercado_status ?? 0) : 0,
-      closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? null) : null,
+      closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? roundParsed.data.fechamento?.timestamp ?? null) : null,
     };
 
     await logCollection(source, "market", "success", `Fetched ${players.length} players, ${clubs.length} clubs for round ${roundNumber}`);
