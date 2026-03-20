@@ -67,6 +67,7 @@ router.post("/lineup/generate", async (req, res) => {
             nickname: p.player.nickname,
             price: p.player.price,
             averagePoints: p.player.averagePoints,
+            gamesPlayed: p.player.gamesPlayed,
             expectedPoints: p.projection.expectedPoints,
             floorPoints: p.projection.floorPoints,
             ceilingPoints: p.projection.ceilingPoints,

@@ -95,13 +95,23 @@ function getFormationRequirements(formation: string): Array<{ position: string; 
   return slots;
 }
 
+const MIN_GAMES_FOR_CAPTAIN = 3;
+
 function selectCaptain(
   fieldPlayers: PlayerWithProjection[],
   strategy: StrategyType,
   popularityMap: Map<number, number>
 ): PlayerWithProjection | undefined {
   if (fieldPlayers.length === 0) return undefined;
-  return [...fieldPlayers].sort((a, b) => {
+
+  // Only eligible players (minimum games played) can be captain.
+  // Fall back to all field players if none meet the threshold.
+  const eligible = fieldPlayers.filter(
+    (pw) => (pw.player.gamesPlayed ?? 0) >= MIN_GAMES_FOR_CAPTAIN
+  );
+  const pool = eligible.length > 0 ? eligible : fieldPlayers;
+
+  return [...pool].sort((a, b) => {
     if (strategy === "antimassa") {
       const popA = popularityMap.get(a.player.id) ?? 0.5;
       const popB = popularityMap.get(b.player.id) ?? 0.5;
