@@ -107,6 +107,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           priceVariation: player.priceVariation,
           playedLastRound: player.playedLastRound,
           gamesPlayed: player.gamesPlayed,
+          cumulativeScouts: player.cumulativeScouts,
         });
         playersUpserted++;
       } catch (e) {

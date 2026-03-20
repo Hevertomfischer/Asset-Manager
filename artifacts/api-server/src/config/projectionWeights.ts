@@ -1,20 +1,24 @@
+// Official Cartola FC scout values — https://www.cartolafcbrasil.com.br/scouts
 export const SCOUT_SCORING: Record<string, number> = {
-  G: 8,
-  A: 5,
-  FT: 3,
-  FD: 1.5,
-  FS: 0.5,
-  FC: -0.3,
-  DE: 1,
-  DS: 1.2,
-  SG: 5,
-  GC: -2,
-  CV: -5,
-  CA: -2,
-  PP: -4,
-  PS: 3,
-  GS: 1,
-  I: 0.8,
+  G:  8.0,   // Gol
+  A:  5.0,   // Assistência
+  SG: 5.0,   // Saldo de Gols (sem sofrer gol / clean sheet bonus)
+  FT: 3.0,   // Finalização na Trave
+  DP: 7.0,   // Defesa de Pênalti
+  DE: 1.3,   // Defesa (goleiro)
+  PS: 1.0,   // Pênalti Sofrido
+  FD: 1.2,   // Finalização Defendida
+  DS: 1.5,   // Desarme
+  FF: 0.8,   // Finalização para Fora
+  FS: 0.5,   // Falta Sofrida
+  GC: -3.0,  // Gol Contra
+  CV: -3.0,  // Cartão Vermelho
+  CA: -1.0,  // Cartão Amarelo
+  GS: -1.0,  // Gol Sofrido
+  PP: -4.0,  // Pênalti Perdido
+  PC: -1.0,  // Pênalti Cometido
+  FC: -0.3,  // Falta Cometida
+  I:  -0.1,  // Impedimento
 };
 
 export const POSITION_SCOUT_WEIGHTS: Record<string, Record<string, number>> = {

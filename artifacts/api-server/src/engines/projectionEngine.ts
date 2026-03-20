@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS } from "../config/projectionWeights";
+import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
 import {
   getScoutsByPlayer,
   getAvailabilityByRound,
@@ -152,6 +152,47 @@ function computeMatchupScore(
   return base + momentumBonus + opponentWeaknessBonus;
 }
 
+// Scout keys that directly contribute to attacking output.
+// These scale with opponent weakness (higher matchupScore = better attack matchup).
+const ATTACK_SCOUT_KEYS = new Set(['G', 'A', 'FT', 'FD', 'FF', 'FS', 'PS']);
+// Average opponent xG in Brasileirão used for normalising GS (goals conceded) adjustment.
+const AVG_OPPONENT_XG = 1.2;
+
+/**
+ * Compute matchup-adjusted expected points per game from cumulative scout data.
+ *
+ * Applies matchupScore to attacking scouts (G, A, FT, FD, FF, FS, PS) and adjusts
+ * GS (goals conceded) by the opponent's attack xG relative to the league average.
+ * All other scouts (DS, DE, FC, CA, CV, I, etc.) use the historical per-game rate.
+ *
+ * The output equals averagePoints when matchupScore=1.0 and opponentAttackXg=AVG_OPPONENT_XG,
+ * and diverges based on matchup quality — giving a more granular projection than a
+ * blanket multiplier on the overall average.
+ */
+function computeScoutMatchupBase(
+  cumulativeScouts: Record<string, number>,
+  gamesPlayed: number,
+  matchupScore: number,
+  opponentAttackXg: number | null,
+): number {
+  if (gamesPlayed <= 0 || Object.keys(cumulativeScouts).length === 0) return 0;
+  let total = 0;
+  for (const [key, count] of Object.entries(cumulativeScouts)) {
+    const pts = SCOUT_SCORING[key] ?? 0;
+    if (pts === 0) continue;
+    const perGame = count / gamesPlayed;
+    let factor = 1.0;
+    if (ATTACK_SCOUT_KEYS.has(key)) {
+      factor = matchupScore;
+    } else if (key === 'GS') {
+      // GS is negative (-1.0 pt). Stronger opponent attack → more goals conceded.
+      factor = opponentAttackXg != null ? opponentAttackXg / AVG_OPPONENT_XG : 1.0;
+    }
+    total += perGame * pts * factor;
+  }
+  return total;
+}
+
 async function calculateProjection(
   player: Player,
   round: number,
@@ -228,12 +269,36 @@ async function calculateProjection(
   const positionBonus = PROJECTION_WEIGHTS.positionCleanSheetBonus[player.position as keyof typeof PROJECTION_WEIGHTS.positionCleanSheetBonus] ?? 0;
   const cleanSheetBonus = cleanSheetProbability * positionBonus;
 
-  const weights = PROJECTION_WEIGHTS.weights;
-  let baseExpected =
-    weights.overallAverage * overallScore +
-    weights.recentForm * formScore +
-    weights.matchup * (averagePoints * (matchupScore - 1)) +
-    weights.homeAdvantage * cleanSheetBonus;
+  // Scout-based matchup-adjusted baseline: applies matchupScore only to attack scouts (G, A, FT,
+  // FD, FF, FS, PS) and adjusts GS (goals conceded) by opponent xG vs league average.
+  // This is more granular than the generic matchup term — e.g. a defender with high DS keeps
+  // those points regardless of matchup, while an attacker's G/A rates scale with opponent weakness.
+  const cumulativeScouts = player.cumulativeScouts as Record<string, number> | null | undefined;
+  const hasScoutData = cumulativeScouts != null && Object.keys(cumulativeScouts).length > 0 && (gamesPlayed ?? 0) > 0;
+
+  let baseExpected: number;
+
+  const scoutBase = hasScoutData
+    ? computeScoutMatchupBase(cumulativeScouts!, gamesPlayed!, matchupScore, opponentAttackXg ?? null)
+    : 0;
+
+  // Use the scout formula only when cumulative scouts produce a meaningful baseline.
+  // TEC (coaches) have non-standard scout keys (e.g. "V" = win) not in SCOUT_SCORING,
+  // so scoutBase would be 0 — fall back to the averagePoints formula in that case.
+  const useScoutFormula = hasScoutData && scoutBase > 0.5;
+
+  if (useScoutFormula) {
+    // Blend: 50% matchup-adjusted scout baseline + 35% recent form + 15% positional clean-sheet bonus
+    baseExpected = 0.50 * scoutBase + 0.35 * formScore + 0.15 * cleanSheetBonus;
+  } else {
+    // Legacy formula: no cumulative scouts or unrecognized scout types (coaches)
+    const weights = PROJECTION_WEIGHTS.weights;
+    baseExpected =
+      weights.overallAverage * overallScore +
+      weights.recentForm * formScore +
+      weights.matchup * (averagePoints * (matchupScore - 1)) +
+      weights.homeAdvantage * cleanSheetBonus;
+  }
 
   baseExpected = Math.max(0, baseExpected);
 
