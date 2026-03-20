@@ -8,6 +8,26 @@ import { syncMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
 
 const router = Router();
 
+/**
+ * Converts a form result array (e.g. ["v","v","d","e","v"]) to an estimated
+ * offensive/defensive strength when no historical match score data exists.
+ * V=win (+0.07 each), D=loss (-0.07 each), E=draw (no change).
+ * Range is clamped to [0.2, 0.8] around the neutral 0.5.
+ */
+function strengthFromForm(form: string[] | null): { offensiveStrength: number; defensiveStrength: number } {
+  if (!form || form.length === 0) return { offensiveStrength: 0.5, defensiveStrength: 0.5 };
+  let wins = 0, losses = 0;
+  for (const r of form.slice(0, 5)) {
+    if (r === "v") wins++;
+    else if (r === "d") losses++;
+  }
+  const momentum = (wins - losses) / 5; // -1.0 to +1.0
+  return {
+    offensiveStrength: Math.min(0.8, Math.max(0.2, 0.5 + momentum * 0.25)),
+    defensiveStrength: Math.min(0.8, Math.max(0.2, 0.5 + momentum * 0.2)),
+  };
+}
+
 router.get("/matches/current", async (_req, res) => {
   try {
     const statusRes = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 10000 });
@@ -144,8 +164,30 @@ router.get("/matches/confrontos", async (_req, res) => {
           match.awayClubId ? getBestPositions(match.awayClubId) : Promise.resolve([]),
         ]);
 
-        const homeStats = homeStrength ?? { avgGoalsScored: 0, avgGoalsConceded: 0, offensiveStrength: 0.5, defensiveStrength: 0.5 };
-        const awayStats = awayStrength ?? { avgGoalsScored: 0, avgGoalsConceded: 0, offensiveStrength: 0.5, defensiveStrength: 0.5 };
+        // Derive strength from form arrays (last 5 results) as fallback / supplement
+        const homeFormStrength = strengthFromForm(match.homeForm);
+        const awayFormStrength = strengthFromForm(match.awayForm);
+
+        // Blend historical data (if available) with form-based estimate.
+        // When history exists: 70% historical + 30% form. When no history: 100% form.
+        const blendStrength = (
+          hist: typeof homeStrength,
+          formS: typeof homeFormStrength
+        ) => {
+          if (!hist || hist.matchesAnalyzed === 0) {
+            return { ...formS, avgGoalsScored: 0, avgGoalsConceded: 0 };
+          }
+          const w = 0.7;
+          return {
+            offensiveStrength: hist.offensiveStrength * w + formS.offensiveStrength * (1 - w),
+            defensiveStrength: hist.defensiveStrength * w + formS.defensiveStrength * (1 - w),
+            avgGoalsScored: hist.avgGoalsScored,
+            avgGoalsConceded: hist.avgGoalsConceded,
+          };
+        };
+
+        const homeStats = blendStrength(homeStrength, homeFormStrength);
+        const awayStats = blendStrength(awayStrength, awayFormStrength);
 
         const homeGoalExpectation = (homeStats.offensiveStrength + (1 - awayStats.defensiveStrength)) / 2;
         const awayGoalExpectation = (awayStats.offensiveStrength + (1 - homeStats.defensiveStrength)) / 2;

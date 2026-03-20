@@ -312,7 +312,7 @@ async function calculateProjection(
     riskScore: Number(riskScore.toFixed(3)),
     playProbability,
     expectedMinutes,
-    matchupScore: Number((matchupScore - 1).toFixed(3)),
+    matchupScore: Number(matchupScore.toFixed(3)),
     formScore: Number(formScore.toFixed(2)),
     valueScore: Number(valueScore.toFixed(3)),
     cleanSheetProbability: Number(cleanSheetProbability.toFixed(2)),
