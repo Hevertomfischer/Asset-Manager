@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { runCurrentRoundETL } from "../etl/etlPipeline";
+import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { syncXgFromArticle } from "../helpers/geXgHelper";
 import axios from "axios";
@@ -266,6 +266,28 @@ router.post("/admin/sync/xg", async (req, res) => {
     console.error("[admin/sync/xg]", error);
     await logAdminAction("admin_xg_sync", "error", `xG sync failed: ${msg}`);
     res.status(500).json({ error: "xG sync failed", details: msg });
+  }
+});
+
+router.post("/admin/sync/historical-round", async (req, res) => {
+  const body = req.body as { round?: number };
+  const roundNum = typeof body.round === "number" ? body.round : null;
+
+  if (!roundNum) {
+    res.status(400).json({ error: "Missing 'round' in request body" });
+    return;
+  }
+
+  try {
+    await logAdminAction("admin_historical_sync", "info", `Starting historical sync for round ${roundNum}`);
+    await syncHistoricalRound(roundNum);
+    await logAdminAction("admin_historical_sync", "success", `Historical sync completed for round ${roundNum}`);
+    res.json({ success: true, round: roundNum, message: `Pontos reais da rodada ${roundNum} sincronizados com sucesso.` });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[admin/sync/historical-round]", error);
+    await logAdminAction("admin_historical_sync", "error", `Historical sync failed for round ${roundNum}: ${msg}`);
+    res.status(500).json({ error: "Historical sync failed", details: msg });
   }
 });
 

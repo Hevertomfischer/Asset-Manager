@@ -68,7 +68,7 @@ router.get("/history/backtest", async (req, res) => {
         and(
           inArray(playerScoutRoundTable.round, rounds),
           isNotNull(playerScoutRoundTable.points),
-          eq(playerScoutRoundTable.source, "cartola")
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
         )
       );
 
@@ -229,7 +229,7 @@ router.get("/history/lineup-backtest", async (req, res) => {
           and(
             inArray(playerScoutRoundTable.round, lineupRounds),
             isNotNull(playerScoutRoundTable.points),
-            eq(playerScoutRoundTable.source, "cartola")
+            inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
           )
         ),
     ]);

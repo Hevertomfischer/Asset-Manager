@@ -43,6 +43,8 @@ export default function Admin() {
 
   const [xgUrl, setXgUrl] = useState("https://ge.globo.com/gato-mestre/dicas/noticia/2026/03/18/veja-a-expectativa-de-gols-xg-e-as-dicas-de-sg-para-a-rodada-7-do-cartola-2026.ghtml");
   const [xgSyncing, setXgSyncing] = useState(false);
+  const [historicalRound, setHistoricalRound] = useState<string>("");
+  const [historicalSyncing, setHistoricalSyncing] = useState(false);
 
   useEffect(() => {
     if (weightsData?.weights) {
@@ -101,6 +103,32 @@ export default function Admin() {
       toast({ title: "Erro de rede", description: String(err), variant: "destructive" });
     } finally {
       setXgSyncing(false);
+    }
+  };
+
+  const handleSyncHistorical = async () => {
+    const round = parseInt(historicalRound, 10);
+    if (!round || round < 1) {
+      toast({ title: "Rodada inválida", description: "Digite um número de rodada válido.", variant: "destructive" });
+      return;
+    }
+    setHistoricalSyncing(true);
+    try {
+      const res = await fetch("/api/admin/sync/historical-round", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ round }),
+      });
+      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      if (data.success) {
+        toast({ title: `Rodada ${round} sincronizada`, description: data.message });
+      } else {
+        toast({ title: "Falha no sync histórico", description: data.error ?? "Erro desconhecido", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Erro de rede", description: String(err), variant: "destructive" });
+    } finally {
+      setHistoricalSyncing(false);
     }
   };
 
@@ -312,6 +340,46 @@ export default function Admin() {
           </Button>
           <p className="text-[10px] text-muted-foreground text-center">
             Após sincronizar o xG, recalcule as projeções para atualizar goalkeepers e zagueiros com probabilidades de SG mais precisas.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Historical Round Sync */}
+      <Card className="bg-card shadow-lg border-border/50">
+        <CardHeader className="bg-secondary/20 border-b border-border/50">
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="w-5 h-5 text-blue-400" />
+            Sincronizar Pontuação Histórica
+          </CardTitle>
+          <CardDescription>
+            Busca os pontos reais (scouts finais) de uma rodada já encerrada. Use para popular o backtest com dados reais.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
+              <Input
+                type="number"
+                min={1}
+                value={historicalRound}
+                onChange={(e) => setHistoricalRound(e.target.value)}
+                placeholder="Ex: 7"
+                className="h-10 w-32"
+              />
+            </div>
+            <Button
+              onClick={handleSyncHistorical}
+              disabled={historicalSyncing || !historicalRound}
+              className="h-10 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40 font-bold"
+              variant="outline"
+            >
+              {historicalSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+              Sincronizar
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Após sincronizar, acesse o Histórico para ver os pontos reais vs. projetados no backtest de escalação.
           </p>
         </CardContent>
       </Card>

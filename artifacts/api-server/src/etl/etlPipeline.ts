@@ -1,9 +1,10 @@
 import { db } from "@workspace/db";
-import { dataCollectionLogTable } from "@workspace/db/schema";
+import { dataCollectionLogTable, playerScoutRoundTable } from "@workspace/db/schema";
 import { fetchMarket, fetchScouts } from "../providers/cartolaApiProvider";
 import { fetchProbables } from "../providers/geProbablesProvider";
 import { fetchPlayerStats } from "../providers/gatoMestreProvider";
 import { fetchHistoricalRound } from "../providers/historicalCartolaProvider";
+import { SCOUT_SCORING } from "../config/projectionWeights";
 import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
 import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
@@ -16,7 +17,7 @@ import {
 import { runAvailabilityEngine } from "../engines/availabilityEngine";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { roundSnapshotTable } from "@workspace/db/schema";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, isNull } from "drizzle-orm";
 import axios from "axios";
 import crypto from "crypto";
 
@@ -262,6 +263,16 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   };
 }
 
+function computePointsFromRawScouts(s: Record<string, number | undefined>): number {
+  let pts = 0;
+  for (const [key, value] of Object.entries(s)) {
+    if (value != null && SCOUT_SCORING[key] != null) {
+      pts += value * SCOUT_SCORING[key]!;
+    }
+  }
+  return Math.round(pts * 100) / 100;
+}
+
 export async function syncHistoricalRound(round: number): Promise<void> {
   // Always sync historical match results (scores + form) for this round —
   // this feeds getClubStrengthFromMatches and matchupScore in the projection engine.
@@ -277,23 +288,44 @@ export async function syncHistoricalRound(round: number): Promise<void> {
     const scouts = await fetchHistoricalRound(round);
     const existing = await getScoutsByRound(round);
 
-    if (existing.length > 0) {
-      console.log(`[ETL] Round ${round} scouts already in DB, skipping insert`);
+    // If existing records already have real points, skip
+    const hasRealPoints = existing.some((e) => e.points != null && e.points > 0);
+    if (hasRealPoints) {
+      console.log(`[ETL] Round ${round} scouts already have real points in DB, skipping`);
       return;
+    }
+
+    // If there are existing records but with null points, delete them so we can re-insert
+    if (existing.length > 0) {
+      console.log(`[ETL] Round ${round}: deleting ${existing.length} null-point records for re-sync`);
+      await db
+        .delete(playerScoutRoundTable)
+        .where(
+          and(
+            eq(playerScoutRoundTable.round, round),
+            isNull(playerScoutRoundTable.points)
+          )
+        );
     }
 
     const players = await db.query.playersTable.findMany();
     const playerMap = new Map(players.map((p) => [p.externalId, p]));
 
+    let inserted = 0;
     for (const scout of scouts) {
       const player = playerMap.get(String(scout.atleta_id));
       if (!player) continue;
+
+      // Prefer API points; fall back to computing from raw scouts
+      const rawScouts = (scout.scout ?? {}) as Record<string, number | undefined>;
+      const computedPoints = computePointsFromRawScouts(rawScouts);
+      const points = scout.pontos_num != null ? scout.pontos_num : (computedPoints !== 0 ? computedPoints : null);
 
       await insertScoutRound({
         playerId: player.id,
         round: scout.rodada_id,
         source: "historical_cartola",
-        points: scout.pontos_num ?? null,
+        points,
         minutesPlayed: null,
         goals: scout.scout?.G ?? null,
         assists: scout.scout?.A ?? null,
@@ -312,9 +344,10 @@ export async function syncHistoricalRound(round: number): Promise<void> {
         penaltySaved: scout.scout?.PS ?? null,
         ownGoals: null,
       });
+      inserted++;
     }
 
-    console.log(`[ETL] Saved ${scouts.length} historical scouts for round ${round}`);
+    console.log(`[ETL] Saved ${inserted} historical scouts for round ${round} (${scouts.length} from API)`);
   } catch (error) {
     console.error(`[ETL] Historical scout sync failed for round ${round}:`, error);
     throw error;
