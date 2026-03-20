@@ -50,24 +50,38 @@ function normalizePopularity(players: PlayerWithProjection[]): Map<number, numbe
   return new Map(players.map((pw) => [pw.player.id, (pw.player.popularity ?? 0) / maxPop]));
 }
 
+// Penalises players with too few games played (small sample = unreliable average)
+function samplePenalty(pw: PlayerWithProjection): number {
+  const games = pw.player.gamesPlayed ?? 0;
+  if (games === 0) return 6;
+  if (games < 3) return (3 - games) * 2; // -4 for 1 game, -2 for 2 games
+  return 0;
+}
+
 function getScoringFn(
   strategy: StrategyType,
   popularityMap: Map<number, number>
 ): (pw: PlayerWithProjection) => number {
   switch (strategy) {
     case "safe":
+      // Blend floor (consistency), expected points (quality) AND value (cost-efficiency).
+      // This prevents overspending on a single premium position at the expense of others.
       return (pw) =>
-        (pw.projection.floorPoints ?? 0) * 0.6 +
-        (pw.projection.expectedPoints ?? 0) * 0.4 -
-        (pw.projection.riskScore ?? 0) * 5;
+        (pw.projection.floorPoints ?? 0) * 0.3 +
+        (pw.projection.expectedPoints ?? 0) * 0.3 +
+        (pw.projection.valueScore ?? 0) * 8 -
+        (pw.projection.riskScore ?? 0) * 5 -
+        samplePenalty(pw);
     case "aggressive":
       return (pw) =>
         (pw.projection.ceilingPoints ?? 0) * 0.7 +
-        (pw.projection.expectedPoints ?? 0) * 0.3;
+        (pw.projection.expectedPoints ?? 0) * 0.3 -
+        samplePenalty(pw) * 0.5;
     case "cost-benefit":
       return (pw) =>
         (pw.projection.valueScore ?? 0) * 4 +
-        (pw.projection.recommendationScore ?? 0) * 0.3;
+        (pw.projection.recommendationScore ?? 0) * 0.3 -
+        samplePenalty(pw);
     case "antimassa": {
       return (pw) => {
         const popNorm = popularityMap.get(pw.player.id) ?? 0.5;
@@ -77,7 +91,7 @@ function getScoringFn(
         const differentialScore = (explanation?.differentialScore as number | undefined) ?? 0;
         const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
         const trapPenalty = isTrap ? 5 : 0;
-        return expected * (1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty;
+        return expected * (1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty - samplePenalty(pw);
       };
     }
   }
@@ -88,7 +102,12 @@ function getFormationRequirements(formation: string): Array<{ position: string; 
   const slots: Array<{ position: string; count: number }> = [
     { position: "GOL", count: 1 },
   ];
-  for (const [pos, count] of Object.entries(config)) {
+  // Fill defensive/secondary positions first, then ATA before MEI.
+  // This ensures premium ATA budget is allocated before MEI slots consume it,
+  // preventing the pattern of 3 expensive MEIs leaving only garbage-tier ATAs.
+  const FILL_ORDER = ["ZAG", "LAT", "ATA", "MEI"];
+  for (const pos of FILL_ORDER) {
+    const count = config[pos] ?? 0;
     if (count > 0) slots.push({ position: pos, count });
   }
   slots.push({ position: "TEC", count: 1 });
@@ -185,17 +204,39 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const clubCount = new Map<number, number>();
   let totalCost = 0;
 
-  // Returns the actual minimum cost to fill N slots at a given position,
-  // excluding already-selected player IDs. Uses the sum of the N cheapest
-  // players (not cheapest × N, which underestimates when supply is scarce).
+  // Returns the reserved cost needed to fill N future slots at a given position.
+  // Uses a quality-filtered pool (top 75% by xPts) when enough players are available,
+  // so the algorithm reserves budget for decent players — not rock-bottom garbage picks.
+  // Falls back to cheapest-overall if the pool is too small to filter safely.
   const getMinSumForNSlots = (position: string, n: number, excludeIds: Set<number>): number => {
-    return playerProjections
-      .filter(
-        (pw) =>
-          pw.player.position === position &&
-          !excludeIds.has(pw.player.id) &&
-          (pw.projection.playProbability ?? 0) > 0.1
-      )
+    const available = playerProjections.filter(
+      (pw) =>
+        pw.player.position === position &&
+        !excludeIds.has(pw.player.id) &&
+        (pw.projection.playProbability ?? 0) > 0.1
+    );
+
+    // Only filter when we have clearly more than needed (avoids over-restricting small pools)
+    const minPoolForFilter = n + 4;
+    if (available.length >= minPoolForFilter) {
+      // Sort ascending by xPts → cut bottom 25% (garbage tier)
+      const sorted = [...available].sort(
+        (a, b) => (a.projection.expectedPoints ?? 0) - (b.projection.expectedPoints ?? 0)
+      );
+      const cutoff = Math.floor(available.length * 0.25);
+      const qualityPool = sorted.slice(cutoff); // top 75% by quality
+      const qualityPrices = qualityPool
+        .map((pw) => pw.player.price ?? 0)
+        .sort((a, b) => a - b)
+        .slice(0, n);
+      // Only use quality reservation if we got all N slots covered
+      if (qualityPrices.length === n) {
+        return qualityPrices.reduce((sum, p) => sum + p, 0);
+      }
+    }
+
+    // Fallback: cheapest available (ensures we never block a valid lineup)
+    return available
       .map((pw) => pw.player.price ?? 0)
       .sort((a, b) => a - b)
       .slice(0, n)
