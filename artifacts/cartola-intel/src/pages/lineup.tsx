@@ -109,7 +109,7 @@ function buildInsights(exp: ExplanationJson, isCaptain: boolean, isCoach: boolea
   return insights.slice(0, 3);
 }
 
-const insightIcon: Record<InsightKind, typeof TrendingUp> = {
+const insightIcon: Record<InsightKind, typeof CheckCircle2> = {
   positive: CheckCircle2,
   warning: AlertTriangle,
   neutral: Home,
