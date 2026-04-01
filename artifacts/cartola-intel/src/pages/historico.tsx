@@ -166,14 +166,7 @@ function DiffIndicator({ value, sign }: { value: number | null; sign?: "above" |
   );
 }
 
-function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
-  const strategyLabels: Record<string, string> = {
-    safe: "Seguro",
-    aggressive: "Agressivo",
-    "cost-benefit": "Custo-Benefício",
-    antimassa: "Antimassa",
-  };
-
+function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBacktestRound; hideRoundTitle?: boolean }) {
   const totalPlayers = (data.players ?? []).filter((p) => p.position !== "TEC").length;
   const playersWithData = data.playersWithData ?? 0;
   const allCoveredByData = data.allCoveredByData ?? true;
@@ -186,7 +179,7 @@ function LineupBacktestCard({ data }: { data: LineupBacktestRound }) {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
-              Rodada {data.round}
+              {!hideRoundTitle && <>Rodada {data.round}</>}
               {isPartial && (
                 <span className="text-[10px] font-normal text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 px-1.5 py-0.5 rounded">
                   {playersWithData}/{totalPlayers} com dados
@@ -515,6 +508,63 @@ function PlayerBacktestTab() {
   );
 }
 
+const STRATEGY_ORDER = ["safe", "aggressive", "cost-benefit", "antimassa"];
+const strategyLabels: Record<string, string> = {
+  safe: "Seguro",
+  aggressive: "Agressivo",
+  "cost-benefit": "Custo-Benefício",
+  antimassa: "Antimassa",
+};
+
+function RoundStrategyGroup({ roundNum, lineups }: { roundNum: number; lineups: LineupBacktestRound[] }) {
+  const sorted = [...lineups].sort(
+    (a, b) => STRATEGY_ORDER.indexOf(a.strategyType) - STRATEGY_ORDER.indexOf(b.strategyType)
+  );
+  const defaultTab = sorted[0]?.strategyType ?? "safe";
+
+  if (sorted.length === 1) {
+    return (
+      <div className="space-y-2">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <History className="w-4 h-4 text-primary" />
+          Rodada {roundNum}
+          <span className="text-xs font-normal text-muted-foreground">
+            {strategyLabels[sorted[0]!.strategyType] ?? sorted[0]!.strategyType} · {sorted[0]!.formation}
+          </span>
+        </h3>
+        <LineupBacktestCard data={sorted[0]!} hideRoundTitle />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+        <History className="w-4 h-4 text-primary" />
+        Rodada {roundNum}
+        <span className="text-xs font-normal text-muted-foreground">{sorted.length} estratégias</span>
+      </h3>
+      <Tabs defaultValue={defaultTab}>
+        <TabsList className="mb-3 flex-wrap h-auto gap-1">
+          {sorted.map((lu) => (
+            <TabsTrigger key={lu.strategyType} value={lu.strategyType} className="text-xs">
+              {strategyLabels[lu.strategyType] ?? lu.strategyType}
+              {lu.hasActualData && (
+                <span className={`ml-1.5 w-1.5 h-1.5 rounded-full inline-block ${lu.differenceSign === "above" ? "bg-green-500" : lu.differenceSign === "below" ? "bg-red-400" : "bg-muted-foreground"}`} />
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {sorted.map((lu) => (
+          <TabsContent key={lu.strategyType} value={lu.strategyType}>
+            <LineupBacktestCard data={lu} hideRoundTitle />
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
 function LineupBacktestTab() {
   const [selectedRound, setSelectedRound] = useState<string>("all");
   const { data: roundsData } = useQuery({ queryKey: ["lineup-rounds"], queryFn: fetchLineupRounds });
@@ -527,11 +577,19 @@ function LineupBacktestTab() {
   const lineupRounds = roundsData?.rounds ?? [];
   const backtestRounds = data?.rounds ?? [];
 
+  // Group by round number
+  const roundGroups = backtestRounds.reduce<Map<number, LineupBacktestRound[]>>((map, entry) => {
+    if (!map.has(entry.round)) map.set(entry.round, []);
+    map.get(entry.round)!.push(entry);
+    return map;
+  }, new Map());
+  const sortedRoundKeys = [...roundGroups.keys()].sort((a, b) => a - b);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-sm text-muted-foreground">
-          Melhor escalação sugerida por rodada: pontuação projetada vs. real com capitão em dobro.
+          Escalações sugeridas por rodada e estratégia: pontuação projetada vs. real com capitão em dobro.
         </p>
         <Select value={selectedRound} onValueChange={setSelectedRound}>
           <SelectTrigger className="w-40">
@@ -561,13 +619,17 @@ function LineupBacktestTab() {
           </CardContent>
         </Card>
       )}
-      {!isLoading && !isError && backtestRounds.length === 0 && (
+      {!isLoading && !isError && sortedRoundKeys.length === 0 && (
         <GenericEmptyState message={data?.message ?? "Gere uma escalação pela página de Escalação para que o backtest seja calculado."} />
       )}
-      {!isLoading && !isError && backtestRounds.length > 0 && (
-        <div className="space-y-4">
-          {backtestRounds.map((round) => (
-            <LineupBacktestCard key={round.round} data={round} />
+      {!isLoading && !isError && sortedRoundKeys.length > 0 && (
+        <div className="space-y-8">
+          {sortedRoundKeys.map((roundNum) => (
+            <RoundStrategyGroup
+              key={roundNum}
+              roundNum={roundNum}
+              lineups={roundGroups.get(roundNum)!}
+            />
           ))}
         </div>
       )}

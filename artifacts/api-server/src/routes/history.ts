@@ -177,22 +177,28 @@ router.get("/history/lineup-backtest", async (req, res) => {
       .select()
       .from(lineupSuggestionTable)
       .where(isNotNull(lineupSuggestionTable.expectedPoints))
-      .orderBy(sql`${lineupSuggestionTable.expectedPoints} DESC NULLS LAST`);
+      .orderBy(lineupSuggestionTable.round, lineupSuggestionTable.strategyType);
 
     if (allLineups.length === 0) {
       res.json({ rounds: [], message: "Nenhuma escalação salva. Gere uma escalação pela página de Escalação primeiro." });
       return;
     }
 
-    const bestByRound = new Map<number, typeof allLineups[number]>();
+    // Keep ALL lineups (one per round+strategy combination), not just the best per round.
+    // Deduplicate by round+strategy keeping the latest (highest id).
+    const bestByRoundStrategy = new Map<string, typeof allLineups[number]>();
     for (const lineup of allLineups) {
       if (roundParam !== null && lineup.round !== roundParam) continue;
-      if (!bestByRound.has(lineup.round)) {
-        bestByRound.set(lineup.round, lineup);
+      const key = `${lineup.round}_${lineup.strategyType ?? "unknown"}`;
+      const existing = bestByRoundStrategy.get(key);
+      if (!existing || lineup.id > existing.id) {
+        bestByRoundStrategy.set(key, lineup);
       }
     }
 
-    const targetLineups = Array.from(bestByRound.values()).sort((a, b) => a.round - b.round);
+    const targetLineups = Array.from(bestByRoundStrategy.values()).sort(
+      (a, b) => a.round - b.round || (a.strategyType ?? "").localeCompare(b.strategyType ?? "")
+    );
 
     if (targetLineups.length === 0) {
       res.json({ rounds: [], message: "Nenhuma escalação encontrada para a rodada selecionada." });
