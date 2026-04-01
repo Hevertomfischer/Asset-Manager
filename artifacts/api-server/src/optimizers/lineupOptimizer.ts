@@ -116,6 +116,22 @@ function getFormationRequirements(formation: string): Array<{ position: string; 
 
 const MIN_GAMES_FOR_CAPTAIN = 3;
 
+// Position multiplier for captain selection.
+// ATA and MEI get a bonus so they are preferred when expected points are similar.
+// A 1.20 multiplier means an ATA needs to be at most 17% worse than a defender
+// to still be chosen — it won't override a clearly superior non-attacker.
+const CAPTAIN_POSITION_MULTIPLIER: Record<string, number> = {
+  ATA: 1.20,
+  MEI: 1.10,
+  LAT: 1.00,
+  ZAG: 1.00,
+  GOL: 0.95,
+};
+
+function captainPositionMultiplier(position: string): number {
+  return CAPTAIN_POSITION_MULTIPLIER[position] ?? 1.0;
+}
+
 function selectCaptain(
   fieldPlayers: PlayerWithProjection[],
   strategy: StrategyType,
@@ -131,21 +147,26 @@ function selectCaptain(
   const pool = eligible.length > 0 ? eligible : fieldPlayers;
 
   return [...pool].sort((a, b) => {
+    const multA = captainPositionMultiplier(a.player.position);
+    const multB = captainPositionMultiplier(b.player.position);
+
     if (strategy === "antimassa") {
       const popA = popularityMap.get(a.player.id) ?? 0.5;
       const popB = popularityMap.get(b.player.id) ?? 0.5;
-      const scoreA = (a.projection.expectedPoints ?? 0) * (1 - popA * 0.5);
-      const scoreB = (b.projection.expectedPoints ?? 0) * (1 - popB * 0.5);
+      const scoreA = (a.projection.expectedPoints ?? 0) * (1 - popA * 0.5) * multA;
+      const scoreB = (b.projection.expectedPoints ?? 0) * (1 - popB * 0.5) * multB;
       return scoreB - scoreA;
     }
     if (strategy === "safe") {
-      return ((b.projection.floorPoints ?? 0) + (b.projection.expectedPoints ?? 0)) -
-        ((a.projection.floorPoints ?? 0) + (a.projection.expectedPoints ?? 0));
+      const scoreA = ((a.projection.floorPoints ?? 0) + (a.projection.expectedPoints ?? 0)) * multA;
+      const scoreB = ((b.projection.floorPoints ?? 0) + (b.projection.expectedPoints ?? 0)) * multB;
+      return scoreB - scoreA;
     }
     if (strategy === "aggressive") {
-      return (b.projection.ceilingPoints ?? 0) - (a.projection.ceilingPoints ?? 0);
+      return (b.projection.ceilingPoints ?? 0) * multB - (a.projection.ceilingPoints ?? 0) * multA;
     }
-    return (b.projection.expectedPoints ?? 0) - (a.projection.expectedPoints ?? 0);
+    // cost-benefit and default: highest expected points, prefer attackers
+    return (b.projection.expectedPoints ?? 0) * multB - (a.projection.expectedPoints ?? 0) * multA;
   })[0];
 }
 
@@ -202,6 +223,9 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const slotRequirements = getFormationRequirements(formation);
   const selected: PlayerWithProjection[] = [];
   const clubCount = new Map<number, number>();
+  // Tracks how many players from each club are in each position.
+  // Key: `${clubId}_${position}`. Max 1 per club per position.
+  const clubPositionCount = new Map<string, number>();
   let totalCost = 0;
 
   // Returns the reserved cost needed to fill N future slots at a given position.
@@ -250,11 +274,14 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       const alreadySelected = selected.some((s) => s.player.id === pw.player.id);
       const clubId = pw.player.clubId ?? 0;
       const clubUsed = clubCount.get(clubId) ?? 0;
+      const clubPosKey = `${clubId}_${position}`;
+      const clubPosUsed = clubPositionCount.get(clubPosKey) ?? 0;
       const playProb = pw.projection.playProbability ?? 0;
       return (
         pw.player.position === position &&
         !alreadySelected &&
         clubUsed < LINEUP_CONFIG.maxPlayersPerClub &&
+        clubPosUsed < 1 &&
         playProb > 0.1
       );
     });
@@ -262,6 +289,14 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     let filled = 0;
     for (const candidate of candidates) {
       if (filled >= count) break;
+
+      // Re-check club-position uniqueness inside the loop: the candidates list was
+      // pre-filtered before any selections in this slot, so a club-position slot can
+      // fill up between iterations without the outer filter catching it.
+      const candidateClubId = candidate.player.clubId ?? 0;
+      const candidateClubPosKey = `${candidateClubId}_${candidate.player.position}`;
+      if ((clubPositionCount.get(candidateClubPosKey) ?? 0) >= 1) continue;
+
       const price = candidate.player.price ?? 0;
 
       const excludeIds = new Set(selected.map((s) => s.player.id));
@@ -289,6 +324,8 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       totalCost += price;
       const clubId = candidate.player.clubId ?? 0;
       clubCount.set(clubId, (clubCount.get(clubId) ?? 0) + 1);
+      const clubPosKey = `${clubId}_${candidate.player.position}`;
+      clubPositionCount.set(clubPosKey, (clubPositionCount.get(clubPosKey) ?? 0) + 1);
       filled++;
     }
   }
