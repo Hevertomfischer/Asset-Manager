@@ -10,7 +10,7 @@ import {
   type PlayerAvailability,
   type PlayerScoutRound,
 } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, max } from "drizzle-orm";
 
 export async function upsertProjection(proj: InsertPlayerProjection): Promise<PlayerProjection> {
   const existing = await db.query.playerProjectionTable.findFirst({
@@ -35,6 +35,13 @@ export async function getProjectionsByRound(round: number): Promise<PlayerProjec
     where: (t) => eq(t.round, round),
     orderBy: (t) => [desc(t.recommendationScore)],
   });
+}
+
+export async function getLatestProjectionRound(): Promise<number | null> {
+  const result = await db
+    .select({ maxRound: max(playerProjectionTable.round) })
+    .from(playerProjectionTable);
+  return result[0]?.maxRound ?? null;
 }
 
 export async function upsertAvailability(avail: InsertPlayerAvailability): Promise<PlayerAvailability> {

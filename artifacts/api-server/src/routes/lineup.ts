@@ -1,6 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
 import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
+import { getLatestProjectionRound } from "../repositories/projectionRepository";
 import { db } from "@workspace/db";
 import { clubsTable } from "@workspace/db/schema";
 
@@ -23,6 +24,14 @@ router.post("/lineup/generate", async (req, res) => {
       } catch {
         currentRound = 1;
       }
+    }
+
+    // If there are no projections for the current round yet (season just advanced),
+    // fall back to the most recent round that has projections in the DB.
+    const latestRound = await getLatestProjectionRound();
+    if (latestRound !== null && latestRound < currentRound) {
+      console.log(`[lineup/generate] No projections for round ${currentRound}, falling back to round ${latestRound}`);
+      currentRound = latestRound;
     }
 
     const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa"];
