@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { playerAvailabilityTable } from "@workspace/db/schema";
 import { getProjectionsByRound } from "../repositories/projectionRepository";
 import { insertLineupSuggestion } from "../repositories/lineupRepository";
+import { getMatchesByRound } from "../repositories/matchRepository";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 
@@ -174,14 +175,25 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const { round, strategy, formation = LINEUP_CONFIG.defaultFormation } = request;
   const budgetLimit = request.budgetLimit ?? LINEUP_CONFIG.defaultBudget;
 
-  const [projections, players, availabilities] = await Promise.all([
+  const [projections, players, availabilities, roundMatches] = await Promise.all([
     getProjectionsByRound(round),
     db.query.playersTable.findMany(),
     db.select().from(playerAvailabilityTable),
+    getMatchesByRound(round),
   ]);
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const availMap = new Map(availabilities.map((a) => [a.playerId, a.playProbability]));
+
+  // Map each clubId to its opponent's clubId for this round.
+  // Used to prevent placing two players from opposing clubs in the same position.
+  const opponentMap = new Map<number, number>();
+  for (const match of roundMatches) {
+    if (match.homeClubId && match.awayClubId) {
+      opponentMap.set(match.homeClubId, match.awayClubId);
+      opponentMap.set(match.awayClubId, match.homeClubId);
+    }
+  }
 
   if (projections.length === 0) {
     throw new Error(`No projections found for round ${round}. Please sync data first.`);
@@ -276,12 +288,18 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       const clubUsed = clubCount.get(clubId) ?? 0;
       const clubPosKey = `${clubId}_${position}`;
       const clubPosUsed = clubPositionCount.get(clubPosKey) ?? 0;
+      // Opposing-clubs constraint: don't pick a player whose club is facing a club
+      // that already has a player in this position.
+      const opponentId = opponentMap.get(clubId);
+      const opponentPosKey = opponentId ? `${opponentId}_${position}` : null;
+      const opponentAlreadyInPos = opponentPosKey ? (clubPositionCount.get(opponentPosKey) ?? 0) > 0 : false;
       const playProb = pw.projection.playProbability ?? 0;
       return (
         pw.player.position === position &&
         !alreadySelected &&
         clubUsed < LINEUP_CONFIG.maxPlayersPerClub &&
         clubPosUsed < 1 &&
+        !opponentAlreadyInPos &&
         playProb > 0.1
       );
     });
@@ -290,12 +308,15 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     for (const candidate of candidates) {
       if (filled >= count) break;
 
-      // Re-check club-position uniqueness inside the loop: the candidates list was
-      // pre-filtered before any selections in this slot, so a club-position slot can
-      // fill up between iterations without the outer filter catching it.
+      // Re-check constraints inside the loop: the candidates list was pre-filtered before
+      // any selections in this slot, so constraints can become violated between iterations.
       const candidateClubId = candidate.player.clubId ?? 0;
       const candidateClubPosKey = `${candidateClubId}_${candidate.player.position}`;
       if ((clubPositionCount.get(candidateClubPosKey) ?? 0) >= 1) continue;
+      // Opposing-clubs: if the candidate's opponent club already has a player in this position, skip.
+      const candidateOpponentId = opponentMap.get(candidateClubId);
+      const candidateOpponentPosKey = candidateOpponentId ? `${candidateOpponentId}_${candidate.player.position}` : null;
+      if (candidateOpponentPosKey && (clubPositionCount.get(candidateOpponentPosKey) ?? 0) > 0) continue;
 
       const price = candidate.player.price ?? 0;
 
