@@ -161,12 +161,32 @@ export interface LineupPlayer {
   nickname?: string | null;
   price?: number | null;
   averagePoints?: number | null;
+  gamesPlayed?: number | null;
   expectedPoints?: number | null;
   floorPoints?: number | null;
   ceilingPoints?: number | null;
   riskScore?: number | null;
   recommendationScore?: number | null;
   explanation?: LineupPlayerExplanation;
+  clubId?: number | null;
+  clubAbbr?: string | null;
+  clubName?: string | null;
+}
+
+export interface LineupReservePlayer {
+  playerId?: number;
+  position?: string;
+  isLuxuryReserve?: boolean;
+  expectedPoints?: number | null;
+  floorPoints?: number | null;
+  ceilingPoints?: number | null;
+  price?: number | null;
+  orderIndex?: number;
+  name?: string;
+  nickname?: string | null;
+  clubId?: number | null;
+  clubAbbr?: string | null;
+  clubName?: string | null;
 }
 
 export interface LineupSuggestion {
@@ -181,6 +201,7 @@ export interface LineupSuggestion {
   captainPlayerId?: number | null;
   coachPlayerId?: number | null;
   players?: LineupPlayer[];
+  reserves?: LineupReservePlayer[];
 }
 
 export interface LineupGenerateResponse {

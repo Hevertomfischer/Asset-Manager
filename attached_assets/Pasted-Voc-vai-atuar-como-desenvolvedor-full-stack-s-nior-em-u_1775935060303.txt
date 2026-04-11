@@ -1,0 +1,192 @@
+Você vai atuar como **desenvolvedor full stack sênior** em uma aplicação já existente inspirada no **Cartola**, que já possui cadastro de usuários, rodadas, escalação titular e cálculo básico de pontuação, mas **a funcionalidade de banco de reservas ainda não foi implementada**.
+
+## Objetivo
+
+Implementar o sistema de **reservas** na aplicação existente, respeitando as regras abaixo.
+
+## Regras de negócio do banco de reservas
+
+1. O usuário pode escalar **1 reserva por posição existente na formação atual**.
+2. O banco é **opcional**.
+3. O reserva só entra automaticamente se o **titular da mesma posição não entrar em campo na rodada**.
+4. Se o titular entrou em campo, mesmo que tenha jogado poucos minutos, **não há substituição normal**.
+5. O reserva só pode substituir se ele fizer **pontuação positiva maior que 0**.
+6. Se o reserva fizer **0 ou pontuação negativa**, ele **não substitui** o titular ausente.
+7. O reserva deve ser da **mesma posição** do titular substituído.
+8. Se houver mais de um titular da mesma posição sem atuar e apenas um reserva disponível para a posição, usar uma regra determinística:
+
+   * substituir o titular cujo jogo ocorrer primeiro na ordem cronológica da rodada;
+   * em caso de empate, usar o menor `player_id`.
+9. A formação do usuário deve continuar válida. O banco **não altera a formação**, apenas substitui pontualmente um titular ausente por um reserva da mesma posição.
+10. O cálculo final da pontuação da rodada deve considerar:
+
+* pontuação dos titulares que jogaram;
+* substituição automática pelos reservas elegíveis;
+* nenhum ponto extra ou duplicado.
+
+## Regras adicionais para “Reserva de Luxo”
+
+Implementar também a funcionalidade opcional de **Reserva de Luxo**:
+
+1. O usuário pode marcar **apenas 1 reserva** como `luxury_reserve = true`.
+2. O Reserva de Luxo atua **somente dentro da mesma posição**.
+3. Ele pode substituir o **pior titular da mesma posição**, mesmo que esse titular tenha jogado.
+4. Isso só acontece se:
+
+   * **todos os titulares daquela posição tiverem jogado**;
+   * o reserva de luxo tiver feito **mais pontos** que o pior titular da posição;
+   * ele respeitar as demais validações de posição.
+5. Se existir algum titular ausente naquela posição, primeiro aplicar a **regra normal do banco**. O Reserva de Luxo só entra no cenário em que **nenhum titular da posição ficou ausente**.
+6. Apenas **um único swap de luxo** pode acontecer por rodada.
+7. O sistema deve registrar claramente no resultado da rodada:
+
+   * qual substituição foi normal;
+   * qual substituição foi de luxo;
+   * quem saiu;
+   * quem entrou;
+   * motivo da troca.
+
+## O que preciso que você implemente
+
+### 1. Backend
+
+Criar ou ajustar:
+
+* entidades/modelos para reservas escalados por rodada;
+* flag de `luxury_reserve`;
+* serviço de processamento da rodada;
+* função clara e isolada para aplicar:
+
+  * substituições normais;
+  * substituição de luxo;
+* logs/auditoria da substituição.
+
+### 2. Regras técnicas
+
+Quero código limpo, modular e testável:
+
+* separar regra de negócio em serviços puros;
+* evitar lógica complexa dentro de controllers;
+* criar funções pequenas e reutilizáveis;
+* garantir idempotência no processamento da rodada;
+* preparar para futuras regras.
+
+### 3. Banco de dados
+
+Se necessário, criar migration para algo como:
+
+* `lineup_reserves`
+
+  * `id`
+  * `lineup_id`
+  * `player_id`
+  * `position`
+  * `is_luxury_reserve`
+  * `created_at`
+  * `updated_at`
+
+Se já existir estrutura parecida, adaptar sem quebrar a aplicação.
+
+Também criar estrutura para registrar substituições processadas, algo como:
+
+* `lineup_substitutions`
+
+  * `id`
+  * `lineup_id`
+  * `round_id`
+  * `substitution_type` (`normal` | `luxury`)
+  * `out_player_id`
+  * `in_player_id`
+  * `position`
+  * `reason`
+  * `points_removed`
+  * `points_added`
+  * `created_at`
+
+### 4. Frontend
+
+Adicionar na tela de escalação:
+
+* área de banco de reservas;
+* exibir apenas posições compatíveis com a formação escolhida;
+* permitir selecionar 1 reserva por posição;
+* permitir marcar apenas 1 como Reserva de Luxo;
+* impedir visualmente violações de regra;
+* mostrar tooltip ou texto explicando:
+
+  * quando o reserva entra;
+  * quando o reserva de luxo entra;
+  * que o reserva precisa pontuar positivo para substituir.
+
+Na tela de resultado da rodada:
+
+* exibir os titulares;
+* exibir reservas acionados;
+* destacar substituições automáticas;
+* destacar substituição de luxo;
+* mostrar pontuação antes e depois da substituição.
+
+### 5. API / contratos
+
+Criar ou ajustar endpoints necessários para:
+
+* salvar reservas da escalação;
+* marcar/desmarcar reserva de luxo;
+* buscar escalação completa com titulares + reservas;
+* retornar resultado processado da rodada com substituições detalhadas.
+
+### 6. Testes
+
+Criar testes unitários e de integração cobrindo no mínimo estes cenários:
+
+#### Substituição normal
+
+* titular não jogou + reserva positivo => reserva entra;
+* titular não jogou + reserva zerou => reserva não entra;
+* titular não jogou + reserva negativou => reserva não entra;
+* titular jogou => reserva normal não entra.
+
+#### Reserva de Luxo
+
+* todos os titulares da posição jogaram + reserva de luxo pontuou mais que o pior => troca acontece;
+* todos jogaram + reserva de luxo pontuou menos => troca não acontece;
+* existe titular ausente na posição => prioriza regra normal, sem luxo nesse caso;
+* só pode existir 1 reserva de luxo por escalação.
+
+#### Casos de consistência
+
+* não permitir reserva de posição errada;
+* não duplicar jogador entre titular e reserva;
+* não permitir múltiplas substituições com o mesmo reserva;
+* processamento repetido da rodada não deve gerar substituições duplicadas.
+
+## Importante
+
+Antes de codar:
+
+1. analise a estrutura atual do projeto;
+2. identifique arquivos já existentes relacionados a lineup, round, player, score e formation;
+3. proponha a melhor forma de encaixar essa funcionalidade com o menor impacto possível;
+4. depois implemente.
+
+## Entrega esperada
+
+Quero que você:
+
+1. faça um breve plano técnico;
+2. implemente os arquivos necessários;
+3. crie ou ajuste migrations;
+4. crie os testes;
+5. mostre um resumo final com:
+
+   * arquivos criados;
+   * arquivos alterados;
+   * decisões técnicas;
+   * como validar manualmente.
+
+Se houver ambiguidade na estrutura atual do projeto, priorize:
+
+* retrocompatibilidade;
+* clareza de código;
+* segurança das regras de negócio;
+* facilidade de manutenção.

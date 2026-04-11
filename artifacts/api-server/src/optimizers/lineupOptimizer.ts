@@ -1,8 +1,9 @@
 import { db } from "@workspace/db";
 import { playerAvailabilityTable } from "@workspace/db/schema";
 import { getProjectionsByRound } from "../repositories/projectionRepository";
-import { insertLineupSuggestion } from "../repositories/lineupRepository";
+import { insertLineupSuggestion, insertLineupReserves } from "../repositories/lineupRepository";
 import { getMatchesByRound } from "../repositories/matchRepository";
+import { selectReserves, type ReservePlayer } from "../services/reserveService";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 
@@ -41,6 +42,7 @@ interface LineupResult {
     orderIndex: number;
     isCaptain: boolean;
   }>;
+  reserves: ReservePlayer[];
 }
 
 function normalizePopularity(players: PlayerWithProjection[]): Map<number, number> {
@@ -412,6 +414,38 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     lineupPlayers
   );
 
+  // Generate bench reserves — one per field position, best available player not in main lineup.
+  const mainLineupIds = new Set(selected.map((pw) => pw.player.id));
+  const formationPositions = slotRequirements.map((s) => s.position);
+  const rawProjectionsForReserves = allPlayerProjections.map((pw) => ({
+    playerId: pw.player.id,
+    playerName: pw.player.name ?? "Unknown",
+    playerNickname: pw.player.nickname ?? null,
+    position: pw.player.position,
+    clubId: pw.player.clubId ?? null,
+    expectedPoints: pw.projection.expectedPoints ?? 0,
+    floorPoints: pw.projection.floorPoints ?? 0,
+    ceilingPoints: pw.projection.ceilingPoints ?? 0,
+    price: pw.player.price ?? 0,
+    playProbability: pw.projection.playProbability ?? 0,
+  }));
+
+  const reserves = selectReserves(rawProjectionsForReserves, mainLineupIds, formationPositions);
+
+  await insertLineupReserves(
+    saved.id,
+    reserves.map((r) => ({
+      playerId: r.playerId,
+      position: r.position,
+      isLuxuryReserve: r.isLuxuryReserve,
+      expectedPoints: r.expectedPoints,
+      floorPoints: r.floorPoints,
+      ceilingPoints: r.ceilingPoints,
+      price: r.price,
+      orderIndex: r.orderIndex,
+    }))
+  );
+
   return {
     id: saved.id,
     round,
@@ -433,5 +467,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       orderIndex: idx,
       isCaptain: pw.player.id === captain?.player.id,
     })),
+    reserves,
   };
 }

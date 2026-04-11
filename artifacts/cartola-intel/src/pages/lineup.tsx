@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer } from "@workspace/api-client-react";
+import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 
@@ -186,6 +186,46 @@ function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; capt
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
+  const posLabel =
+    reserve.position === "GOL" ? "Goleiro"
+    : reserve.position === "ZAG" ? "Zagueiro"
+    : reserve.position === "LAT" ? "Lateral"
+    : reserve.position === "MEI" ? "Meia"
+    : reserve.position === "ATA" ? "Atacante"
+    : reserve.position ?? "?";
+
+  return (
+    <div
+      className={`p-3 rounded-xl border transition-all ${
+        reserve.isLuxuryReserve
+          ? "border-purple-500/50 bg-purple-500/5"
+          : "border-border/40 bg-card/60"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <div className="min-w-0">
+          <p className="font-semibold text-xs text-foreground truncate">{reserve.name ?? "Desconhecido"}</p>
+          <p className="text-[10px] text-muted-foreground">{reserve.clubAbbr ?? reserve.clubName ?? ""}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <Badge variant="outline" className={`font-mono text-[10px] ${getPositionColor(reserve.position ?? "")}`}>
+            {reserve.position}
+          </Badge>
+          {reserve.isLuxuryReserve && (
+            <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider">Luxo</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-muted-foreground">C$ {(reserve.price ?? 0).toFixed(2)}</span>
+        <span className="font-bold text-primary font-mono">{(reserve.expectedPoints ?? 0).toFixed(1)} pts</span>
+      </div>
+      <p className="text-[9px] text-muted-foreground mt-1 opacity-70">{posLabel}</p>
     </div>
   );
 }
@@ -430,6 +470,32 @@ export default function Lineup() {
                       coachId={currentLineup.coachPlayerId}
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Bench Reserves */}
+              {(currentLineup.reserves?.length ?? 0) > 0 && (
+                <div className="pt-2 border-t border-border/30">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">Banco de Reservas</span>
+                    <Badge variant="secondary" className="text-[10px]">{currentLineup.reserves!.length}</Badge>
+                    <span className="text-[10px] text-muted-foreground ml-1">
+                      {currentLineup.reserves!.some((r) => r.isLuxuryReserve) && (
+                        <span className="text-purple-400">· 1 reserva de luxo</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                    {[...currentLineup.reserves!]
+                      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+                      .map((r) => (
+                        <ReserveCard key={r.playerId} reserve={r} />
+                      ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2 opacity-60">
+                    Reservas selecionadas com probabilidade de jogo {">"} 25%. A reserva de luxo entra quando todos os titulares jogaram e ela supera o pior titular.
+                  </p>
                 </div>
               )}
             </div>

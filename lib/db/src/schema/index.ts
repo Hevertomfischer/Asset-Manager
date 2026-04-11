@@ -5,5 +5,6 @@ export * from "./playerAvailability";
 export * from "./playerScoutRound";
 export * from "./playerProjection";
 export * from "./lineupSuggestion";
+export * from "./lineupReserve";
 export * from "./roundSnapshot";
 export * from "./dataCollectionLog";
