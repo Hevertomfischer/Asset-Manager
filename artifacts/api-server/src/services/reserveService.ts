@@ -72,6 +72,14 @@ export function selectReserves(
   // Distinct positions we need reserves for (no TEC, no duplicates)
   const positions = [...new Set(formationPositions.filter((p) => p !== "TEC"))];
 
+  // Min price per position among the main lineup starters
+  const minStarterPriceByPosition = new Map<string, number>();
+  for (const p of allProjections) {
+    if (!mainLineupPlayerIds.has(p.playerId) || p.position === "TEC") continue;
+    const current = minStarterPriceByPosition.get(p.position) ?? Infinity;
+    if (p.price < current) minStarterPriceByPosition.set(p.position, p.price);
+  }
+
   const candidates = allProjections.filter(
     (p) =>
       !mainLineupPlayerIds.has(p.playerId) &&
@@ -83,8 +91,10 @@ export function selectReserves(
   let orderIdx = 0;
 
   for (const pos of positions) {
+    const maxPrice = minStarterPriceByPosition.get(pos) ?? Infinity;
+
     const positionCandidates = candidates
-      .filter((p) => p.position === pos)
+      .filter((p) => p.position === pos && p.price <= maxPrice)
       .sort((a, b) => b.expectedPoints - a.expectedPoints);
 
     const best = positionCandidates[0];
