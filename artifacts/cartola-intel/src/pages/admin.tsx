@@ -43,6 +43,7 @@ export default function Admin() {
 
   const [xgRound, setXgRound] = useState<string>("");
   const [xgSyncing, setXgSyncing] = useState(false);
+  const [lastXgResult, setLastXgResult] = useState<{ clubsMapped: number; degraded: boolean } | null>(null);
   const [historicalRound, setHistoricalRound] = useState<string>("");
   const [historicalSyncing, setHistoricalSyncing] = useState(false);
 
@@ -89,12 +90,23 @@ export default function Admin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json() as { success?: boolean; matchesUpdated?: number; clubStatsParsed?: number; clubsMapped?: number; warnings?: string[]; error?: string };
+      const data = await res.json() as { success?: boolean; matchesUpdated?: number; clubStatsParsed?: number; clubsMapped?: number; degraded?: boolean; warnings?: string[]; error?: string };
       if (data.success) {
-        toast({
-          title: "xG sincronizado com sucesso",
-          description: `${data.matchesUpdated} partidas atualizadas, ${data.clubStatsParsed} stats de times extraídas, ${data.clubsMapped} times mapeados.`,
-        });
+        const mapped = data.clubsMapped ?? 0;
+        const isDegraded = data.degraded ?? mapped < 15;
+        setLastXgResult({ clubsMapped: mapped, degraded: isDegraded });
+        if (isDegraded) {
+          toast({
+            title: "⚠️ xG sincronizado com degradação",
+            description: `${data.matchesUpdated} partidas atualizadas, mas apenas ${mapped}/20 clubes foram mapeados. Projeções podem estar imprecisas.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "xG sincronizado com sucesso",
+            description: `${data.matchesUpdated} partidas atualizadas, ${mapped}/20 clubes mapeados.`,
+          });
+        }
       } else {
         toast({ title: "Falha no sync xG", description: data.error ?? "Erro desconhecido", variant: "destructive" });
       }
@@ -305,17 +317,38 @@ export default function Admin() {
       </div>
 
       {/* xG Sync */}
-      <Card className="bg-card shadow-lg border-border/50">
+      <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
         <CardHeader className="bg-secondary/20 border-b border-border/50">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 flex-wrap">
             <Zap className="w-5 h-5 text-yellow-400" />
             Sincronizar xG (Expectativa de Gols)
+            {lastXgResult && (
+              <Badge
+                variant="outline"
+                className={`ml-auto text-xs font-semibold ${
+                  lastXgResult.degraded
+                    ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                    : "border-green-500/60 bg-green-500/10 text-green-400"
+                }`}
+              >
+                {lastXgResult.degraded ? "⚠️ " : ""}
+                {lastXgResult.clubsMapped}/20 clubes mapeados
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
             Busca dados de xG diretamente do footystats.org (overall, casa e fora por clube). Nenhuma URL necessária. Deixe a rodada em branco para usar a rodada atual.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
+          {lastXgResult?.degraded && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Apenas <strong>{lastXgResult.clubsMapped}/20</strong> clubes foram mapeados no último sync. Projeções de xG podem estar usando médias da liga para os clubes não encontrados. Verifique os logs para detalhes.
+              </span>
+            </div>
+          )}
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Rodada (opcional)</Label>
             <Input

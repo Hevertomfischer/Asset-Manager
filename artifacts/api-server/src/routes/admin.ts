@@ -4,7 +4,7 @@ import { dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
-import { syncXgFromFootystats } from "../helpers/geXgHelper";
+import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
 import axios from "axios";
 
 const router = Router();
@@ -246,10 +246,18 @@ router.post("/admin/sync/xg", async (req, res) => {
 
     const result = await syncXgFromFootystats(round);
 
+    const logStatus =
+      result.matchesUpdated === 0
+        ? "degraded"
+        : result.degraded
+        ? "degraded"
+        : "success";
+
     await logAdminAction(
       "footystats_xg",
-      result.matchesUpdated > 0 ? "success" : "degraded",
-      `xG sync round ${round}: ${result.matchesUpdated} matches updated, ${result.clubStatsParsed} team stats parsed, ${result.clubsMapped} clubs mapped`
+      logStatus,
+      `xG sync round ${round}: ${result.matchesUpdated} matches updated, ${result.clubsMapped}/${XG_CLUBS_EXPECTED} clubs matched` +
+        (result.degraded ? ` ⚠️ degraded — only ${result.clubsMapped} clubs matched (expected ≥${XG_CLUBS_DEGRADED_THRESHOLD})` : "")
     );
 
     res.json({

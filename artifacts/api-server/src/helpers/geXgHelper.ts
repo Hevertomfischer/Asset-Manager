@@ -68,10 +68,14 @@ export interface MatchXg {
   source: "footystats" | "estimate";
 }
 
+export const XG_CLUBS_EXPECTED = 20;
+export const XG_CLUBS_DEGRADED_THRESHOLD = 15;
+
 export interface XgSyncResult {
   matchesUpdated: number;
   clubStatsParsed: number;
   clubsMapped: number;
+  degraded: boolean;
   details: MatchXg[];
   warnings: string[];
 }
@@ -522,10 +526,21 @@ export async function syncXgFromFootystats(round: number): Promise<XgSyncResult>
     warnings
   );
 
+  const degraded = clubsMapped < XG_CLUBS_DEGRADED_THRESHOLD;
+  if (degraded) {
+    warnings.push(
+      `Only ${clubsMapped} of ${XG_CLUBS_EXPECTED} expected clubs were matched — xG projections may be degraded. Check footystats page structure or club name mappings.`
+    );
+    console.warn(
+      `[geXgHelper] Degraded sync: only ${clubsMapped}/${XG_CLUBS_EXPECTED} clubs matched for round ${round}`
+    );
+  }
+
   return {
     matchesUpdated,
     clubStatsParsed,
     clubsMapped,
+    degraded,
     details,
     warnings,
   };
