@@ -10,6 +10,7 @@ import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
 import { upsertPlayer, findPlayerByExternalId } from "../repositories/playerRepository";
 import { syncMatchesFromCartolaApi, syncHistoricalMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
+import { syncXgFromFootystats } from "../helpers/geXgHelper";
 import {
   insertScoutRound,
   getScoutsByRound,
@@ -188,6 +189,26 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     const msg = error instanceof Error ? error.message : String(error);
     warnings.push(`Match sync degraded: ${msg}`);
     await logETL("etl", "matches", "degraded", msg);
+  }
+
+  // === Step 3b: Auto-sync xG after matches are loaded ===
+  // Only run if matches were actually upserted — avoids noisy "No matches found" warnings
+  // when the match sync degraded and there is nothing to apply xG rates to yet.
+  if (matchesUpserted > 0) try {
+    const xgResult = await syncXgFromFootystats(round);
+    await logETL(
+      "xG sync auto",
+      "xg",
+      xgResult.matchesUpdated > 0 ? "success" : "degraded",
+      `xG auto-sync round ${round}: ${xgResult.matchesUpdated} matches updated, ${xgResult.clubStatsParsed} team stats parsed, ${xgResult.clubsMapped} clubs mapped`
+    );
+    if (xgResult.warnings.length > 0) {
+      warnings.push(...xgResult.warnings.map((w) => `[xG] ${w}`));
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    warnings.push(`xG auto-sync degraded: ${msg}`);
+    await logETL("xG sync auto", "xg", "degraded", `xG auto-sync failed for round ${round}: ${msg}`);
   }
 
   // === Step 4: GE Prováveis ===
