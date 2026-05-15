@@ -4,7 +4,7 @@ import { dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
-import { syncXgFromArticle } from "../helpers/geXgHelper";
+import { syncXgFromFootystats } from "../helpers/geXgHelper";
 import axios from "axios";
 
 const router = Router();
@@ -236,19 +236,15 @@ router.post("/admin/projection-weights", async (req, res) => {
 
 router.post("/admin/sync/xg", async (req, res) => {
   try {
-    const body = req.body as { url?: string; round?: number };
-    if (!body.url || typeof body.url !== "string") {
-      res.status(400).json({ error: "Missing 'url' in request body" });
-      return;
-    }
+    const body = req.body as { round?: number };
 
     const round = typeof body.round === "number"
       ? body.round
       : await getCurrentRound();
 
-    await logAdminAction("admin_xg_sync", "info", `Starting xG sync for round ${round} from ${body.url}`);
+    await logAdminAction("admin_xg_sync", "info", `Starting xG sync for round ${round} via footystats.org`);
 
-    const result = await syncXgFromArticle(body.url, round);
+    const result = await syncXgFromFootystats(round);
 
     await logAdminAction(
       "admin_xg_sync",

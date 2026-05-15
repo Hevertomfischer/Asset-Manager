@@ -41,7 +41,7 @@ export default function Admin() {
     historyWeight: 0.1,
   });
 
-  const [xgUrl, setXgUrl] = useState("https://ge.globo.com/gato-mestre/dicas/noticia/2026/03/18/veja-a-expectativa-de-gols-xg-e-as-dicas-de-sg-para-a-rodada-7-do-cartola-2026.ghtml");
+  const [xgRound, setXgRound] = useState<string>("");
   const [xgSyncing, setXgSyncing] = useState(false);
   const [historicalRound, setHistoricalRound] = useState<string>("");
   const [historicalSyncing, setHistoricalSyncing] = useState(false);
@@ -79,16 +79,15 @@ export default function Admin() {
   };
 
   const handleSyncXg = async () => {
-    if (!xgUrl.trim()) {
-      toast({ title: "URL inválida", description: "Cole a URL do artigo do Gato Mestre.", variant: "destructive" });
-      return;
-    }
     setXgSyncing(true);
     try {
+      const body: Record<string, unknown> = {};
+      const parsedRound = xgRound.trim() ? parseInt(xgRound.trim(), 10) : null;
+      if (parsedRound && parsedRound > 0) body.round = parsedRound;
       const res = await fetch("/api/admin/sync/xg", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: xgUrl.trim() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json() as { success?: boolean; matchesUpdated?: number; clubStatsParsed?: number; clubsMapped?: number; warnings?: string[]; error?: string };
       if (data.success) {
@@ -313,20 +312,23 @@ export default function Admin() {
             Sincronizar xG (Expectativa de Gols)
           </CardTitle>
           <CardDescription>
-            Cole a URL do artigo do Gato Mestre com xG da rodada. Os valores serão extraídos e usados nas projeções e confrontos.
+            Busca dados de xG da Serie A diretamente do footystats.org — nenhuma URL manual necessária. Deixe a rodada em branco para usar a rodada atual.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">URL do Artigo (Gato Mestre / GE)</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Rodada (opcional)</Label>
             <Input
-              value={xgUrl}
-              onChange={(e) => setXgUrl(e.target.value)}
-              placeholder="https://ge.globo.com/gato-mestre/dicas/noticia/..."
-              className="font-mono text-xs h-10"
+              type="number"
+              min={1}
+              max={38}
+              value={xgRound}
+              onChange={(e) => setXgRound(e.target.value)}
+              placeholder="Rodada atual (automático)"
+              className="h-10 w-48"
             />
             <p className="text-[10px] text-muted-foreground">
-              Padrão: <span className="font-mono">ge.globo.com/gato-mestre/dicas/noticia/YYYY/MM/DD/veja-a-expectativa-de-gols-xg-...-rodada-N-do-cartola-AAAA.ghtml</span>
+              Fonte: <span className="font-mono">footystats.org/pt/brazil/serie-a/xg</span>
             </p>
           </div>
           <Button
@@ -336,10 +338,10 @@ export default function Admin() {
             variant="outline"
           >
             {xgSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Sincronizar xG da Rodada
+            Sincronizar xG via Footystats
           </Button>
           <p className="text-[10px] text-muted-foreground text-center">
-            Após sincronizar o xG, recalcule as projeções para atualizar goalkeepers e zagueiros com probabilidades de SG mais precisas.
+            Após sincronizar o xG, recalcule as projeções para atualizar goleiros e zagueiros com probabilidades de SG mais precisas.
           </p>
         </CardContent>
       </Card>
