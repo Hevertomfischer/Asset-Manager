@@ -147,7 +147,7 @@ router.post("/admin/recalculate-projections", async (_req, res) => {
 
 router.get("/admin/providers/status", async (_req, res) => {
   try {
-    const sources = ["cartola_api", "cartola_status", "ge_probables", "gato_mestre", "historical_cartola"];
+    const sources = ["cartola_api", "cartola_status", "ge_probables", "footystats_xg", "historical_cartola"];
 
     const statusResults = await Promise.all(
       sources.map(async (source) => {
@@ -242,12 +242,12 @@ router.post("/admin/sync/xg", async (req, res) => {
       ? body.round
       : await getCurrentRound();
 
-    await logAdminAction("admin_xg_sync", "info", `Starting xG sync for round ${round} via footystats.org`);
+    await logAdminAction("footystats_xg", "info", `Starting xG sync for round ${round} via footystats.org`);
 
     const result = await syncXgFromFootystats(round);
 
     await logAdminAction(
-      "admin_xg_sync",
+      "footystats_xg",
       result.matchesUpdated > 0 ? "success" : "degraded",
       `xG sync round ${round}: ${result.matchesUpdated} matches updated, ${result.clubStatsParsed} team stats parsed, ${result.clubsMapped} clubs mapped`
     );
@@ -260,7 +260,7 @@ router.post("/admin/sync/xg", async (req, res) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[admin/sync/xg]", error);
-    await logAdminAction("admin_xg_sync", "error", `xG sync failed: ${msg}`);
+    await logAdminAction("footystats_xg", "error", `xG sync failed: ${msg}`);
     res.status(500).json({ error: "xG sync failed", details: msg });
   }
 });

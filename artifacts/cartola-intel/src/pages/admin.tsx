@@ -269,7 +269,7 @@ export default function Admin() {
                       cartola_api: "Cartola API",
                       cartola_status: "Cartola Status (Disponibilidade)",
                       ge_probables: "GE Prováveis",
-                      gato_mestre: "Gato Mestre",
+                      footystats_xg: "Footystats xG",
                       historical_cartola: "Histórico Cartola",
                     };
                     const label = labelMap[p.source] ?? p.source.replace(/_/g, " ");
