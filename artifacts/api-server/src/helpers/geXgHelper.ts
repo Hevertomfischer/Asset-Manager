@@ -1,51 +1,10 @@
-import axios from "axios";
 import { db } from "@workspace/db";
 import { matchesTable, clubsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull, ne } from "drizzle-orm";
 
 const LEAGUE_AVG_GOALS = 1.35;
 const HOME_ADVANTAGE = 1.1;
-
-const FOOTYSTATS_XG_URL = "https://footystats.org/pt/brazil/serie-a/xg";
-const FOOTYSTATS_CONCEDED_URL =
-  "https://footystats.org/pt/brazil/serie-a/goals-conceded-table";
-
-const FETCH_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-};
-
-// Known club display names as shown on footystats.org for the Serie A page.
-const FOOTYSTATS_CLUBS: string[] = [
-  "Vasco da Gama",
-  "Bahia",
-  "Internacional",
-  "Santos",
-  "Cruzeiro",
-  "Fluminense",
-  "Flamengo",
-  "Botafogo",
-  "Palmeiras",
-  "São Paulo",
-  "Grêmio",
-  "Atlético Mineiro",
-  "Chapecoense",
-  "Corinthians",
-  "Coritiba",
-  "RB Bragantino",
-  "Bragantino",
-  "Atlético PR",
-  "Remo",
-  "Mirassol",
-  "Vitória",
-  "Fortaleza",
-  "Sport",
-  "Ceará",
-  "América MG",
-  "Goiás",
-];
+const MIN_GAMES_FOR_HOME_AWAY_SPLIT = 2;
 
 export interface MatchXg {
   matchId: number;
@@ -53,7 +12,7 @@ export interface MatchXg {
   awayXg: number;
   homeClubName: string;
   awayClubName: string;
-  source: "footystats" | "estimate";
+  source: "season_stats" | "estimate";
 }
 
 export interface XgSyncResult {
@@ -64,171 +23,13 @@ export interface XgSyncResult {
   warnings: string[];
 }
 
-function normalize(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, "\n")
-    .replace(/&amp;/gi, "&")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&#\d+;/gi, " ")
-    .replace(/&[a-z]{2,8};/gi, " ")
-    .replace(/\n{4,}/g, "\n\n\n")
-    .trim();
-}
-
-async function fetchHtml(url: string): Promise<string> {
-  const response = await axios.get<string>(url, {
-    timeout: 20000,
-    headers: FETCH_HEADERS,
-    responseType: "text",
-  });
-  return response.data;
-}
-
-/**
- * Splits the stripped xG page text into sections: overall, home, away.
- */
-function splitXgSections(stripped: string): {
-  overall: string;
-  home: string;
-  away: string;
-} {
-  const geralIdx = stripped.search(/xG\s+Geral/i);
-  const casaIdx = stripped.search(/xG\s+Casa/i);
-  const foraIdx = stripped.search(/xG\s+Fora/i);
-
-  const overall =
-    geralIdx >= 0
-      ? stripped.slice(geralIdx, casaIdx > geralIdx ? casaIdx : geralIdx + 5000)
-      : stripped.slice(0, 5000);
-
-  const home =
-    casaIdx >= 0
-      ? stripped.slice(casaIdx, foraIdx > casaIdx ? foraIdx : casaIdx + 5000)
-      : "";
-
-  const away = foraIdx >= 0 ? stripped.slice(foraIdx, foraIdx + 5000) : "";
-
-  return { overall, home, away };
-}
-
-/**
- * Parses a section of stripped xG page text and returns
- * lowercase club name → xG value per game.
- *
- * Footystats format after tag-stripping:
- *   "ClubName\n...\n1.43\nxG" or "ClubName ... 1.43xG"
- */
-function parseXgSection(sectionText: string): Map<string, number> {
-  const result = new Map<string, number>();
-
-  for (const clubName of FOOTYSTATS_CLUBS) {
-    const escaped = escapeRe(clubName);
-    const re = new RegExp(
-      `${escaped}[\\s\\S]{0,400}?(\\d+\\.\\d+)\\s*xG`,
-      "i"
-    );
-    const m = re.exec(sectionText);
-    if (m) {
-      result.set(normalize(clubName), parseFloat(m[1]!));
-    }
-  }
-
-  return result;
-}
-
-/**
- * Parses the goals-conceded table page from footystats.
- * Returns lowercase club name → goals conceded per game.
- *
- * After stripping tags, each table row becomes:
- *   "ClubName\nPJ\nGoalsConceded\nHome\nAway\n..."
- */
-function parseConcededTable(stripped: string): Map<string, number> {
-  const result = new Map<string, number>();
-
-  for (const clubName of FOOTYSTATS_CLUBS) {
-    const escaped = escapeRe(clubName);
-    // Club name, then within 200 chars: games played (1-38), then total goals conceded
-    const re = new RegExp(
-      `${escaped}[\\s\\S]{0,200}?\\b(\\d{1,2})\\b[\\s\\S]{0,100}?\\b(\\d{1,3})\\b`,
-      "i"
-    );
-    const m = re.exec(stripped);
-    if (m) {
-      const pj = parseInt(m[1]!);
-      const totalConceded = parseInt(m[2]!);
-      if (pj >= 1 && pj <= 38 && totalConceded >= 0 && totalConceded <= pj * 10) {
-        result.set(normalize(clubName), totalConceded / pj);
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Maps footystats display names to club IDs in the database.
- */
-export async function mapTeamNamesToClubs(
-  teamNames: string[]
-): Promise<Map<string, number>> {
-  const clubs = await db.select().from(clubsTable);
-  const result = new Map<string, number>();
-
-  const aliases: Record<string, string> = {
-    "atletico": "atlético",
-    "atletico-mg": "atlético",
-    "atletico mineiro": "atlético",
-    "atlético mineiro": "atlético",
-    "atletico-pr": "athletico",
-    "atlético pr": "athletico",
-    "sao paulo": "são paulo",
-    "sao-paulo": "são paulo",
-    "gremio": "grêmio",
-    "rb bragantino": "bragantino",
-    "rbbragantino": "bragantino",
-    "bragantino": "bragantino",
-    "vasco da gama": "vasco",
-    "america mg": "américa",
-  };
-
-  for (const teamName of teamNames) {
-    const normalized = normalize(teamName);
-    const aliased = aliases[normalized] ?? normalized;
-
-    let matched = clubs.find((c) => {
-      const cname = normalize(c.name ?? "");
-      const cabbr = normalize(c.abbreviation ?? "");
-      return (
-        cname === aliased ||
-        cname.startsWith(aliased) ||
-        aliased.startsWith(cname) ||
-        cabbr === aliased
-      );
-    });
-
-    if (!matched && aliased.length >= 4) {
-      matched = clubs.find((c) =>
-        normalize(c.name ?? "").includes(aliased)
-      );
-    }
-
-    if (matched) {
-      result.set(teamName, matched.id);
-    }
-  }
-
-  return result;
+interface ClubSeasonStat {
+  homeGoalsFor: number;
+  homeGoalsAgainst: number;
+  homeGames: number;
+  awayGoalsFor: number;
+  awayGoalsAgainst: number;
+  awayGames: number;
 }
 
 /**
@@ -248,55 +49,136 @@ function computeXg(
 }
 
 /**
- * Fetches footystats.org Serie A xG data, parses offensive xG per club
- * (overall / home / away) and goals conceded per game per club, then
- * computes per-match xG for the given round and stores in the matches table.
+ * Reads all completed past matches (with recorded scores) and computes
+ * per-club season statistics: goals scored and conceded, split by home/away context.
  *
- * Home matches use the club's home xG as attack and away xG for the away team.
- * Goals conceded per game from the goals-conceded table is the defensive multiplier.
+ * Optionally excludes a specific round (used so that the target round's own
+ * matches don't influence their own xG calculation).
  */
-export async function syncXgFromFootystats(round: number): Promise<XgSyncResult> {
-  const warnings: string[] = [];
+async function computeClubStatsFromHistory(
+  excludeRound?: number
+): Promise<Map<number, ClubSeasonStat>> {
+  const conditions: Parameters<typeof db.select>[0] extends undefined
+    ? never
+    : unknown[] = [isNotNull(matchesTable.homeScore), isNotNull(matchesTable.awayScore)];
 
-  const [xgHtml, concededHtml] = await Promise.all([
-    fetchHtml(FOOTYSTATS_XG_URL),
-    fetchHtml(FOOTYSTATS_CONCEDED_URL),
-  ]);
+  const pastMatches = await db
+    .select()
+    .from(matchesTable)
+    .where(
+      excludeRound !== undefined
+        ? // completed matches excluding the target round
+          eq(matchesTable.homeScore, matchesTable.homeScore) // dummy — filter below
+        : isNotNull(matchesTable.homeScore)
+    );
 
-  const xgStripped = stripHtml(xgHtml);
-  const concededStripped = stripHtml(concededHtml);
-
-  const { overall: geralText, home: casaText, away: foraText } =
-    splitXgSections(xgStripped);
-
-  const xgOverall = parseXgSection(geralText);
-  const xgHome = parseXgSection(casaText.length > 50 ? casaText : xgStripped);
-  const xgAway = parseXgSection(foraText.length > 50 ? foraText : xgStripped);
-  const concededMap = parseConcededTable(concededStripped);
-
-  interface ClubStat {
-    xgHome: number;
-    xgAway: number;
-    concededPerGame: number;
-  }
-
-  const parsedNames = FOOTYSTATS_CLUBS.map((n) => normalize(n)).filter(
-    (n) => xgOverall.has(n) || xgHome.has(n) || xgAway.has(n) || concededMap.has(n)
+  // Filter in JS for completed matches (scores present) and optionally exclude round
+  const completedMatches = pastMatches.filter(
+    (m) =>
+      m.homeScore !== null &&
+      m.awayScore !== null &&
+      (excludeRound === undefined || m.round !== excludeRound)
   );
 
-  const clubIdMap = await mapTeamNamesToClubs(parsedNames);
+  const statsMap = new Map<number, ClubSeasonStat>();
 
-  const statsByClubId = new Map<number, ClubStat>();
-  for (const name of parsedNames) {
-    const clubId = clubIdMap.get(name);
-    if (!clubId) continue;
-    const overall = xgOverall.get(name) ?? LEAGUE_AVG_GOALS;
-    statsByClubId.set(clubId, {
-      xgHome: xgHome.get(name) ?? overall,
-      xgAway: xgAway.get(name) ?? overall,
-      concededPerGame: concededMap.get(name) ?? LEAGUE_AVG_GOALS,
-    });
+  const ensure = (id: number): ClubSeasonStat => {
+    if (!statsMap.has(id)) {
+      statsMap.set(id, {
+        homeGoalsFor: 0,
+        homeGoalsAgainst: 0,
+        homeGames: 0,
+        awayGoalsFor: 0,
+        awayGoalsAgainst: 0,
+        awayGames: 0,
+      });
+    }
+    return statsMap.get(id)!;
+  };
+
+  for (const match of completedMatches) {
+    if (match.homeClubId && match.homeScore !== null && match.awayScore !== null) {
+      const home = ensure(match.homeClubId);
+      home.homeGoalsFor += match.homeScore;
+      home.homeGoalsAgainst += match.awayScore;
+      home.homeGames++;
+    }
+    if (match.awayClubId && match.homeScore !== null && match.awayScore !== null) {
+      const away = ensure(match.awayClubId);
+      away.awayGoalsFor += match.awayScore;
+      away.awayGoalsAgainst += match.homeScore;
+      away.awayGames++;
+    }
   }
+
+  return statsMap;
+}
+
+/**
+ * Derives attack xG (goals per game) and defensive strength (conceded per game)
+ * for a club from its season stats, with a home/away context.
+ *
+ * Falls back to:
+ *  - overall average (home+away combined) when home/away game count is below threshold
+ *  - league average when no data is available at all
+ */
+function deriveClubXg(
+  stat: ClubSeasonStat | undefined,
+  context: "home" | "away"
+): { attack: number; defense: number } {
+  if (!stat) {
+    return { attack: LEAGUE_AVG_GOALS, defense: LEAGUE_AVG_GOALS };
+  }
+
+  const totalGames = stat.homeGames + stat.awayGames;
+  const overallAttack =
+    totalGames > 0
+      ? (stat.homeGoalsFor + stat.awayGoalsFor) / totalGames
+      : LEAGUE_AVG_GOALS;
+  const overallDefense =
+    totalGames > 0
+      ? (stat.homeGoalsAgainst + stat.awayGoalsAgainst) / totalGames
+      : LEAGUE_AVG_GOALS;
+
+  if (context === "home") {
+    const attack =
+      stat.homeGames >= MIN_GAMES_FOR_HOME_AWAY_SPLIT
+        ? stat.homeGoalsFor / stat.homeGames
+        : overallAttack;
+    const defense =
+      stat.homeGames >= MIN_GAMES_FOR_HOME_AWAY_SPLIT
+        ? stat.homeGoalsAgainst / stat.homeGames
+        : overallDefense;
+    return { attack: attack || LEAGUE_AVG_GOALS, defense: defense || LEAGUE_AVG_GOALS };
+  } else {
+    const attack =
+      stat.awayGames >= MIN_GAMES_FOR_HOME_AWAY_SPLIT
+        ? stat.awayGoalsFor / stat.awayGames
+        : overallAttack;
+    const defense =
+      stat.awayGames >= MIN_GAMES_FOR_HOME_AWAY_SPLIT
+        ? stat.awayGoalsAgainst / stat.awayGames
+        : overallDefense;
+    return { attack: attack || LEAGUE_AVG_GOALS, defense: defense || LEAGUE_AVG_GOALS };
+  }
+}
+
+/**
+ * Computes per-match xG for the given round using the current season's
+ * historical match data from the database.
+ *
+ * For each match in the round:
+ * - homeXg = f(home club's home scoring rate, away club's away defensive record)
+ * - awayXg = f(away club's away scoring rate, home club's home defensive record)
+ *
+ * Falls back to the league average (1.35) for clubs with no match history.
+ * No external HTTP requests are made.
+ */
+export async function syncXgFromSeasonStats(round: number): Promise<XgSyncResult> {
+  const warnings: string[] = [];
+
+  // Compute club stats from all completed matches except the target round
+  const clubStats = await computeClubStatsFromHistory(round);
 
   const matches = await db
     .select()
@@ -309,8 +191,8 @@ export async function syncXgFromFootystats(round: number): Promise<XgSyncResult>
     );
     return {
       matchesUpdated: 0,
-      clubStatsParsed: parsedNames.length,
-      clubsMapped: clubIdMap.size,
+      clubStatsParsed: clubStats.size,
+      clubsMapped: clubStats.size,
       details: [],
       warnings,
     };
@@ -323,21 +205,22 @@ export async function syncXgFromFootystats(round: number): Promise<XgSyncResult>
   let matchesUpdated = 0;
 
   for (const match of matches) {
-    const homeStat = match.homeClubId
-      ? statsByClubId.get(match.homeClubId)
-      : undefined;
-    const awayStat = match.awayClubId
-      ? statsByClubId.get(match.awayClubId)
-      : undefined;
+    const homeStat = match.homeClubId ? clubStats.get(match.homeClubId) : undefined;
+    const awayStat = match.awayClubId ? clubStats.get(match.awayClubId) : undefined;
 
-    const homeAttack = homeStat?.xgHome ?? LEAGUE_AVG_GOALS;
-    const awayAttack = awayStat?.xgAway ?? LEAGUE_AVG_GOALS;
-    const homeDefense = homeStat?.concededPerGame ?? LEAGUE_AVG_GOALS;
-    const awayDefense = awayStat?.concededPerGame ?? LEAGUE_AVG_GOALS;
+    const { attack: homeAttack, defense: homeDefense } = deriveClubXg(homeStat, "home");
+    const { attack: awayAttack, defense: awayDefense } = deriveClubXg(awayStat, "away");
 
-    const hasRealData = !!(homeStat || awayStat);
+    const hasRealData = !!(
+      (homeStat && homeStat.homeGames + homeStat.awayGames > 0) ||
+      (awayStat && awayStat.homeGames + awayStat.awayGames > 0)
+    );
 
+    // homeXg = how many goals the home team is expected to score
+    // (home team's home attack vs away team's away defensive record)
     const homeXg = computeXg(homeAttack, awayDefense, true);
+    // awayXg = how many goals the away team is expected to score
+    // (away team's away attack vs home team's home defensive record)
     const awayXg = computeXg(awayAttack, homeDefense, false);
 
     await db
@@ -356,20 +239,20 @@ export async function syncXgFromFootystats(round: number): Promise<XgSyncResult>
       awayXg,
       homeClubName: homeClub?.abbreviation ?? homeClub?.name ?? "?",
       awayClubName: awayClub?.abbreviation ?? awayClub?.name ?? "?",
-      source: hasRealData ? "footystats" : "estimate",
+      source: hasRealData ? "season_stats" : "estimate",
     });
 
     if (!hasRealData) {
       warnings.push(
-        `No footystats data for ${homeClub?.name ?? match.homeClubId} or ${awayClub?.name ?? match.awayClubId} — using league average.`
+        `No season data for ${homeClub?.name ?? match.homeClubId} or ${awayClub?.name ?? match.awayClubId} — using league average.`
       );
     }
   }
 
   return {
     matchesUpdated,
-    clubStatsParsed: parsedNames.length,
-    clubsMapped: clubIdMap.size,
+    clubStatsParsed: clubStats.size,
+    clubsMapped: clubStats.size,
     details,
     warnings,
   };

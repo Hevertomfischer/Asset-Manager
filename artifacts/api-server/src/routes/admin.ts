@@ -4,7 +4,7 @@ import { dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
-import { syncXgFromFootystats } from "../helpers/geXgHelper";
+import { syncXgFromSeasonStats } from "../helpers/geXgHelper";
 import axios from "axios";
 
 const router = Router();
@@ -242,9 +242,9 @@ router.post("/admin/sync/xg", async (req, res) => {
       ? body.round
       : await getCurrentRound();
 
-    await logAdminAction("admin_xg_sync", "info", `Starting xG sync for round ${round} via footystats.org`);
+    await logAdminAction("admin_xg_sync", "info", `Starting xG calculation for round ${round} from season stats`);
 
-    const result = await syncXgFromFootystats(round);
+    const result = await syncXgFromSeasonStats(round);
 
     await logAdminAction(
       "admin_xg_sync",

@@ -312,7 +312,7 @@ export default function Admin() {
             Sincronizar xG (Expectativa de Gols)
           </CardTitle>
           <CardDescription>
-            Busca dados de xG da Serie A diretamente do footystats.org — nenhuma URL manual necessária. Deixe a rodada em branco para usar a rodada atual.
+            Calcula xG automaticamente a partir dos placares reais da temporada já registrados no banco. Nenhuma fonte externa necessária — deixe a rodada em branco para usar a rodada atual.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
@@ -328,7 +328,7 @@ export default function Admin() {
               className="h-10 w-48"
             />
             <p className="text-[10px] text-muted-foreground">
-              Fonte: <span className="font-mono">footystats.org/pt/brazil/serie-a/xg</span>
+              Fonte: placares históricos da temporada (banco de dados)
             </p>
           </div>
           <Button
@@ -338,7 +338,7 @@ export default function Admin() {
             variant="outline"
           >
             {xgSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Sincronizar xG via Footystats
+            Calcular xG da Temporada
           </Button>
           <p className="text-[10px] text-muted-foreground text-center">
             Após sincronizar o xG, recalcule as projeções para atualizar goleiros e zagueiros com probabilidades de SG mais precisas.
