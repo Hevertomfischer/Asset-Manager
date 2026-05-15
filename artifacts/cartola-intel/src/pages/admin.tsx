@@ -44,6 +44,7 @@ export default function Admin() {
   const [xgRound, setXgRound] = useState<string>("");
   const [xgSyncing, setXgSyncing] = useState(false);
   const [lastXgResult, setLastXgResult] = useState<{ clubsMapped: number; degraded: boolean } | null>(null);
+  const [lastSyncXgSummary, setLastSyncXgSummary] = useState<{ matchesUpdated: number; clubsMapped: number; degraded: boolean } | null>(null);
   const [historicalRound, setHistoricalRound] = useState<string>("");
   const [historicalSyncing, setHistoricalSyncing] = useState(false);
 
@@ -74,7 +75,17 @@ export default function Admin() {
     const mutation = type === "full" ? syncFull : type === "market" ? syncMarket : syncCurrentRound;
     const labels: Record<string, string> = { full: "Full", market: "Mercado", "current-round": "Rodada Atual" };
     mutation.mutate(undefined, {
-      onSuccess: () => toast({ title: `Sync ${labels[type]} disparado com sucesso` }),
+      onSuccess: (data) => {
+        const xgMatches = data?.xgMatchesUpdated;
+        const xgClubs = data?.xgClubsMapped;
+        const xgDegraded = data?.xgDegraded;
+
+        if (type !== "market" && xgMatches != null && xgClubs != null) {
+          setLastSyncXgSummary({ matchesUpdated: xgMatches, clubsMapped: xgClubs, degraded: xgDegraded ?? false });
+        }
+
+        toast({ title: `Sync ${labels[type]} disparado com sucesso` });
+      },
       onError: (err) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" }),
     });
   };
@@ -261,6 +272,21 @@ export default function Admin() {
                 </Button>
               </div>
             </div>
+
+            {lastSyncXgSummary && (
+              <div className={`flex items-start gap-2 p-3 rounded-lg border text-sm ${
+                lastSyncXgSummary.degraded
+                  ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
+                  : "bg-green-500/10 border-green-500/30 text-green-400"
+              }`}>
+                <Zap className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  {lastSyncXgSummary.degraded ? <strong>⚠️ xG degradado — </strong> : null}
+                  xG atualizado para <strong>{lastSyncXgSummary.matchesUpdated}</strong> {lastSyncXgSummary.matchesUpdated === 1 ? "partida" : "partidas"},{" "}
+                  <strong>{lastSyncXgSummary.clubsMapped}</strong> clubes mapeados
+                </span>
+              </div>
+            )}
 
             <div className="space-y-3 pt-4">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Status dos Provedores</Label>

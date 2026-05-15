@@ -617,7 +617,7 @@ components:
           type: string
         strategy:
           type: string
-          enum: [safe, aggressive, cost-benefit]
+          enum: [safe, aggressive, cost-benefit, antimassa]
         round:
           type: integer
       required:
@@ -647,6 +647,9 @@ components:
         averagePoints:
           type: number
           nullable: true
+        gamesPlayed:
+          type: integer
+          nullable: true
         expectedPoints:
           type: number
           nullable: true
@@ -664,6 +667,53 @@ components:
           nullable: true
         explanation:
           type: object
+          nullable: true
+        clubId:
+          type: integer
+          nullable: true
+        clubAbbr:
+          type: string
+          nullable: true
+        clubName:
+          type: string
+          nullable: true
+
+    LineupReservePlayer:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        position:
+          type: string
+        isLuxuryReserve:
+          type: boolean
+        expectedPoints:
+          type: number
+          nullable: true
+        floorPoints:
+          type: number
+          nullable: true
+        ceilingPoints:
+          type: number
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        orderIndex:
+          type: integer
+        name:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        clubId:
+          type: integer
+          nullable: true
+        clubAbbr:
+          type: string
+          nullable: true
+        clubName:
+          type: string
           nullable: true
 
     LineupSuggestion:
@@ -695,6 +745,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LineupPlayer"
+        reserves:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineupReservePlayer"
 
     LineupGenerateResponse:
       type: object
@@ -727,6 +781,15 @@ components:
           type: array
           items:
             type: string
+        xgMatchesUpdated:
+          type: integer
+          nullable: true
+        xgClubsMapped:
+          type: integer
+          nullable: true
+        xgDegraded:
+          type: boolean
+          nullable: true
       required:
         - success
         - round

@@ -22,6 +22,7 @@ export * from "./lineupGenerateRequestStrategy";
 export * from "./lineupGenerateResponse";
 export * from "./lineupPlayer";
 export * from "./lineupPlayerExplanation";
+export * from "./lineupReservePlayer";
 export * from "./lineupSuggestion";
 export * from "./match";
 export * from "./matchListResponse";

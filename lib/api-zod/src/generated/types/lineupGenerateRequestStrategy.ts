@@ -13,4 +13,5 @@ export const LineupGenerateRequestStrategy = {
   safe: "safe",
   aggressive: "aggressive",
   "cost-benefit": "cost-benefit",
+  antimassa: "antimassa",
 } as const;

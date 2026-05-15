@@ -33,6 +33,9 @@ export interface ETLResult {
   projectionsGenerated: boolean;
   errors: string[];
   warnings: string[];
+  xgMatchesUpdated: number;
+  xgClubsMapped: number;
+  xgDegraded: boolean;
 }
 
 async function logETL(source: string, entityType: string, status: string, message: string) {
@@ -75,6 +78,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   let playersUpserted = 0;
   let matchesUpserted = 0;
   let scoutsInserted = 0;
+  let xgMatchesUpdated = 0;
+  let xgClubsMapped = 0;
+  let xgDegraded = false;
 
   // === Step 1: Fetch market data (players + clubs) — with fallback ===
   try {
@@ -196,6 +202,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   // when the match sync degraded and there is nothing to apply xG rates to yet.
   if (matchesUpserted > 0) try {
     const xgResult = await syncXgFromFootystats(round);
+    xgMatchesUpdated = xgResult.matchesUpdated;
+    xgClubsMapped = xgResult.clubsMapped;
+    xgDegraded = xgResult.degraded ?? false;
     await logETL(
       "xG sync auto",
       "xg",
@@ -281,6 +290,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     projectionsGenerated,
     errors,
     warnings,
+    xgMatchesUpdated,
+    xgClubsMapped,
+    xgDegraded,
   };
 }
 

@@ -17,10 +17,14 @@ export interface LineupPlayer {
   nickname?: string | null;
   price?: number | null;
   averagePoints?: number | null;
+  gamesPlayed?: number | null;
   expectedPoints?: number | null;
   floorPoints?: number | null;
   ceilingPoints?: number | null;
   riskScore?: number | null;
   recommendationScore?: number | null;
   explanation?: LineupPlayerExplanation;
+  clubId?: number | null;
+  clubAbbr?: string | null;
+  clubName?: string | null;
 }

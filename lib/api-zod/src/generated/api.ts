@@ -260,7 +260,7 @@ export const GetCurrentAvailabilityResponse = zod.object({
 export const GenerateLineupBody = zod.object({
   budget: zod.number().optional(),
   formation: zod.string().optional(),
-  strategy: zod.enum(["safe", "aggressive", "cost-benefit"]),
+  strategy: zod.enum(["safe", "aggressive", "cost-benefit", "antimassa"]),
   round: zod.number().optional(),
 });
 
@@ -288,12 +288,35 @@ export const GenerateLineupResponse = zod.object({
           nickname: zod.string().nullish(),
           price: zod.number().nullish(),
           averagePoints: zod.number().nullish(),
+          gamesPlayed: zod.number().nullish(),
           expectedPoints: zod.number().nullish(),
           floorPoints: zod.number().nullish(),
           ceilingPoints: zod.number().nullish(),
           riskScore: zod.number().nullish(),
           recommendationScore: zod.number().nullish(),
           explanation: zod.object({}).passthrough().nullish(),
+          clubId: zod.number().nullish(),
+          clubAbbr: zod.string().nullish(),
+          clubName: zod.string().nullish(),
+        }),
+      )
+      .optional(),
+    reserves: zod
+      .array(
+        zod.object({
+          playerId: zod.number().optional(),
+          position: zod.string().optional(),
+          isLuxuryReserve: zod.boolean().optional(),
+          expectedPoints: zod.number().nullish(),
+          floorPoints: zod.number().nullish(),
+          ceilingPoints: zod.number().nullish(),
+          price: zod.number().nullish(),
+          orderIndex: zod.number().optional(),
+          name: zod.string().optional(),
+          nickname: zod.string().nullish(),
+          clubId: zod.number().nullish(),
+          clubAbbr: zod.string().nullish(),
+          clubName: zod.string().nullish(),
         }),
       )
       .optional(),
@@ -312,6 +335,9 @@ export const SyncFullResponse = zod.object({
   projectionsGenerated: zod.boolean().optional(),
   errors: zod.array(zod.string()).optional(),
   warnings: zod.array(zod.string()).optional(),
+  xgMatchesUpdated: zod.number().nullish(),
+  xgClubsMapped: zod.number().nullish(),
+  xgDegraded: zod.boolean().nullish(),
 });
 
 /**
@@ -326,6 +352,9 @@ export const SyncMarketResponse = zod.object({
   projectionsGenerated: zod.boolean().optional(),
   errors: zod.array(zod.string()).optional(),
   warnings: zod.array(zod.string()).optional(),
+  xgMatchesUpdated: zod.number().nullish(),
+  xgClubsMapped: zod.number().nullish(),
+  xgDegraded: zod.boolean().nullish(),
 });
 
 /**
@@ -340,6 +369,9 @@ export const SyncCurrentRoundResponse = zod.object({
   projectionsGenerated: zod.boolean().optional(),
   errors: zod.array(zod.string()).optional(),
   warnings: zod.array(zod.string()).optional(),
+  xgMatchesUpdated: zod.number().nullish(),
+  xgClubsMapped: zod.number().nullish(),
+  xgDegraded: zod.boolean().nullish(),
 });
 
 /**

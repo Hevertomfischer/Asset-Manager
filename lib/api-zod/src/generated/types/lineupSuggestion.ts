@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LineupPlayer } from "./lineupPlayer";
+import type { LineupReservePlayer } from "./lineupReservePlayer";
 
 export interface LineupSuggestion {
   id?: number;
@@ -19,4 +20,5 @@ export interface LineupSuggestion {
   captainPlayerId?: number | null;
   coachPlayerId?: number | null;
   players?: LineupPlayer[];
+  reserves?: LineupReservePlayer[];
 }

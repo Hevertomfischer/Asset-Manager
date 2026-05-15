@@ -47,6 +47,9 @@ router.post("/admin/sync/full", async (_req, res) => {
       projectionsGenerated: result.projectionsGenerated,
       errors: result.errors,
       warnings: result.warnings,
+      xgMatchesUpdated: result.xgMatchesUpdated,
+      xgClubsMapped: result.xgClubsMapped,
+      xgDegraded: result.xgDegraded,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -105,6 +108,9 @@ router.post("/admin/sync/current-round", async (_req, res) => {
       projectionsGenerated: result.projectionsGenerated,
       errors: result.errors,
       warnings: result.warnings,
+      xgMatchesUpdated: result.xgMatchesUpdated,
+      xgClubsMapped: result.xgClubsMapped,
+      xgDegraded: result.xgDegraded,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

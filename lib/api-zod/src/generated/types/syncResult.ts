@@ -15,4 +15,7 @@ export interface SyncResult {
   projectionsGenerated?: boolean;
   errors?: string[];
   warnings?: string[];
+  xgMatchesUpdated?: number | null;
+  xgClubsMapped?: number | null;
+  xgDegraded?: boolean | null;
 }
