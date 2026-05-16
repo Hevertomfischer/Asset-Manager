@@ -141,6 +141,7 @@ export const LineupGenerateRequestStrategy = {
   aggressive: "aggressive",
   "cost-benefit": "cost-benefit",
   antimassa: "antimassa",
+  valorizacao: "valorizacao",
 } as const;
 
 export interface LineupGenerateRequest {

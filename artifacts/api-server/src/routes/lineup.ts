@@ -46,7 +46,7 @@ router.post("/lineup/generate", async (req, res) => {
       currentRound = latestRound;
     }
 
-    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa"];
+    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"];
     const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
       ? (strategy as StrategyType)
       : "safe";

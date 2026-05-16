@@ -7,7 +7,7 @@ import { selectReserves, type ReservePlayer } from "../services/reserveService";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 
-export type StrategyType = "safe" | "aggressive" | "cost-benefit" | "antimassa";
+export type StrategyType = "safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao";
 
 export interface LineupRequest {
   round: number;
@@ -95,6 +95,43 @@ function getScoringFn(
         const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
         const trapPenalty = isTrap ? 5 : 0;
         return expected * (1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty - samplePenalty(pw);
+      };
+    }
+    case "valorizacao": {
+      return (pw) => {
+        const explanation = pw.projection.explanationJson as Record<string, unknown> | null;
+        const priceVariation = (explanation?.priceVariation as number | undefined) ?? (pw.player.priceVariation ?? 0);
+        const formTrend = (explanation?.formTrend as number | undefined) ?? 0;
+        const shortAvg = (explanation?.shortAvg as number | undefined) ?? 0;
+        const mediumAvg = (explanation?.mediumAvg as number | undefined) ?? 0;
+        const expected = pw.projection.expectedPoints ?? 0;
+        const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
+
+        // Valorization score: reward players with recent price appreciation and
+        // upward form trend. Penalise expensive players with no momentum.
+        // 
+        // Components:
+        // 1. priceVariation signal — each +C$1 variation adds 3 pts to score
+        // 2. form momentum — shortAvg rising above mediumAvg shows the player is
+        //    scoring above their recent average (precursor to price increase)
+        // 3. expected points floor — still need a playable team (weighted lightly)
+        // 4. value score — filters out overpriced picks with no returns
+        const variationSignal = priceVariation * 3;
+        const momentumSignal = shortAvg > 0 && mediumAvg > 0
+          ? ((shortAvg - mediumAvg) / Math.max(mediumAvg, 1)) * 8
+          : 0;
+        const formTrendBonus = formTrend * 4;
+        const trapPenalty = isTrap ? 6 : 0;
+
+        return (
+          variationSignal +
+          momentumSignal +
+          formTrendBonus +
+          expected * 0.25 +
+          (pw.projection.valueScore ?? 0) * 2 -
+          trapPenalty -
+          samplePenalty(pw)
+        );
       };
     }
   }

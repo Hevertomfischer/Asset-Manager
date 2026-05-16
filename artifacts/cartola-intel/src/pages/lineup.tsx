@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info, Users } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 
@@ -100,6 +100,8 @@ function buildInsights(exp: ExplanationJson, isCaptain: boolean, isCoach: boolea
 
   if ((exp.priceVariation ?? 0) > 1.5) {
     insights.push({ text: `Valorizando: +C$ ${(exp.priceVariation ?? 0).toFixed(2)} na última rodada`, kind: "positive" });
+  } else if ((exp.priceVariation ?? 0) < -1.0) {
+    insights.push({ text: `Desvalorizando: C$ ${(exp.priceVariation ?? 0).toFixed(2)} na última rodada`, kind: "warning" });
   }
 
   if (insights.length === 0 && (exp.formScore ?? 0) > 3) {
@@ -232,7 +234,7 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
 
 export default function Lineup() {
   const [formation, setFormation] = useState("4-3-3");
-  const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit" | "antimassa">("cost-benefit");
+  const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao">("cost-benefit");
   const [budget, setBudget] = useState(100);
 
   const { toast } = useToast();
@@ -276,11 +278,12 @@ export default function Lineup() {
     );
   };
 
-  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa"; label: string; icon: typeof Shield; desc: string }[] = [
+  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao"; label: string; icon: typeof Shield; desc: string }[] = [
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade." },
     { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro." },
     { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação." },
+    { value: "valorizacao", label: "Valorização", icon: TrendingUp, desc: "Prioriza jogadores com tendência de subir de preço." },
   ];
 
   const fieldPlayers = currentLineup?.players?.filter((p) => p.position !== "TEC") ?? [];
@@ -411,10 +414,25 @@ export default function Lineup() {
                   <p className="text-xs text-muted-foreground uppercase font-semibold">Custo Total</p>
                   <p className="text-2xl font-mono font-bold text-foreground">C$ {(currentLineup.totalCost ?? 0).toFixed(2)}</p>
                 </div>
-                <div className="hidden md:block">
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Formação</p>
-                  <p className="text-2xl font-mono font-bold text-foreground">{currentLineup.formation}</p>
-                </div>
+                {strategy === "valorizacao" ? (
+                  <div className="hidden md:block">
+                    <p className="text-xs text-muted-foreground uppercase font-semibold">Valoriz. Total</p>
+                    <p className="text-2xl font-mono font-bold text-emerald-400">
+                      {(() => {
+                        const total = (currentLineup.players ?? []).reduce((sum, p) => {
+                          const exp = (p.explanation ?? {}) as ExplanationJson;
+                          return sum + (exp.priceVariation ?? 0);
+                        }, 0);
+                        return (total >= 0 ? "+" : "") + "C$ " + total.toFixed(2);
+                      })()}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="hidden md:block">
+                    <p className="text-xs text-muted-foreground uppercase font-semibold">Formação</p>
+                    <p className="text-2xl font-mono font-bold text-foreground">{currentLineup.formation}</p>
+                  </div>
+                )}
                 <div className="hidden md:block">
                   <p className="text-xs text-muted-foreground uppercase font-semibold">Risco</p>
                   <p className="text-2xl font-mono font-bold text-yellow-500">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
@@ -430,6 +448,20 @@ export default function Lineup() {
                 Salvar Escalação
               </Button>
             </div>
+
+            {/* Valorization strategy banner */}
+            {strategy === "valorizacao" && (
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-400">Estratégia: Valorização</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Jogadores selecionados pela tendência de subir de preço: variação positiva recente e média em alta nas últimas rodadas.
+                    Acompanhe o badge <span className="text-emerald-400 font-medium">"Valorizando"</span> em cada card.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Players grouped by position */}
             <div className="space-y-4">
