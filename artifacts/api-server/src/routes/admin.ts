@@ -240,6 +240,9 @@ router.post("/admin/projection-weights", async (req, res) => {
   }
 });
 
+// NOTE: This handler MUST log to source "footystats_xg" — the same key that
+// GET /admin/providers/status queries. Changing either without updating the
+// other will cause the status panel to show "Nunca sincronizado" after syncs.
 router.post("/admin/sync/xg", async (req, res) => {
   try {
     const body = req.body as { round?: number };
