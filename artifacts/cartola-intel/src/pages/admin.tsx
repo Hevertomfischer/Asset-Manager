@@ -18,7 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap } from "lucide-react";
+import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock } from "lucide-react";
+
+const XG_STALE_THRESHOLD_DAYS = 4;
 
 export default function Admin() {
   const { toast } = useToast();
@@ -322,8 +324,20 @@ export default function Admin() {
                       historical_cartola: "Histórico Cartola",
                     };
                     const label = labelMap[p.source] ?? p.source.replace(/_/g, " ");
+
+                    const isXgStale = p.source === "footystats_xg" && (() => {
+                      if (!p.lastCollectedAt) return true;
+                      const ageMs = Date.now() - new Date(p.lastCollectedAt).getTime();
+                      return ageMs > XG_STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+                    })();
+
                     return (
-                      <div key={p.source} className="flex items-start justify-between p-3 rounded-lg border border-border bg-background gap-2">
+                      <div
+                        key={p.source}
+                        className={`flex items-start justify-between p-3 rounded-lg border bg-background gap-2 ${
+                          isXgStale ? "border-orange-500/50" : "border-border"
+                        }`}
+                      >
                         <div className="min-w-0">
                           <span className="font-medium text-sm">{label}</span>
                           <p className="text-xs text-muted-foreground">
@@ -336,13 +350,28 @@ export default function Admin() {
                               {p.lastMessage}
                             </p>
                           )}
+                          {isXgStale && (
+                            <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              Dados desatualizados — sincronize antes do fechamento da rodada
+                            </p>
+                          )}
                         </div>
-                        <Badge
-                          variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}
-                          className="shrink-0"
-                        >
-                          {p.status === "ok" ? "OK" : p.status === "never_synced" ? "Não sincronizado" : p.status === "degraded" ? "Degradado" : "Erro"}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge
+                            variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}
+                          >
+                            {p.status === "ok" ? "OK" : p.status === "never_synced" ? "Não sincronizado" : p.status === "degraded" ? "Degradado" : "Erro"}
+                          </Badge>
+                          {isXgStale && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-orange-500/60 bg-orange-500/10 text-orange-400"
+                            >
+                              Desatualizado
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
