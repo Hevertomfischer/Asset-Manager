@@ -393,6 +393,7 @@ export const GetProvidersStatusResponse = zod.object({
       status: zod.string(),
       lastCollectedAt: zod.string().nullish(),
       lastMessage: zod.string().nullish(),
+      clubsMapped: zod.number().nullish(),
       recentErrorCount: zod.number().optional(),
       recentLogs: zod
         .array(

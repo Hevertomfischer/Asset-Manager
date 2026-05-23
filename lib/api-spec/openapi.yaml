@@ -884,6 +884,9 @@ components:
         lastMessage:
           type: string
           nullable: true
+        clubsMapped:
+          type: integer
+          nullable: true
         recentErrorCount:
           type: integer
         recentLogs:

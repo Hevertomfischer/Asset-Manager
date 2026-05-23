@@ -176,11 +176,23 @@ router.get("/admin/providers/status", async (_req, res) => {
           ? "degraded"
           : "ok";
 
+        let clubsMapped: number | null = null;
+        if (source === "footystats_xg") {
+          for (const log of logs) {
+            const match = log.message?.match(/(\d+)\/\d+ clubs matched/);
+            if (match) {
+              clubsMapped = parseInt(match[1], 10);
+              break;
+            }
+          }
+        }
+
         return {
           source,
           status,
           lastCollectedAt: latest?.collectedAt?.toISOString() ?? null,
           lastMessage: latest?.message ?? null,
+          clubsMapped,
           recentErrorCount: errorCount,
           recentLogs: logs.map((l) => ({
             status: l.status,

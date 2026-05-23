@@ -54,6 +54,17 @@ export default function Admin() {
     }
   }, [weightsData]);
 
+  useEffect(() => {
+    if (!providersData || lastXgResult !== null) return;
+    const xgProvider = providersData.providers.find((p) => p.source === "footystats_xg");
+    if (xgProvider && xgProvider.clubsMapped != null) {
+      setLastXgResult({
+        clubsMapped: xgProvider.clubsMapped,
+        degraded: xgProvider.status === "degraded",
+      });
+    }
+  }, [providersData]);
+
   const handleSaveWeights = () => {
     updateWeights.mutate(
       { data: weights },
