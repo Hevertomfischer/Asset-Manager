@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { Link } from "react-router-dom";
+import { XG_STALE_THRESHOLD_DAYS } from "@/lib/constants";
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -51,6 +52,15 @@ export default function Dashboard() {
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError } = useGetCurrentAvailability({});
 
   const providers = providersData?.providers ?? [];
+
+  const isXgStale = (() => {
+    const xgProvider = providers.find((p) => p.source === "footystats_xg");
+    if (!xgProvider) return false;
+    if (!xgProvider.lastCollectedAt) return true;
+    const ageMs = Date.now() - new Date(xgProvider.lastCollectedAt).getTime();
+    return ageMs > XG_STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  })();
+
   const projections = projectionsData?.projections ?? [];
   const matches = matchesData?.matches ?? [];
   const availabilityList = availabilityData?.availability ?? [];
@@ -185,6 +195,25 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* xG Staleness Warning */}
+      {isXgStale && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-orange-500/40 bg-orange-500/10 text-sm">
+          <div className="flex items-center gap-2 text-orange-300 min-w-0">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>
+              Os dados de xG (gols esperados) estão desatualizados há mais de {XG_STALE_THRESHOLD_DAYS} dias.
+              Projeções de goleiros e zagueiros podem estar menos precisas.
+            </span>
+          </div>
+          <Link
+            to="/admin"
+            className="shrink-0 text-orange-300 underline underline-offset-2 hover:text-orange-200 font-semibold whitespace-nowrap"
+          >
+            Atualizar agora →
+          </Link>
+        </div>
+      )}
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

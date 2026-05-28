@@ -19,8 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock } from "lucide-react";
-
-const XG_STALE_THRESHOLD_DAYS = 4;
+import { XG_STALE_THRESHOLD_DAYS } from "@/lib/constants";
 
 export default function Admin() {
   const { toast } = useToast();
