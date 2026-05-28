@@ -235,7 +235,7 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
 export default function Lineup() {
   const [formation, setFormation] = useState("4-3-3");
   const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao">("cost-benefit");
-  const [budget, setBudget] = useState(100);
+  const [budget, setBudget] = useState(100.00);
 
   const { toast } = useToast();
   const generateLineupMutation = useGenerateLineup();
@@ -364,9 +364,9 @@ export default function Lineup() {
             <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Orçamento Máx.</Label>
-                <span className="text-lg font-mono font-bold text-primary">C$ {budget}</span>
+                <span className="text-lg font-mono font-bold text-primary">C$ {budget.toFixed(2).replace('.', ',')}</span>
               </div>
-              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0])} max={200} min={80} step={1} className="py-1" />
+              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0])} max={200} min={80} step={0.01} className="py-1" />
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                 <span>C$ 80</span>
                 <span>C$ 200</span>

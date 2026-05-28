@@ -54,7 +54,7 @@ router.post("/lineup/generate", async (req, res) => {
     const [result, allClubs] = await Promise.all([
       generateLineup({
         round: currentRound,
-        budgetLimit: budget ?? 100,
+        budgetLimit: budget ?? 100.00,
         formation: formation ?? "4-4-2",
         strategy: strategyType,
       }),
