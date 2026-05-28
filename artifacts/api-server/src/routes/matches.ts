@@ -198,9 +198,9 @@ router.get("/matches/confrontos", async (_req, res) => {
         const xgSource: "xg_article" | "form_estimate" =
           match.homeXg != null ? "xg_article" : "form_estimate";
 
-        // Difficulty from xG: use raw xG thresholds calibrated to Brasileirão data.
-        // League avg ≈ 1.35 gols/team/game. "fácil" < 1.15, "difícil" > 1.45, "médio" otherwise.
-        // For form-based, keep existing normalized thresholds.
+        // Difficulty = how easy for THIS team to score (opponent's defensive weakness).
+        // High xG means opponent's defense is weak → "fácil". Low xG means opponent's defense is strong → "difícil".
+        // League avg ≈ 1.35 gols/team/game. "fácil" > 1.55, "difícil" < 1.15, "médio" otherwise.
         let homeDifficulty: DifficultyLevel;
         let awayDifficulty: DifficultyLevel;
         let homeGoalExpectation: number;
@@ -209,13 +209,13 @@ router.get("/matches/confrontos", async (_req, res) => {
         if (match.homeXg != null && match.awayXg != null) {
           homeGoalExpectation = match.homeXg;
           awayGoalExpectation = match.awayXg;
-          homeDifficulty = match.awayXg > 1.55 ? "difícil" : match.awayXg < 1.15 ? "fácil" : "médio";
-          awayDifficulty = match.homeXg > 1.55 ? "difícil" : match.homeXg < 1.15 ? "fácil" : "médio";
+          homeDifficulty = match.homeXg > 1.55 ? "fácil" : match.homeXg < 1.15 ? "difícil" : "médio";
+          awayDifficulty = match.awayXg > 1.55 ? "fácil" : match.awayXg < 1.15 ? "difícil" : "médio";
         } else {
           homeGoalExpectation = formBasedHomeGoalExpNorm;
           awayGoalExpectation = formBasedAwayGoalExpNorm;
-          homeDifficulty = awayGoalExpectation > 0.6 ? "difícil" : awayGoalExpectation > 0.35 ? "médio" : "fácil";
-          awayDifficulty = homeGoalExpectation > 0.6 ? "difícil" : homeGoalExpectation > 0.35 ? "médio" : "fácil";
+          homeDifficulty = homeGoalExpectation > 0.6 ? "fácil" : homeGoalExpectation > 0.35 ? "médio" : "difícil";
+          awayDifficulty = awayGoalExpectation > 0.6 ? "fácil" : awayGoalExpectation > 0.35 ? "médio" : "difícil";
         }
 
         // When xG data is available, derive offensiveStrength/defensiveStrength from it
