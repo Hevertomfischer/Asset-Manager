@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { dataCollectionLogTable } from "@workspace/db/schema";
+import { dataCollectionLogTable, adminConfigTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
@@ -11,6 +11,26 @@ const router = Router();
 
 let syncInProgress = false;
 let recalcInProgress = false;
+
+const XG_STALE_DAYS_DEFAULT = 4;
+
+async function getConfigValue(key: string, defaultValue: number): Promise<number> {
+  try {
+    const rows = await db.select().from(adminConfigTable).where(eq(adminConfigTable.key, key)).limit(1);
+    if (rows.length === 0) return defaultValue;
+    const parsed = parseInt(rows[0].value, 10);
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+async function setConfigValue(key: string, value: string): Promise<void> {
+  await db
+    .insert(adminConfigTable)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: adminConfigTable.key, set: { value, updatedAt: new Date() } });
+}
 
 async function logAdminAction(source: string, status: string, message: string) {
   try {
@@ -313,6 +333,34 @@ router.post("/admin/sync/historical-round", async (req, res) => {
     console.error("[admin/sync/historical-round]", error);
     await logAdminAction("admin_historical_sync", "error", `Historical sync failed for round ${roundNum}: ${msg}`);
     res.status(500).json({ error: "Historical sync failed", details: msg });
+  }
+});
+
+router.get("/admin/config", async (_req, res) => {
+  try {
+    const xgStaleDays = await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT);
+    res.json({ xgStaleDays });
+  } catch (error) {
+    console.error("[admin/config GET]", error);
+    res.status(500).json({ error: "Failed to fetch config" });
+  }
+});
+
+router.post("/admin/config", async (req, res) => {
+  try {
+    const body = req.body as { xgStaleDays?: unknown };
+    const raw = body.xgStaleDays;
+    const parsed = typeof raw === "number" ? Math.round(raw) : typeof raw === "string" ? parseInt(raw, 10) : NaN;
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30) {
+      res.status(400).json({ error: "xgStaleDays must be an integer between 1 and 30" });
+      return;
+    }
+    await setConfigValue("xgStaleDays", String(parsed));
+    await logAdminAction("admin_config", "success", `Updated xgStaleDays to ${parsed}`);
+    res.json({ xgStaleDays: parsed });
+  } catch (error) {
+    console.error("[admin/config POST]", error);
+    res.status(500).json({ error: "Failed to update config" });
   }
 });
 

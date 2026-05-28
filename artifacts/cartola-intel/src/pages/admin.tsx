@@ -8,6 +8,8 @@ import {
   useGetAdminLogs,
   useGetProjectionWeights,
   useUpdateProjectionWeights,
+  useGetAdminConfig,
+  useUpdateAdminConfig,
   type AdminLog,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,7 +21,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock } from "lucide-react";
-import { XG_STALE_THRESHOLD_DAYS } from "@/lib/constants";
 
 export default function Admin() {
   const { toast } = useToast();
@@ -27,8 +28,10 @@ export default function Admin() {
   const { data: logsData, isLoading: logsLoading, isError: logsError } = useGetAdminLogs({ limit: 20 });
   const { data: weightsData, isLoading: weightsLoading, isError: weightsError } = useGetProjectionWeights();
   const { data: providersData, isLoading: providersLoading, isError: providersError } = useGetProvidersStatus();
+  const { data: configData } = useGetAdminConfig();
 
   const updateWeights = useUpdateProjectionWeights();
+  const updateConfig = useUpdateAdminConfig();
   const syncFull = useSyncFull();
   const syncMarket = useSyncMarket();
   const syncCurrentRound = useSyncCurrentRound();
@@ -41,6 +44,29 @@ export default function Admin() {
     valueWeight: 0.1,
     historyWeight: 0.1,
   });
+
+  const [xgStaleDaysInput, setXgStaleDaysInput] = useState<string>("");
+
+  useEffect(() => {
+    if (configData?.xgStaleDays != null) {
+      setXgStaleDaysInput(String(configData.xgStaleDays));
+    }
+  }, [configData]);
+
+  const handleSaveConfig = () => {
+    const parsed = parseInt(xgStaleDaysInput, 10);
+    if (!parsed || parsed < 1 || parsed > 30) {
+      toast({ title: "Valor inválido", description: "Digite um número entre 1 e 30.", variant: "destructive" });
+      return;
+    }
+    updateConfig.mutate(
+      { xgStaleDays: parsed },
+      {
+        onSuccess: () => toast({ title: "Configuração salva", description: `Alerta de xG após ${parsed} dia(s).` }),
+        onError: (err) => toast({ title: "Falha ao salvar", description: err.message, variant: "destructive" }),
+      }
+    );
+  };
 
   const [xgRound, setXgRound] = useState<string>("");
   const [xgSyncing, setXgSyncing] = useState(false);
@@ -222,24 +248,57 @@ export default function Admin() {
               </div>
             )}
 
-            <div className="pt-4 border-t border-border/50 flex gap-4">
-              <Button
-                onClick={handleSaveWeights}
-                disabled={updateWeights.isPending || weightsError}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Salvar Pesos
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleRecalc}
-                disabled={recalcProjections.isPending}
-                className="flex-1 border border-border"
-              >
-                {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                Recalcular Agora
-              </Button>
+            <div className="pt-4 border-t border-border/50 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" />
+                  Alerta de dados xG após X dias
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={xgStaleDaysInput}
+                    onChange={(e) => setXgStaleDaysInput(e.target.value)}
+                    className="h-9 w-24"
+                    placeholder="4"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveConfig}
+                    disabled={updateConfig.isPending}
+                    variant="outline"
+                    className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+                  >
+                    {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  onClick={handleSaveWeights}
+                  disabled={updateWeights.isPending || weightsError}
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Salvar Pesos
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleRecalc}
+                  disabled={recalcProjections.isPending}
+                  className="flex-1 border border-border"
+                >
+                  {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Recalcular Agora
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -324,10 +383,11 @@ export default function Admin() {
                     };
                     const label = labelMap[p.source] ?? p.source.replace(/_/g, " ");
 
+                    const xgStaleDays = configData?.xgStaleDays ?? 4;
                     const isXgStale = p.source === "footystats_xg" && (() => {
                       if (!p.lastCollectedAt) return true;
                       const ageMs = Date.now() - new Date(p.lastCollectedAt).getTime();
-                      return ageMs > XG_STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+                      return ageMs > xgStaleDays * 24 * 60 * 60 * 1000;
                     })();
 
                     return (

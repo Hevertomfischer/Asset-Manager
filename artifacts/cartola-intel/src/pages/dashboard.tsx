@@ -4,6 +4,7 @@ import {
   useGetCurrentProjections,
   useGetCurrentMatches,
   useGetCurrentAvailability,
+  useGetAdminConfig,
   type ProjectionItem,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,6 @@ import {
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { Link } from "react-router-dom";
-import { XG_STALE_THRESHOLD_DAYS } from "@/lib/constants";
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -50,15 +50,17 @@ export default function Dashboard() {
   });
   const { data: matchesData, isLoading: matchesLoading, isError: matchesError } = useGetCurrentMatches();
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError } = useGetCurrentAvailability({});
+  const { data: configData } = useGetAdminConfig();
 
   const providers = providersData?.providers ?? [];
+  const xgStaleDays = configData?.xgStaleDays ?? 4;
 
   const isXgStale = (() => {
     const xgProvider = providers.find((p) => p.source === "footystats_xg");
     if (!xgProvider) return false;
     if (!xgProvider.lastCollectedAt) return true;
     const ageMs = Date.now() - new Date(xgProvider.lastCollectedAt).getTime();
-    return ageMs > XG_STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+    return ageMs > xgStaleDays * 24 * 60 * 60 * 1000;
   })();
 
   const projections = projectionsData?.projections ?? [];
@@ -202,7 +204,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 text-orange-300 min-w-0">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
-              Os dados de xG (gols esperados) estão desatualizados há mais de {XG_STALE_THRESHOLD_DAYS} dias.
+              Os dados de xG (gols esperados) estão desatualizados há mais de {xgStaleDays} dias.
               Projeções de goleiros e zagueiros podem estar menos precisas.
             </span>
           </div>
