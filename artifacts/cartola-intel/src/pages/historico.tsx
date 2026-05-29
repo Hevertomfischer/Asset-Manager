@@ -7,6 +7,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Dot,
+} from "recharts";
 
 interface BacktestPlayer {
   playerId: number;
@@ -453,17 +463,61 @@ function PlayerBacktestTab() {
                   Evolução por Rodada
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {byRound.map((r) => (
-                  <div key={r.round}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-foreground">Rodada {r.round}</span>
-                      <span className="text-xs text-muted-foreground">{r.count} jogadores</span>
-                    </div>
-                    <MaeBar mae={r.mae} />
-                  </div>
-                ))}
-                {byRound.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sem histórico por rodada</p>}
+              <CardContent>
+                {byRound.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Sem histórico por rodada</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart
+                      data={byRound.map((r) => ({ rodada: r.round, mae: parseFloat(r.mae.toFixed(2)), jogadores: r.count }))}
+                      margin={{ top: 8, right: 16, left: 0, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis
+                        dataKey="rodada"
+                        tickFormatter={(v) => `R${v}`}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tickFormatter={(v) => v.toFixed(1)}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={36}
+                      />
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0].payload as { rodada: number; mae: number; jogadores: number };
+                          return (
+                            <div style={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                            }}>
+                              <p style={{ fontWeight: 600, marginBottom: 4 }}>Rodada {d.rodada}</p>
+                              <p>MAE: <strong>{d.mae.toFixed(2)}</strong></p>
+                              <p>Jogadores: <strong>{d.jogadores}</strong></p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="mae"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        dot={<Dot r={3} fill="hsl(var(--primary))" strokeWidth={0} />}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>
