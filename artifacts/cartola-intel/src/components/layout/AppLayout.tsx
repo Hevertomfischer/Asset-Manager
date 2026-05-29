@@ -42,7 +42,7 @@ export const AppSidebar = () => {
           </div>
         </div>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-6 mb-2">Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-6 mb-2">Plataforma</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="px-3">
               {navItems.map((item) => {

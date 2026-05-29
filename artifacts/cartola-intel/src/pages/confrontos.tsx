@@ -175,7 +175,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             )}
             <div className="flex items-center gap-1 flex-wrap">
               <Target className="w-3 h-3 text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground">Exploit:</span>
+              <span className="text-[10px] text-muted-foreground">Explorar:</span>
               {c.recommendedPositionsHome.length > 0
                 ? c.recommendedPositionsHome.map((pos) => (
                     <Badge key={pos} variant="outline" className={`text-[9px] px-1 py-0 ${getPositionColor(pos)} border`}>
@@ -224,7 +224,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             )}
             <div className="flex items-center gap-1 flex-wrap">
               <Target className="w-3 h-3 text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground">Exploit:</span>
+              <span className="text-[10px] text-muted-foreground">Explorar:</span>
               {c.recommendedPositionsAway.length > 0
                 ? c.recommendedPositionsAway.map((pos) => (
                     <Badge key={pos} variant="outline" className={`text-[9px] px-1 py-0 ${getPositionColor(pos)} border`}>

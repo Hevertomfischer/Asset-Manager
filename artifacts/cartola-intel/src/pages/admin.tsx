@@ -111,7 +111,7 @@ export default function Admin() {
 
   const handleSync = (type: "full" | "market" | "current-round") => {
     const mutation = type === "full" ? syncFull : type === "market" ? syncMarket : syncCurrentRound;
-    const labels: Record<string, string> = { full: "Full", market: "Mercado", "current-round": "Rodada Atual" };
+    const labels: Record<string, string> = { full: "Completo", market: "Mercado", "current-round": "Rodada Atual" };
     mutation.mutate(undefined, {
       onSuccess: (data) => {
         const xgMatches = data?.xgMatchesUpdated;
@@ -122,9 +122,9 @@ export default function Admin() {
           setLastSyncXgSummary({ matchesUpdated: xgMatches, clubsMapped: xgClubs, degraded: xgDegraded ?? false });
         }
 
-        toast({ title: `Sync ${labels[type]} disparado com sucesso` });
+        toast({ title: `Sincronização ${labels[type]} disparada com sucesso` });
       },
-      onError: (err) => toast({ title: "Sync falhou", description: err.message, variant: "destructive" }),
+      onError: (err) => toast({ title: "Sincronização falhou", description: err.message, variant: "destructive" }),
     });
   };
 
@@ -231,8 +231,8 @@ export default function Admin() {
                 {Object.entries(weights).map(([key, value]) => (
                   <div key={key} className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold capitalize text-foreground">
-                        {key.replace("Weight", "")} Weight
+                      <Label className="text-sm font-semibold text-foreground">
+                        {{ formWeight: "Forma", availabilityWeight: "Disponibilidade", fixtureWeight: "Confronto", valueWeight: "Valor", historyWeight: "Histórico" }[key] ?? key.replace("Weight", "")}
                       </Label>
                       <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
                     </div>
@@ -330,7 +330,7 @@ export default function Admin() {
                   disabled={syncFull.isPending}
                 >
                   {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
-                  <span className="font-semibold text-sm">Sync Full</span>
+                  <span className="font-semibold text-sm">Sync Completo</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -571,7 +571,7 @@ export default function Admin() {
                     <TableHead className="w-[180px]">Timestamp</TableHead>
                     <TableHead>Fonte</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Round</TableHead>
+                    <TableHead>Rodada</TableHead>
                     <TableHead className="w-1/2">Mensagem</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -600,7 +600,7 @@ export default function Admin() {
                                   : "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
                             }`}
                           >
-                            {log.status}
+                            {{ success: "Sucesso", ok: "OK", error: "Erro", degraded: "Degradado", info: "Info", never_synced: "Nunca sincronizado" }[log.status ?? ""] ?? log.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs">{log.round ?? "-"}</TableCell>

@@ -142,7 +142,7 @@ export default function Dashboard() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
-              Intelligence Engine Ativo
+              Motor de Inteligência Ativo
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-extrabold text-white tracking-tight leading-tight">
               Domine o <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Mercado</span>
@@ -437,8 +437,8 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
-                        <p className="text-[10px] text-muted-foreground">pop: {(pop * 100).toFixed(0)}%</p>
-                        <p className="text-[10px] text-muted-foreground">dif: {ds.toFixed(0)}</p>
+                        <p className="text-[10px] text-muted-foreground">escal.: {(pop * 100).toFixed(0)}%</p>
+                        <p className="text-[10px] text-muted-foreground">dif.: {ds.toFixed(0)}</p>
                       </div>
                     </div>
                   );
