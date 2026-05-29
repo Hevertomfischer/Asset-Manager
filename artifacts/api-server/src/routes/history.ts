@@ -51,7 +51,7 @@ router.get("/history/backtest", async (req, res) => {
       );
 
     if (projections.length === 0) {
-      res.json({ rounds: [], summary: { mae: 0, totalPlayers: 0, byPosition: {}, message: "No projection data yet. Sync first." } });
+      res.json({ summary: { mae: 0, totalPlayers: 0, byPosition: {}, byRound: [], message: "No projection data yet. Sync first." }, bestPredictions: [], worstPredictions: [] });
       return;
     }
 
@@ -98,8 +98,9 @@ router.get("/history/backtest", async (req, res) => {
 
     if (compared.length === 0) {
       res.json({
-        rounds: [],
-        summary: { mae: 0, totalPlayers: 0, byPosition: {}, message: "No actual points yet for projected rounds. Wait for round to complete." },
+        summary: { mae: 0, totalPlayers: 0, byPosition: {}, byRound: [], message: "No actual points yet for projected rounds. Wait for round to complete." },
+        bestPredictions: [],
+        worstPredictions: [],
       });
       return;
     }
@@ -157,11 +158,31 @@ router.get("/history/backtest", async (req, res) => {
 
 router.get("/history/rounds", async (_req, res) => {
   try {
-    const rows = await db
+    // Only return rounds that have BOTH projection data AND actual scout data
+    // so the round selector never leads to an empty backtest result.
+    const projRounds = await db
+      .selectDistinct({ round: playerProjectionTable.round })
+      .from(playerProjectionTable)
+      .where(isNotNull(playerProjectionTable.expectedPoints));
+
+    const projRoundSet = new Set(projRounds.map((r) => r.round));
+
+    const scoutRounds = await db
       .selectDistinct({ round: playerScoutRoundTable.round })
       .from(playerScoutRoundTable)
+      .where(
+        and(
+          isNotNull(playerScoutRoundTable.points),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+        )
+      )
       .orderBy(playerScoutRoundTable.round);
-    res.json({ rounds: rows.map((r) => r.round) });
+
+    const intersected = scoutRounds
+      .map((r) => r.round)
+      .filter((r) => projRoundSet.has(r));
+
+    res.json({ rounds: intersected });
   } catch (err) {
     log.error("Failed to list rounds", { error: err instanceof Error ? err.message : String(err) });
     res.status(500).json({ error: "Failed to list rounds" });
@@ -216,6 +237,7 @@ router.get("/history/lineup-backtest", async (req, res) => {
           position: lineupSuggestionPlayerTable.position,
           slot: lineupSuggestionPlayerTable.slot,
           orderIndex: lineupSuggestionPlayerTable.orderIndex,
+          storedProjectedPoints: lineupSuggestionPlayerTable.projectedPoints,
           playerName: playersTable.name,
           playerNickname: playersTable.nickname,
           clubId: playersTable.clubId,
@@ -301,7 +323,8 @@ router.get("/history/lineup-backtest", async (req, res) => {
           const isCoach = p.position === "TEC";
           const actualRaw = actualMap.get(`${p.playerId}-${lineup.round}`) ?? null;
           const actualPoints = actualRaw !== null ? (isCaptain ? actualRaw * 2 : actualRaw) : null;
-          const projectedPoints = projMap.get(`${p.playerId}-${lineup.round}`) ?? null;
+          // Use live projection table first (current round), fall back to stored snapshot at generation time
+          const projectedPoints = projMap.get(`${p.playerId}-${lineup.round}`) ?? p.storedProjectedPoints ?? null;
           const club = p.clubId ? clubMap.get(p.clubId) : undefined;
 
           return {
@@ -338,7 +361,8 @@ router.get("/history/lineup-backtest", async (req, res) => {
         ? rowsWithBoth.reduce((sum, p) => sum + (p.actual ?? 0), 0)
         : null;
 
-      const playersWithData = playerRows.filter((p) => p.actual !== null).length;
+      // Exclude TEC from both sides so the coach doesn't inflate or deflate the coverage count
+      const playersWithData = playerRows.filter((p) => p.position !== "TEC" && p.actual !== null).length;
       const allCoveredByData = playersWithData >= playerRows.filter((p) => p.position !== "TEC").length;
 
       return {

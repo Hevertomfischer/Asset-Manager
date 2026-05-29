@@ -508,12 +508,13 @@ function PlayerBacktestTab() {
   );
 }
 
-const STRATEGY_ORDER = ["safe", "aggressive", "cost-benefit", "antimassa"];
+const STRATEGY_ORDER = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"];
 const strategyLabels: Record<string, string> = {
   safe: "Seguro",
   aggressive: "Agressivo",
   "cost-benefit": "Custo-Benefício",
   antimassa: "Antimassa",
+  valorizacao: "Valorização",
 };
 
 function RoundStrategyGroup({ roundNum, lineups }: { roundNum: number; lineups: LineupBacktestRound[] }) {
