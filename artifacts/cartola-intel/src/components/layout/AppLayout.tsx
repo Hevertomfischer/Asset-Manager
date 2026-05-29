@@ -13,6 +13,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { AutoSync } from "@/components/AutoSync";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -82,6 +83,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
+      <AutoSync />
       <div className="flex min-h-screen w-full bg-background selection:bg-primary/30 selection:text-primary-foreground text-foreground">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
