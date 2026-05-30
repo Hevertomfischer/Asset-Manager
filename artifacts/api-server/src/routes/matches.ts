@@ -246,16 +246,19 @@ router.get("/matches/confrontos", async (_req, res) => {
           ? awayStats.defensiveStrength
           : hasXg ? xgToDefensive(match.homeXg!) : awayFormStrength.defensiveStrength;
 
-        // Recommended positions: which positions to prioritise for Cartola picks
-        // ATA/MEI: team expected to score ≥ ~1.10 goals (offensive ≥ 0.40)
-        // GOL/ZAG/LAT: opponent expected to score ≤ ~1.25 goals (defensive ≥ 0.50)
+        // Recommended positions: which positions to prioritise for Cartola picks.
+        // ATA/MEI of team X: recommend when X's own offensive strength is high (they tend to score).
+        // GOL/ZAG/LAT of team X: recommend when the OPPONENT's offensive strength is LOW
+        //   (opponent unlikely to score → clean-sheet chance for X's defenders/keeper).
+        // Using the team's own defensive stat for GOL/ZAG/LAT was incoherent because it
+        // could recommend both attack AND defence for the same side simultaneously.
         const recommendedPositionsHome: string[] = [];
         if (effectiveHomeOffensive >= 0.40) recommendedPositionsHome.push("ATA", "MEI");
-        if (effectiveHomeDefensive >= 0.50) recommendedPositionsHome.push("GOL", "ZAG", "LAT");
+        if (effectiveAwayOffensive < 0.45) recommendedPositionsHome.push("GOL", "ZAG", "LAT");
 
         const recommendedPositionsAway: string[] = [];
         if (effectiveAwayOffensive >= 0.40) recommendedPositionsAway.push("ATA", "MEI");
-        if (effectiveAwayDefensive >= 0.50) recommendedPositionsAway.push("GOL", "ZAG", "LAT");
+        if (effectiveHomeOffensive < 0.45) recommendedPositionsAway.push("GOL", "ZAG", "LAT");
 
         return {
           matchId: match.id,
