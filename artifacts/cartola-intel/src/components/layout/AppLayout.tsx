@@ -1,6 +1,7 @@
 import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History } from "lucide-react";
+import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History, UserCircle } from "lucide-react";
+import { UserMenu } from "@/components/layout/UserMenu";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +23,7 @@ const navItems = [
   { title: "Confrontos", url: "/confrontos", icon: Swords },
   { title: "Histórico", url: "/historico", icon: History },
   { title: "Admin", url: "/admin", icon: Settings },
+  { title: "Minha conta", url: "/conta", icon: UserCircle },
 ];
 
 export const AppSidebar = () => {
@@ -92,9 +94,10 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             </div>
             <div className="flex items-center gap-3">
-              <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border">
+              <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border hidden sm:block">
                 v0.2.0-beta
               </div>
+              <UserMenu />
             </div>
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 relative">
