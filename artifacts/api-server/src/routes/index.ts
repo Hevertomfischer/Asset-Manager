@@ -7,10 +7,12 @@ import availabilityRouter from "./availability";
 import lineupRouter from "./lineup";
 import adminRouter from "./admin";
 import historyRouter from "./history";
+import authRouter from "./auth";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(roundRouter);
 router.use(playersRouter);
