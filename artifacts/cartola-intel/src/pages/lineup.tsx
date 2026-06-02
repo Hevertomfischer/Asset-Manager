@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info, Users, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { ProGate } from "@/components/ProGate";
+import { usePaywall } from "@/context/PaywallContext";
 
 interface ExplanationJson {
   averagePoints?: number;
@@ -238,6 +240,7 @@ export default function Lineup() {
   const [budget, setBudget] = useState(100.00);
 
   const { toast } = useToast();
+  const { openPaywall } = usePaywall();
   const generateLineupMutation = useGenerateLineup();
   const saveLineupMutation = useSaveLineup();
 
@@ -257,6 +260,10 @@ export default function Lineup() {
           }
         },
         onError: (error) => {
+          if ((error as { status?: number }).status === 402) {
+            openPaywall();
+            return;
+          }
           toast({
             title: "Falha na geração",
             description: error.message || "Não foi possível gerar escalação com as restrições fornecidas",
@@ -278,12 +285,12 @@ export default function Lineup() {
     );
   };
 
-  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao"; label: string; icon: typeof Shield; desc: string }[] = [
+  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao"; label: string; icon: typeof Shield; desc: string; requiresPro?: boolean }[] = [
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
-    { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade." },
-    { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro." },
-    { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação." },
-    { value: "valorizacao", label: "Valorização", icon: TrendingUp, desc: "Prioriza jogadores com tendência de subir de preço." },
+    { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade.", requiresPro: true },
+    { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro.", requiresPro: true },
+    { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação.", requiresPro: true },
+    { value: "valorizacao", label: "Valorização", icon: TrendingUp, desc: "Prioriza jogadores com tendência de subir de preço.", requiresPro: true },
   ];
 
   const fieldPlayers = currentLineup?.players?.filter((p) => p.position !== "TEC") ?? [];
@@ -338,9 +345,8 @@ export default function Lineup() {
               <div className="space-y-2">
                 {strategies.map((s) => {
                   const isActive = strategy === s.value;
-                  return (
+                  const btn = (
                     <button
-                      key={s.value}
                       onClick={() => setStrategy(s.value)}
                       className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${
                         isActive
@@ -351,11 +357,16 @@ export default function Lineup() {
                       <div className={`p-2 rounded-lg ${isActive ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
                         <s.icon className="w-5 h-5" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <div className={`font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</div>
                         <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{s.desc}</div>
                       </div>
                     </button>
+                  );
+                  return (
+                    <div key={s.value}>
+                      {s.requiresPro ? <ProGate>{btn}</ProGate> : btn}
+                    </div>
                   );
                 })}
               </div>
@@ -389,7 +400,7 @@ export default function Lineup() {
               )}
             </Button>
 
-            {generateLineupMutation.isError && (
+            {generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 && (
               <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {generateLineupMutation.error?.message || "Falha ao gerar escalação"}

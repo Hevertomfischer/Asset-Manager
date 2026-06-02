@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown } from "lucide-react";
+import { ProGate } from "@/components/ProGate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -270,32 +271,40 @@ export default function Players() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                        {player.projection?.floorPoints?.toFixed(1) ?? '-'}
+                        <ProGate variant="inline">
+                          {player.projection?.floorPoints?.toFixed(1) ?? '-'}
+                        </ProGate>
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                        {player.projection?.ceilingPoints?.toFixed(1) ?? '-'}
+                        <ProGate variant="inline">
+                          {player.projection?.ceilingPoints?.toFixed(1) ?? '-'}
+                        </ProGate>
                       </TableCell>
                       <TableCell className="text-center">
-                        {riskScore !== null ? (
-                          <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                            riskScore < 0.3 ? 'bg-green-500/10 text-green-500' :
-                            riskScore < 0.6 ? 'bg-yellow-500/10 text-yellow-500' :
-                            'bg-red-500/10 text-red-500'
-                          }`}>
-                            {riskScore.toFixed(2)}
-                          </div>
-                        ) : <span className="text-muted-foreground text-xs">-</span>}
+                        <ProGate variant="inline">
+                          {riskScore !== null ? (
+                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                              riskScore < 0.3 ? 'bg-green-500/10 text-green-500' :
+                              riskScore < 0.6 ? 'bg-yellow-500/10 text-yellow-500' :
+                              'bg-red-500/10 text-red-500'
+                            }`}>
+                              {riskScore.toFixed(2)}
+                            </div>
+                          ) : <span className="text-muted-foreground text-xs">-</span>}
+                        </ProGate>
                       </TableCell>
                       <TableCell className="text-center">
-                        {prob !== null ? (
-                          <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${
-                            prob >= 0.7 ? 'bg-green-500/10 text-green-500' :
-                            prob >= 0.4 ? 'bg-yellow-500/10 text-yellow-500' :
-                            'bg-red-500/10 text-red-500'
-                          }`}>
-                            {(prob * 100).toFixed(0)}%
-                          </div>
-                        ) : <span className="text-muted-foreground text-xs">-</span>}
+                        <ProGate variant="inline">
+                          {prob !== null ? (
+                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${
+                              prob >= 0.7 ? 'bg-green-500/10 text-green-500' :
+                              prob >= 0.4 ? 'bg-yellow-500/10 text-yellow-500' :
+                              'bg-red-500/10 text-red-500'
+                            }`}>
+                              {(prob * 100).toFixed(0)}%
+                            </div>
+                          ) : <span className="text-muted-foreground text-xs">-</span>}
+                        </ProGate>
                       </TableCell>
                     </TableRow>
                   );

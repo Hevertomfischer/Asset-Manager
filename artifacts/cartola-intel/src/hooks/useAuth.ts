@@ -6,12 +6,16 @@ export interface AuthUser {
   name: string | null;
   avatarUrl: string | null;
   provider: string | null;
+  plan: "free" | "pro";
+  isPro: boolean;
 }
 
 interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isPro: boolean;
+  plan: "free" | "pro";
   logout: () => Promise<void>;
 }
 
@@ -43,6 +47,8 @@ export function useAuth(): AuthState {
     user,
     isLoading,
     isAuthenticated: user !== null,
+    isPro: user?.isPro ?? false,
+    plan: user?.plan ?? "free",
     logout,
   };
 }

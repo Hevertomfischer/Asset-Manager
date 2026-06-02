@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PaywallProvider } from "@/context/PaywallContext";
 import NotFound from "@/pages/not-found";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -29,6 +30,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter basename={BASE}>
+          <PaywallProvider>
           <AppLayout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -41,6 +43,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
+          </PaywallProvider>
         </BrowserRouter>
         <Toaster />
       </TooltipProvider>

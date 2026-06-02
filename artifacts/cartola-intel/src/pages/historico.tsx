@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import {
   LineChart,
@@ -95,26 +96,26 @@ interface LineupBacktestResponse {
 
 async function fetchBacktest(round?: number): Promise<BacktestResponse> {
   const params = round ? `?round=${round}&limit=10` : "?limit=10";
-  const res = await fetch(`/api/history/backtest${params}`);
-  if (!res.ok) throw new Error("Failed to fetch backtest");
+  const res = await fetch(`/api/history/backtest${params}`, { credentials: "include" });
+  if (!res.ok) throw Object.assign(new Error("Failed to fetch backtest"), { status: res.status });
   return res.json() as Promise<BacktestResponse>;
 }
 
 async function fetchLineupBacktest(round?: number): Promise<LineupBacktestResponse> {
   const params = round ? `?round=${round}` : "";
-  const res = await fetch(`/api/history/lineup-backtest${params}`);
-  if (!res.ok) throw new Error("Failed to fetch lineup backtest");
+  const res = await fetch(`/api/history/lineup-backtest${params}`, { credentials: "include" });
+  if (!res.ok) throw Object.assign(new Error("Failed to fetch lineup backtest"), { status: res.status });
   return res.json() as Promise<LineupBacktestResponse>;
 }
 
 async function fetchRounds(): Promise<{ rounds: number[] }> {
-  const res = await fetch("/api/history/rounds");
+  const res = await fetch("/api/history/rounds", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch rounds");
   return res.json() as Promise<{ rounds: number[] }>;
 }
 
 async function fetchLineupRounds(): Promise<{ rounds: number[] }> {
-  const res = await fetch("/api/history/lineup-rounds");
+  const res = await fetch("/api/history/lineup-rounds", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch lineup rounds");
   return res.json() as Promise<{ rounds: number[] }>;
 }
@@ -705,24 +706,26 @@ export default function Historico() {
         </p>
       </div>
 
-      <Tabs defaultValue="escalacao">
-        <TabsList className="mb-2">
-          <TabsTrigger value="escalacao" className="flex items-center gap-2">
-            <Crown className="w-4 h-4" />
-            Backtest de Escalação
-          </TabsTrigger>
-          <TabsTrigger value="jogadores" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Backtest por Jogador
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="escalacao">
-          <LineupBacktestTab />
-        </TabsContent>
-        <TabsContent value="jogadores">
-          <PlayerBacktestTab />
-        </TabsContent>
-      </Tabs>
+      <ProGate>
+        <Tabs defaultValue="escalacao">
+          <TabsList className="mb-2">
+            <TabsTrigger value="escalacao" className="flex items-center gap-2">
+              <Crown className="w-4 h-4" />
+              Backtest de Escalação
+            </TabsTrigger>
+            <TabsTrigger value="jogadores" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Backtest por Jogador
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="escalacao">
+            <LineupBacktestTab />
+          </TabsContent>
+          <TabsContent value="jogadores">
+            <PlayerBacktestTab />
+          </TabsContent>
+        </Tabs>
+      </ProGate>
     </div>
   );
 }
