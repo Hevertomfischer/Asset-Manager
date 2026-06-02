@@ -358,7 +358,14 @@ export default function Lineup() {
                         <s.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
-                        <div className={`font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</div>
+                        <div className={`font-semibold flex items-center gap-1.5 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                          {s.label}
+                          {s.requiresPro && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
+                              Pro
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{s.desc}</div>
                       </div>
                     </button>

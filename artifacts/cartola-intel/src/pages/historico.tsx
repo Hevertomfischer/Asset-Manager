@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePaywall } from "@/context/PaywallContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -346,12 +347,16 @@ function GenericEmptyState({ message }: { message?: string }) {
 
 function PlayerBacktestTab() {
   const [selectedRound, setSelectedRound] = useState<string>("all");
+  const { openPaywall } = usePaywall();
   const { data: roundsData } = useQuery({ queryKey: ["history-rounds"], queryFn: fetchRounds });
   const roundParam = selectedRound === "all" ? undefined : Number(selectedRound);
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["backtest", selectedRound],
     queryFn: () => fetchBacktest(roundParam),
   });
+  useEffect(() => {
+    if (isError && (error as { status?: number })?.status === 402) openPaywall();
+  }, [isError, error, openPaywall]);
 
   const summary = data?.summary;
   const byPosition = summary?.byPosition ?? {};
@@ -623,12 +628,16 @@ function RoundStrategyGroup({ roundNum, lineups }: { roundNum: number; lineups: 
 
 function LineupBacktestTab() {
   const [selectedRound, setSelectedRound] = useState<string>("all");
+  const { openPaywall } = usePaywall();
   const { data: roundsData } = useQuery({ queryKey: ["lineup-rounds"], queryFn: fetchLineupRounds });
   const roundParam = selectedRound === "all" ? undefined : Number(selectedRound);
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["lineup-backtest", selectedRound],
     queryFn: () => fetchLineupBacktest(roundParam),
   });
+  useEffect(() => {
+    if (isError && (error as { status?: number })?.status === 402) openPaywall();
+  }, [isError, error, openPaywall]);
 
   const lineupRounds = roundsData?.rounds ?? [];
   const backtestRounds = data?.rounds ?? [];

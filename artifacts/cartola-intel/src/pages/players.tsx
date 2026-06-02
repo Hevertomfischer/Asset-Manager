@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { usePaywall } from "@/context/PaywallContext";
 import { useGetPlayers } from "@workspace/api-client-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { 
@@ -25,8 +26,9 @@ export default function Players() {
   const [probableOnly, setProbableOnly] = useState(true);
   const [page, setPage] = useState(0);
   const pageSize = 20;
+  const { openPaywall } = usePaywall();
 
-  const { data, isLoading, isError } = useGetPlayers({
+  const { data, isLoading, isError, error } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
     clubId: clubFilter === "ALL" ? undefined : Number(clubFilter),
     minPrice: minPrice > 0 ? minPrice : undefined,
@@ -34,6 +36,9 @@ export default function Players() {
     probableOnly: probableOnly ? "true" : "false",
     minProjection: minProjection ? Number(minProjection) : undefined,
   });
+  useEffect(() => {
+    if (isError && (error as { status?: number })?.status === 402) openPaywall();
+  }, [isError, error, openPaywall]);
 
   const players = data?.players || [];
 
