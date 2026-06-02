@@ -1,11 +1,8 @@
-import axios from "axios";
-import * as cheerio from "cheerio";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { dataCollectionLogTable, roundSnapshotTable } from "@workspace/db/schema";
-import crypto from "crypto";
-
-const GE_URL = "https://ge.globo.com/futebol/brasileirao-serie-a/escalacoes.html";
+import { desc, eq } from "drizzle-orm";
+import type { CartolaStatusResult } from "./cartolaStatusProvider";
 
 const GeProbablePlayerSchema = z.object({
   name: z.string(),
@@ -29,77 +26,67 @@ async function logCollection(status: string, message: string) {
   }
 }
 
-export async function fetchProbables(round: number): Promise<GeProbablePlayer[]> {
-  const source = "ge_probables";
+/**
+ * Derives the list of probable players from the latest Cartola Status snapshot.
+ *
+ * The original GE Globo escalações page (ge.globo.com/futebol/brasileirao-serie-a/escalacoes.html)
+ * was taken offline in May 2026. The Cartola FC API already surfaces the same information
+ * via statusId:
+ *   - statusId=7 → "Provável" (probable: true)
+ *   - statusId=2 → "Dúvida"  (probable: false — included so the availability engine
+ *                               can still apply the doubt-boost)
+ *
+ * NOTE: Cartola Status must run BEFORE this function is called so its snapshot is already
+ * stored in round_snapshots. The ETL pipeline guarantees this order.
+ */
+export async function fetchProbables(_round: number): Promise<GeProbablePlayer[]> {
   try {
-    const response = await axios.get(GE_URL, {
-      timeout: 15000,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; CartolaIntel/1.0)",
-        Accept: "text/html",
-      },
-    });
-
-    const $ = cheerio.load(response.data as string);
-    const rawPlayers: unknown[] = [];
-
-    $(".escalacao-clube").each((_i, clubEl) => {
-      const clubName = $(clubEl).find(".escalacao-clube-nome").text().trim();
-      $(clubEl)
-        .find(".escalacao-atleta")
-        .each((_j, playerEl) => {
-          const name = $(playerEl).find(".escalacao-atleta-nome").text().trim();
-          const probable = !$(playerEl).hasClass("escalacao-atleta--duvidoso");
-          if (name) {
-            rawPlayers.push({ name, clubName, probable });
-          }
-        });
-    });
-
-    const players: GeProbablePlayer[] = [];
-    let parseErrors = 0;
-    for (const raw of rawPlayers) {
-      const parsed = GeProbablePlayerSchema.safeParse(raw);
-      if (parsed.success) {
-        players.push(parsed.data);
-      } else {
-        parseErrors++;
-      }
-    }
-
-    if (parseErrors > 0) {
-      console.warn(`[geProbablesProvider] ${parseErrors} player entries failed Zod validation and were skipped`);
-    }
-
-    const payloadStr = JSON.stringify({ players, fetchedAt: new Date().toISOString() });
-    const hash = crypto.createHash("sha256").update(payloadStr).digest("hex");
-
-    await db.insert(roundSnapshotTable).values({
-      round,
-      source,
-      payloadJson: { players },
-      hash,
-    });
-
-    await logCollection("success", `Scraped ${players.length} probable players from GE for round ${round} (${parseErrors} skipped)`);
-    return players;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    await logCollection("error", `GE Prováveis failed: ${msg}`);
-
-    const lastSnapshot = await db.query.roundSnapshotTable
+    const snapshot = await db.query.roundSnapshotTable
       .findFirst({
-        where: (t, { eq }) => eq(t.source, source),
-        orderBy: (t, { desc }) => [desc(t.collectedAt)],
+        where: (t) => eq(t.source, "cartola_status"),
+        orderBy: (t) => [desc(t.collectedAt)],
       })
       .catch(() => null);
 
-    if (lastSnapshot) {
-      await logCollection("degraded", `Using last valid snapshot from ${lastSnapshot.collectedAt.toISOString()}`);
-      const payload = lastSnapshot.payloadJson as { players?: GeProbablePlayer[] };
-      return payload?.players ?? [];
+    if (!snapshot) {
+      await logCollection(
+        "degraded",
+        "Sem snapshot do Cartola Status disponível — lista de prováveis vazia"
+      );
+      return [];
     }
 
+    const payload = snapshot.payloadJson as { result?: CartolaStatusResult };
+    const result = payload.result;
+
+    if (!result?.players?.length) {
+      await logCollection(
+        "degraded",
+        "Snapshot do Cartola Status sem dados de jogadores"
+      );
+      return [];
+    }
+
+    const players: GeProbablePlayer[] = result.players
+      .filter((p) => p.statusId === 7 || p.statusId === 2)
+      .map((p) => ({
+        name: p.nickname ?? p.name,
+        clubName: p.clubExternalId,
+        probable: p.statusId === 7,
+      }));
+
+    const probableCount = players.filter((p) => p.probable).length;
+    const doubtCount = players.filter((p) => !p.probable).length;
+
+    await logCollection(
+      "success",
+      `Derivados ${probableCount} prováveis e ${doubtCount} em dúvida do Cartola Status (snapshot ${snapshot.collectedAt.toISOString()})`
+    );
+
+    return players;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    await logCollection("error", `Falha ao derivar prováveis do Cartola Status: ${msg}`);
     return [];
   }
 }

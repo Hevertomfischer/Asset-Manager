@@ -220,18 +220,8 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     await logETL("xG sync auto", "xg", "degraded", `xG auto-sync failed for round ${round}: ${msg}`);
   }
 
-  // === Step 4: GE Prováveis ===
-  let probables: Awaited<ReturnType<typeof fetchProbables>> = [];
-  try {
-    probables = await fetchProbables(round);
-    await logETL("etl", "probables", "success", `Fetched ${probables.length} probables`);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    warnings.push(`Probables fetch degraded: ${msg}`);
-    await logETL("etl", "probables", "degraded", msg);
-  }
-
-  // === Step 4b: Cartola Status Provider ===
+  // === Step 4: Cartola Status Provider ===
+  // Must run before Step 4b (prováveis derivation) so its snapshot is available.
   let cartolaStatusResult: CartolaStatusResult | undefined;
   try {
     cartolaStatusResult = await fetchPlayerStatuses(round);
@@ -245,6 +235,19 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     const msg = error instanceof Error ? error.message : String(error);
     warnings.push(`Cartola status fetch degraded: ${msg}`);
     await logETL("etl", "player_status", "degraded", msg);
+  }
+
+  // === Step 4b: Prováveis (derivados do Cartola Status) ===
+  // Antes eram obtidos por scraping do GE Globo (URL fora do ar desde mai/2026).
+  // Agora derivamos do snapshot do Cartola Status salvo no passo anterior.
+  let probables: Awaited<ReturnType<typeof fetchProbables>> = [];
+  try {
+    probables = await fetchProbables(round);
+    await logETL("etl", "probables", "success", `Derivados ${probables.length} prováveis/dúvidas do Cartola Status`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    warnings.push(`Probables fetch degraded: ${msg}`);
+    await logETL("etl", "probables", "degraded", msg);
   }
 
   // === Step 5: GatoMestre stats (best-effort) ===
