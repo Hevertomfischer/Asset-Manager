@@ -7,63 +7,85 @@ import { createLogger } from "../lib/logger";
 
 const log = createLogger("passport");
 
-const GOOGLE_CLIENT_ID = process.env["GOOGLE_CLIENT_ID"];
-const GOOGLE_CLIENT_SECRET = process.env["GOOGLE_CLIENT_SECRET"];
-const OAUTH_CALLBACK_URL = process.env["OAUTH_CALLBACK_URL"];
+let _googleConfigured = false;
 
+/** Returns true only if Google OAuth was successfully configured at startup. */
+export function isGoogleOAuthConfigured(): boolean {
+  return _googleConfigured;
+}
+
+/**
+ * Configures Passport strategies and session serialization.
+ *
+ * - SESSION_SECRET must be set before calling this (enforced in app.ts).
+ * - Google OAuth is optional at startup: if GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET /
+ *   OAUTH_CALLBACK_URL are absent the strategy is not registered and auth routes
+ *   will respond with 503, avoiding silent placeholder credentials.
+ */
 export function configurePassport(): void {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !OAUTH_CALLBACK_URL) {
-    log.warn("Google OAuth not configured — GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or OAUTH_CALLBACK_URL missing. /api/auth/google will not work.");
-  }
+  const clientID = process.env["GOOGLE_CLIENT_ID"];
+  const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
+  const callbackURL = process.env["OAUTH_CALLBACK_URL"];
 
-  passport.use(
-    new GoogleStrategy(
-      {
-        clientID: GOOGLE_CLIENT_ID ?? "not-configured",
-        clientSecret: GOOGLE_CLIENT_SECRET ?? "not-configured",
-        callbackURL: OAUTH_CALLBACK_URL ?? "not-configured",
-        scope: ["email", "profile"],
-      },
-      async (_accessToken, _refreshToken, profile, done) => {
-        try {
-          const email = profile.emails?.[0]?.value;
-          if (!email) {
-            log.warn("Google profile missing email", { profileId: profile.id });
-            return done(new Error("Google profile has no email address"));
+  if (!clientID || !clientSecret || !callbackURL) {
+    log.error(
+      "Google OAuth não configurado — GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET ou OAUTH_CALLBACK_URL ausentes. " +
+      "As rotas /api/auth/google retornarão 503 até que as variáveis sejam definidas e o servidor reiniciado."
+    );
+  } else {
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID,
+          clientSecret,
+          callbackURL,
+          scope: ["email", "profile"],
+          state: true,
+        },
+        async (_accessToken, _refreshToken, profile, done) => {
+          try {
+            const email = profile.emails?.[0]?.value;
+            if (!email) {
+              log.warn("Google profile missing email", { profileId: profile.id });
+              return done(new Error("Google profile has no email address"));
+            }
+
+            const name = profile.displayName ?? null;
+            const avatarUrl = profile.photos?.[0]?.value ?? null;
+            const externalId = profile.id;
+
+            const [user] = await db
+              .insert(usersTable)
+              .values({ email, externalId, provider: "google", name, avatarUrl })
+              .onConflictDoUpdate({
+                target: usersTable.email,
+                set: {
+                  externalId,
+                  provider: "google",
+                  name,
+                  avatarUrl,
+                  updatedAt: sql`now()`,
+                },
+              })
+              .returning();
+
+            if (!user) {
+              return done(new Error("Failed to upsert user"));
+            }
+
+            log.info("User authenticated via Google", { userId: user.id, email: user.email });
+            return done(null, user);
+          } catch (err) {
+            log.error("Google OAuth callback error", { error: err instanceof Error ? err.message : String(err) });
+            return done(err instanceof Error ? err : new Error(String(err)));
           }
-
-          const name = profile.displayName ?? null;
-          const avatarUrl = profile.photos?.[0]?.value ?? null;
-          const externalId = profile.id;
-
-          const [user] = await db
-            .insert(usersTable)
-            .values({ email, externalId, provider: "google", name, avatarUrl })
-            .onConflictDoUpdate({
-              target: usersTable.email,
-              set: {
-                externalId,
-                provider: "google",
-                name,
-                avatarUrl,
-                updatedAt: sql`now()`,
-              },
-            })
-            .returning();
-
-          if (!user) {
-            return done(new Error("Failed to upsert user"));
-          }
-
-          log.info("User authenticated via Google", { userId: user.id, email: user.email });
-          return done(null, user);
-        } catch (err) {
-          log.error("Google OAuth callback error", { error: err instanceof Error ? err.message : String(err) });
-          return done(err instanceof Error ? err : new Error(String(err)));
         }
-      }
-    )
-  );
+      )
+    );
+
+    _googleConfigured = true;
+    log.info("Google OAuth configurado", { callbackURL });
+  }
 
   passport.serializeUser((user, done) => {
     done(null, user.id);

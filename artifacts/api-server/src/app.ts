@@ -10,7 +10,7 @@ import { rootLogger } from "./lib/logger";
 
 const SESSION_SECRET = process.env["SESSION_SECRET"];
 if (!SESSION_SECRET) {
-  rootLogger.warn("SESSION_SECRET not set — sessions will use an insecure fallback. Set this env var in production.");
+  throw new Error("SESSION_SECRET não definido — defina esta variável de ambiente antes de iniciar o servidor.");
 }
 
 configurePassport();
@@ -23,7 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   session({
-    secret: SESSION_SECRET ?? "dev-insecure-fallback-change-me",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true, sameSite: "lax", secure: process.env["NODE_ENV"] === "production" },
