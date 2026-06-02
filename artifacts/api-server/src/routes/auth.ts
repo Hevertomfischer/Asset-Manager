@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import passport from "passport";
 import { isGoogleOAuthConfigured } from "../auth/passport";
+import { getUserPlan } from "../services/accessService";
 import { createLogger } from "../lib/logger";
 
 const router = Router();
@@ -33,13 +34,14 @@ router.get("/auth/error", (_req, res) => {
   res.status(401).json({ error: "Falha na autenticação com Google" });
 });
 
-router.get("/auth/me", (req, res) => {
+router.get("/auth/me", async (req, res) => {
   if (!req.isAuthenticated() || !req.user) {
     res.status(401).json({ error: "Não autenticado" });
     return;
   }
   const { id, email, name, avatarUrl, role } = req.user;
-  res.json({ id, email, name, avatarUrl, role });
+  const plan = await getUserPlan(id);
+  res.json({ id, email, name, avatarUrl, role, plan, isPro: plan === "pro" });
 });
 
 router.post("/auth/logout", (req, res, next) => {

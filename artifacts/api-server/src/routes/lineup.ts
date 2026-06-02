@@ -8,6 +8,8 @@ import {
   insertLineupSubstitutions,
 } from "../repositories/lineupRepository";
 import { processSubstitutions } from "../services/reserveService";
+import { isPro } from "../services/accessService";
+import { requirePro } from "../middlewares/requirePro";
 import { db } from "@workspace/db";
 import {
   clubsTable,
@@ -16,7 +18,7 @@ import {
   playerScoutRoundTable,
   playersTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, count } from "drizzle-orm";
 
 const router = Router();
 
@@ -29,6 +31,23 @@ router.post("/lineup/generate", async (req, res) => {
       strategy?: string;
       round?: number;
     };
+
+    // ── Access control ──────────────────────────────────────────────────────
+    const userId = req.isAuthenticated() && req.user ? req.user.id : null;
+    const userIsPro = userId !== null ? await isPro(userId) : false;
+
+    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"];
+    const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
+      ? (strategy as StrategyType)
+      : "safe";
+
+    if (!userIsPro && strategyType !== "safe") {
+      res.status(402).json({
+        error: "Estratégias avançadas são exclusivas do plano Pro. Apenas a estratégia 'safe' está disponível no plano gratuito.",
+        upgradeRequired: true,
+      });
+      return;
+    }
 
     let currentRound = round;
     if (!currentRound) {
@@ -46,10 +65,24 @@ router.post("/lineup/generate", async (req, res) => {
       currentRound = latestRound;
     }
 
-    const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"];
-    const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
-      ? (strategy as StrategyType)
-      : "safe";
+    if (!userIsPro && userId !== null) {
+      const [row] = await db
+        .select({ total: count() })
+        .from(lineupSuggestionTable)
+        .where(
+          and(
+            eq(lineupSuggestionTable.userId, userId),
+            eq(lineupSuggestionTable.round, currentRound)
+          )
+        );
+      if ((row?.total ?? 0) >= 1) {
+        res.status(402).json({
+          error: "Usuários do plano gratuito podem gerar apenas 1 escalação por rodada. Faça upgrade para Pro para gerações ilimitadas.",
+          upgradeRequired: true,
+        });
+        return;
+      }
+    }
 
     const [result, allClubs] = await Promise.all([
       generateLineup({
@@ -62,6 +95,13 @@ router.post("/lineup/generate", async (req, res) => {
     ]);
 
     const clubMap = new Map(allClubs.map((c) => [c.id, c]));
+
+    if (userId !== null) {
+      await db
+        .update(lineupSuggestionTable)
+        .set({ userId })
+        .where(eq(lineupSuggestionTable.id, result.id));
+    }
 
     res.json({
       lineup: {
@@ -170,7 +210,7 @@ router.get("/lineup/:id/reserves", async (req, res) => {
 });
 
 // ─── Simulate/process substitutions for a lineup round (backtest) ─────────────
-router.post("/lineup/:id/substitutions/simulate", async (req, res) => {
+router.post("/lineup/:id/substitutions/simulate", requirePro, async (req, res) => {
   try {
     const lineupId = Number(req.params["id"]);
     if (isNaN(lineupId)) { res.status(400).json({ error: "Invalid lineup id" }); return; }

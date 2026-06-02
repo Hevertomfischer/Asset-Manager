@@ -8,6 +8,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, gte, lte, SQL, desc } from "drizzle-orm";
 import { getPlayerById } from "../repositories/playerRepository";
+import { requirePro } from "../middlewares/requirePro";
 import axios from "axios";
 
 async function resolveCurrentRound(override?: string): Promise<number> {
@@ -108,7 +109,7 @@ router.get("/players", async (req, res) => {
   }
 });
 
-router.get("/players/projections/current", async (req, res) => {
+router.get("/players/projections/current", requirePro, async (req, res) => {
   try {
     const { round } = req.query as Record<string, string>;
     const currentRound = await resolveCurrentRound(round);

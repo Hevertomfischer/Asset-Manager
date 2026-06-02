@@ -2,9 +2,11 @@ import { pgTable, serial, timestamp, integer, real, text } from "drizzle-orm/pg-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { playersTable } from "./players";
+import { usersTable } from "./users";
 
 export const lineupSuggestionTable = pgTable("lineup_suggestion", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id),
   round: integer("round").notNull(),
   strategyType: text("strategy_type").notNull(),
   formation: text("formation").notNull(),

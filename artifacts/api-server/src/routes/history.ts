@@ -10,6 +10,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, inArray, isNotNull, desc, sql } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
+import { requirePro } from "../middlewares/requirePro";
 
 const log = createLogger("history");
 const router = Router();
@@ -26,7 +27,7 @@ interface BacktestPlayer {
   overestimated: boolean;
 }
 
-router.get("/history/backtest", async (req, res) => {
+router.get("/history/backtest", requirePro, async (req, res) => {
   try {
     const roundParam = req.query["round"] ? Number(req.query["round"]) : null;
     const limitParam = req.query["limit"] ? Number(req.query["limit"]) : 10;
@@ -189,7 +190,7 @@ router.get("/history/rounds", async (_req, res) => {
   }
 });
 
-router.get("/history/lineup-backtest", async (req, res) => {
+router.get("/history/lineup-backtest", requirePro, async (req, res) => {
   try {
     const roundParam = req.query["round"] ? Number(req.query["round"]) : null;
     log.info("Fetching lineup backtest", { round: roundParam });
