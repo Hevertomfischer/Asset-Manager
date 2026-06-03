@@ -4,6 +4,7 @@ import { adminConfigTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { createLogger } from "../lib/logger";
+import { generateEtlNotifications, createMarketNotification } from "../services/notificationService";
 
 const log = createLogger("sync-job");
 
@@ -13,6 +14,8 @@ const FULL_SYNC_CRON = process.env["CARTOLA_FULL_SYNC_CRON"] ?? "0 */6 * * *";
 const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "0 */2 * * *";
 
 const LAST_KNOWN_ROUND_KEY = "lastKnownRound";
+/** adminConfigTable key that stores the last observed market status ("open" | "closed"). */
+const MARKET_STATUS_KEY = "marketStatus";
 
 async function getLastKnownRound(): Promise<number | null> {
   try {
@@ -40,6 +43,34 @@ async function setLastKnownRound(round: number): Promise<void> {
       });
   } catch (e) {
     log.warn("Failed to persist lastKnownRound", { error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/** Returns the last stored market status, or null on first run. */
+async function getStoredMarketStatus(): Promise<string | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(adminConfigTable)
+      .where(eq(adminConfigTable.key, MARKET_STATUS_KEY))
+      .limit(1);
+    return rows.length > 0 ? rows[0].value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setStoredMarketStatus(status: string): Promise<void> {
+  try {
+    await db
+      .insert(adminConfigTable)
+      .values({ key: MARKET_STATUS_KEY, value: status })
+      .onConflictDoUpdate({
+        target: adminConfigTable.key,
+        set: { value: status, updatedAt: new Date() },
+      });
+  } catch (e) {
+    log.warn("Failed to persist marketStatus", { error: e instanceof Error ? e.message : String(e) });
   }
 }
 
@@ -106,6 +137,54 @@ async function autoSyncClosedRounds(currentRound: number): Promise<void> {
   }
 }
 
+/**
+ * Check the Cartola market status endpoint and emit a global notification
+ * whenever it transitions between open ↔ closed.
+ *
+ * Cartola market status codes (status_mercado field):
+ *   1 = open (mercado aberto)
+ *   2 = maintenance
+ *   4 = closed during round
+ *   6 = closed between rounds
+ * We treat only code 1 as "open"; all other codes are "closed".
+ */
+async function checkMarketStatus(): Promise<void> {
+  log.debug("Running lightweight market status check...");
+  try {
+    const axios = await import("axios");
+    const resp = await axios.default.get<{ status_mercado?: number; rodada_atual?: number }>(
+      "https://api.cartola.globo.com/mercado/status",
+      { timeout: 5000 }
+    );
+
+    const statusCode = resp.data?.status_mercado;
+    const round = resp.data?.rodada_atual;
+
+    if (typeof statusCode !== "number") {
+      log.debug("Market status check OK (no parseable status code)");
+      return;
+    }
+
+    // Cartola code 1 = open; everything else = closed
+    const currentStatus = statusCode === 1 ? "open" : "closed";
+    const storedStatus = await getStoredMarketStatus();
+
+    log.debug("Market status check OK", { statusCode, currentStatus, storedStatus, round });
+
+    if (storedStatus !== null && storedStatus !== currentStatus && typeof round === "number") {
+      // Status changed → emit notification
+      const type = currentStatus === "open" ? "market_open" : "market_close";
+      log.info(`Market status changed: ${storedStatus} → ${currentStatus}`, { round });
+      await createMarketNotification(type, round);
+    }
+
+    // Always persist the latest status
+    await setStoredMarketStatus(currentStatus);
+  } catch {
+    log.warn("Market status check failed (non-critical)");
+  }
+}
+
 export function startSyncJob(): void {
   log.info(`Scheduling full sync with cron: "${FULL_SYNC_CRON}"`);
   log.info(`Scheduling market check with cron: "${MARKET_CHECK_CRON}"`);
@@ -134,6 +213,17 @@ export function startSyncJob(): void {
       }
 
       await autoSyncClosedRounds(result.round);
+
+      // Generate player-event notifications after a successful ETL run.
+      // Non-fatal: a failure here must not prevent future syncs.
+      try {
+        await generateEtlNotifications(result.round);
+      } catch (notifError) {
+        log.warn("generateEtlNotifications failed (non-fatal)", {
+          round: result.round,
+          error: notifError instanceof Error ? notifError.message : String(notifError),
+        });
+      }
     } catch (error) {
       log.error("Scheduled sync failed", { error: error instanceof Error ? error.message : String(error) });
     } finally {
@@ -142,14 +232,5 @@ export function startSyncJob(): void {
   });
 
   const validMarketCheck = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "0 */2 * * *";
-  cron.schedule(validMarketCheck, async () => {
-    log.debug("Running lightweight market status check...");
-    try {
-      const axios = await import("axios");
-      await axios.default.get("https://api.cartola.globo.com/mercado/status", { timeout: 5000 });
-      log.debug("Market status check OK");
-    } catch {
-      log.warn("Market status check failed (non-critical)");
-    }
-  });
+  cron.schedule(validMarketCheck, checkMarketStatus);
 }

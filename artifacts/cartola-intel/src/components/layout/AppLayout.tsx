@@ -2,6 +2,7 @@ import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History, UserCircle, Sparkles } from "lucide-react";
 import { UserMenu } from "@/components/layout/UserMenu";
+import { NotificationBell } from "@/components/NotificationBell";
 import {
   Sidebar,
   SidebarContent,
@@ -94,10 +95,11 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border hidden sm:block">
                 v0.2.0-beta
               </div>
+              <NotificationBell />
               <UserMenu />
             </div>
           </header>
