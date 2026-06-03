@@ -1,6 +1,6 @@
 import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History, UserCircle, Sparkles, GitFork } from "lucide-react";
+import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History, UserCircle, Sparkles, GitFork, GitCompare } from "lucide-react";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -24,6 +24,7 @@ const navItems = [
   { title: "Confrontos", url: "/confrontos", icon: Swords },
   { title: "Histórico", url: "/historico", icon: History },
   { title: "Fronteira", url: "/fronteira", icon: GitFork },
+  { title: "Comparar", url: "/comparar", icon: GitCompare },
   { title: "Planos Pro", url: "/planos", icon: Sparkles },
   { title: "Admin", url: "/admin", icon: Settings },
   { title: "Minha conta", url: "/conta", icon: UserCircle },

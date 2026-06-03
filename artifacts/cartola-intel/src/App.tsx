@@ -20,6 +20,7 @@ import Conta from "@/pages/conta";
 import Planos from "@/pages/planos";
 import Fronteira from "@/pages/fronteira";
 import Desempenho from "@/pages/desempenho";
+import Comparar from "@/pages/comparar";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +96,7 @@ function App() {
                       <Route path="/conta" element={<Conta />} />
                       <Route path="/planos" element={<Planos />} />
                       <Route path="/fronteira" element={<Fronteira />} />
+                      <Route path="/comparar" element={<Comparar />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppLayout>
