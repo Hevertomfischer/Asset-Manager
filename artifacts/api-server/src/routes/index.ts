@@ -8,11 +8,13 @@ import lineupRouter from "./lineup";
 import adminRouter from "./admin";
 import historyRouter from "./history";
 import authRouter from "./auth";
+import billingRouter from "./billing";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(billingRouter);
 router.use(healthRouter);
 router.use(roundRouter);
 router.use(playersRouter);
