@@ -1,6 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
 import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
+import { generateFrontier } from "../services/frontierService";
 import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
 import {
   getLineupReserves,
@@ -480,6 +481,46 @@ router.post("/lineup/simulate", requirePro, async (req, res) => {
     });
     res.status(500).json({
       error: "Falha ao simular troca.",
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// ─── Frontier: generate 3-5 risk-tiered optimal lineups (Pro) ────────────────
+router.post("/lineup/frontier", requirePro, async (req, res) => {
+  const log = createLogger("lineup/frontier");
+  try {
+    const { budget, formation, round: requestedRound } = req.body as {
+      budget?: number;
+      formation?: string;
+      round?: number;
+    };
+
+    // Resolve current round
+    let currentRound = requestedRound;
+    if (!currentRound) {
+      try {
+        const r = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 5000 });
+        currentRound = (r.data as { rodada_atual?: number }).rodada_atual ?? 1;
+      } catch {
+        currentRound = 1;
+      }
+    }
+
+    const latestRound = await getLatestProjectionRound();
+    if (latestRound !== null && latestRound < currentRound) {
+      log.info("Falling back to latest available round", { requested: currentRound, latest: latestRound });
+      currentRound = latestRound;
+    }
+
+    const result = await generateFrontier({ budgetLimit: budget, formation }, currentRound);
+    res.json(result);
+  } catch (error) {
+    createLogger("lineup/frontier").error("Erro ao gerar fronteira", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      error: "Falha ao gerar fronteira de risco.",
       details: error instanceof Error ? error.message : String(error),
     });
   }

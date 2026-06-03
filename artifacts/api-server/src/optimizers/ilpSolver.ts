@@ -74,6 +74,12 @@ export interface IlpCandidate {
   captainScore: number;
   gamesPlayed: number;
   isFieldPlayer: boolean; // false for TEC
+  /**
+   * Per-player risk score (from PlayerProjection.riskScore).
+   * Used when IlpConstraints.maxTotalRisk is set to add a
+   * Σ(riskScore_i · x_i) ≤ maxTotalRisk constraint.
+   */
+  riskScore?: number;
 }
 
 export interface IlpSlot {
@@ -87,6 +93,12 @@ export interface IlpConstraints {
   maxPlayersPerClub: number;
   /** clubId → opponentClubId for this round. */
   opponentMap: Map<number, number>;
+  /**
+   * Optional cap on total team risk: Σ(riskScore_i · x_i) ≤ maxTotalRisk.
+   * Used by the frontier service to generate risk-tiered lineups.
+   * Requires IlpCandidate.riskScore to be populated.
+   */
+  maxTotalRisk?: number;
 }
 
 export interface IlpSolution {
@@ -155,6 +167,11 @@ export function solveLineupILP(
   // Budget
   modelConstraints["budget"] = { max: budgetLimit };
 
+  // Optional risk cap: Σ(riskScore_i · x_i) ≤ maxTotalRisk
+  if (constraints.maxTotalRisk != null) {
+    modelConstraints["total_risk"] = { max: constraints.maxTotalRisk };
+  }
+
   // Exactly one captain
   modelConstraints["n_captain"] = { min: 1, max: 1 };
 
@@ -197,6 +214,11 @@ export function solveLineupILP(
       [`club_${c.clubId}`]: 1,
       [`clubpos_${c.clubId}_${c.position}`]: 1,
     };
+
+    // Risk constraint contribution
+    if (constraints.maxTotalRisk != null && c.riskScore != null) {
+      varX["total_risk"] = c.riskScore;
+    }
 
     // Opponent contribution
     const oppId = opponentMap.get(c.clubId);
