@@ -1,5 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+export interface UserPreferences {
+  defaultStrategy: string;
+  onboardingCompleted: boolean;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -8,6 +13,7 @@ export interface AuthUser {
   provider: string | null;
   plan: "free" | "pro";
   isPro: boolean;
+  preferences: UserPreferences;
 }
 
 interface AuthState {

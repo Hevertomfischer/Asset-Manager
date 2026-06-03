@@ -3,6 +3,9 @@ import passport from "passport";
 import { isGoogleOAuthConfigured } from "../auth/passport";
 import { getUserPlan } from "../services/accessService";
 import { createLogger } from "../lib/logger";
+import { db } from "@workspace/db";
+import { userPreferencesTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 const log = createLogger("auth");
@@ -40,8 +43,16 @@ router.get("/auth/me", async (req, res) => {
     return;
   }
   const { id, email, name, avatarUrl, role } = req.user;
-  const plan = await getUserPlan(id);
-  res.json({ id, email, name, avatarUrl, role, plan, isPro: plan === "pro" });
+  const [plan, prefsRows] = await Promise.all([
+    getUserPlan(id),
+    db.select().from(userPreferencesTable).where(eq(userPreferencesTable.userId, id)).limit(1),
+  ]);
+  const prefs = prefsRows[0];
+  const preferences = {
+    defaultStrategy: prefs?.defaultStrategy ?? "cost-benefit",
+    onboardingCompleted: prefs?.onboardingCompleted ?? false,
+  };
+  res.json({ id, email, name, avatarUrl, role, plan, isPro: plan === "pro", preferences });
 });
 
 router.post("/auth/logout", (req, res, next) => {

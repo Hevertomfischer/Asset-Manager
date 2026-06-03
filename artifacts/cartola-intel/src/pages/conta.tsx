@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Mail, User } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { LogOut, Mail, User, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +24,24 @@ function getInitials(name: string | null, email: string): string {
 export default function Conta() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [resetLoading, setResetLoading] = useState(false);
+
+  async function handleRedoOnboarding() {
+    setResetLoading(true);
+    try {
+      await fetch("/api/users/me/preferences", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingCompleted: false }),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      navigate("/");
+    } finally {
+      setResetLoading(false);
+    }
+  }
 
   if (!isLoading && !isAuthenticated) {
     return (
@@ -101,6 +121,20 @@ export default function Conta() {
           </div>
 
           <Separator />
+
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={resetLoading}
+            onClick={() => void handleRedoOnboarding()}
+          >
+            {resetLoading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refazer tour de boas-vindas
+          </Button>
 
           <Button
             variant="outline"

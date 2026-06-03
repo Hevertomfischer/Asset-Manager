@@ -9,12 +9,14 @@ import adminRouter from "./admin";
 import historyRouter from "./history";
 import authRouter from "./auth";
 import billingRouter from "./billing";
+import usersRouter from "./users";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
 router.use(billingRouter);
+router.use(usersRouter);
 router.use(healthRouter);
 router.use(roundRouter);
 router.use(playersRouter);

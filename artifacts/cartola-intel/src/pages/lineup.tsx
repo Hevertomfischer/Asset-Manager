@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -234,9 +235,20 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
   );
 }
 
+const VALID_STRATEGIES = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"] as const;
+type ValidStrategy = (typeof VALID_STRATEGIES)[number];
+
 export default function Lineup() {
+  const [searchParams] = useSearchParams();
+
+  const urlStrategy = searchParams.get("strategy") as ValidStrategy | null;
+  const initialStrategy: ValidStrategy =
+    urlStrategy && (VALID_STRATEGIES as readonly string[]).includes(urlStrategy)
+      ? urlStrategy
+      : "cost-benefit";
+
   const [formation, setFormation] = useState("4-3-3");
-  const [strategy, setStrategy] = useState<"safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao">("cost-benefit");
+  const [strategy, setStrategy] = useState<ValidStrategy>(initialStrategy);
   const [budget, setBudget] = useState(100.00);
 
   const { toast } = useToast();
@@ -245,6 +257,42 @@ export default function Lineup() {
   const saveLineupMutation = useSaveLineup();
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
+
+  const autoGenerateRef = useRef(false);
+
+  useEffect(() => {
+    if (searchParams.get("autoGenerate") !== "true" || autoGenerateRef.current) return;
+    autoGenerateRef.current = true;
+    const timer = setTimeout(() => {
+      generateLineupMutation.mutate(
+        { data: { budget, formation, strategy } },
+        {
+          onSuccess: (data) => {
+            if (data.lineup) {
+              setCurrentLineup(data.lineup);
+              toast({
+                title: "Escalação Gerada",
+                description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,
+              });
+            }
+          },
+          onError: (error) => {
+            if ((error as { status?: number }).status === 402) {
+              openPaywall();
+              return;
+            }
+            toast({
+              title: "Falha na geração",
+              description: error.message || "Não foi possível gerar escalação",
+              variant: "destructive",
+            });
+          },
+        }
+      );
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGenerate = () => {
     generateLineupMutation.mutate(
@@ -285,7 +333,7 @@ export default function Lineup() {
     );
   };
 
-  const strategies: { value: "safe" | "aggressive" | "cost-benefit" | "antimassa" | "valorizacao"; label: string; icon: typeof Shield; desc: string; requiresPro?: boolean }[] = [
+  const strategies: { value: ValidStrategy; label: string; icon: typeof Shield; desc: string; requiresPro?: boolean }[] = [
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade.", requiresPro: true },
     { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro.", requiresPro: true },
