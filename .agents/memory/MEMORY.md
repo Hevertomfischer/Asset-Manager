@@ -1,2 +1,3 @@
 - [explainPlayer architecture](explainPlayer-architecture.md) — insight engine lives in lib/explainPlayer.ts; PlayerExplanationSheet handles Pro-gate internally (no ProGate wrapper needed around Sheet).
 - [Swap simulation design](swap-simulation.md) — POST /lineup/simulate in routes/lineup.ts; all validation logic in services/swapValidation.ts (pure, no DB); invalid swap returns 200+valid:false, not HTTP error.
+- [ILP lineup optimizer](ilp-optimizer.md) — greedy replaced by ILP in ilpSolver.ts; javascript-lp-solver via createRequire (CJS-in-ESM); pre-filter 25+5cheap per position; CAPTAIN_EPSILON=1e-3; vitest in api-server.
