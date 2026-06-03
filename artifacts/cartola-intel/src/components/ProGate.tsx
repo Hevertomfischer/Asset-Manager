@@ -9,9 +9,10 @@ interface ProGateProps {
   children: ReactNode;
   message?: string;
   variant?: "overlay" | "inline";
+  compact?: boolean;
 }
 
-export function ProGate({ children, message, variant = "overlay" }: ProGateProps) {
+export function ProGate({ children, message, variant = "overlay", compact = false }: ProGateProps) {
   const { isPro, isLoading } = useAuth();
   const navigate = useNavigate();
   const track = useTrack();
@@ -34,6 +35,28 @@ export function ProGate({ children, message, variant = "overlay" }: ProGateProps
       >
         <Lock className="w-3 h-3" />
       </button>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="relative rounded-xl overflow-hidden">
+        <div className="blur-sm pointer-events-none select-none" aria-hidden="true">
+          {children}
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-background/80 backdrop-blur-[1px] z-10 rounded-xl px-3">
+          <Lock className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Exclusivo Pro</span>
+          <Button
+            size="sm"
+            className="ml-1 bg-gradient-to-r from-primary to-accent font-semibold text-[11px] h-7 px-3 shrink-0"
+            onClick={() => navigate("/planos")}
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            Assinar
+          </Button>
+        </div>
+      </div>
     );
   }
 

@@ -404,7 +404,7 @@ export default function Lineup() {
                   );
                   return (
                     <div key={s.value}>
-                      {s.requiresPro ? <ProGate>{btn}</ProGate> : btn}
+                      {s.requiresPro ? <ProGate compact>{btn}</ProGate> : btn}
                     </div>
                   );
                 })}
