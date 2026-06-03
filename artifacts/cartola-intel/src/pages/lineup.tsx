@@ -13,6 +13,7 @@ import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useTrack } from "@/hooks/useTrack";
 import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
@@ -184,6 +185,7 @@ export default function Lineup() {
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
   const { isPro } = useAuth();
+  const track = useTrack();
   const generateLineupMutation = useGenerateLineup();
   const saveLineupMutation = useSaveLineup();
 
@@ -202,6 +204,7 @@ export default function Lineup() {
           onSuccess: (data) => {
             if (data.lineup) {
               setCurrentLineup(data.lineup);
+              track("lineup_generated", { strategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "auto" });
               toast({
                 title: "Escalação Gerada",
                 description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,
@@ -233,6 +236,7 @@ export default function Lineup() {
         onSuccess: (data) => {
           if (data.lineup) {
             setCurrentLineup(data.lineup);
+            track("lineup_generated", { strategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "manual" });
             toast({
               title: "Escalação Gerada",
               description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,

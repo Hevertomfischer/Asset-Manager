@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks";
+import { useTrack } from "@/hooks/useTrack";
 import {
   CheckCircle2,
   AlertCircle,
@@ -112,9 +113,11 @@ export default function Planos() {
   const { isAuthenticated, isPro } = useAuth();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const track = useTrack();
   const billingStatus = searchParams.get("billing");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const paywallTrackedRef = useRef(false);
 
   const { data: subscription } = useQuery({
     queryKey: ["billing", "subscription"],
@@ -125,14 +128,23 @@ export default function Planos() {
 
   const isActivePro = isPro || subscription?.status === "active";
 
+  // Track paywall_viewed once per mount when the user is not yet Pro.
+  useEffect(() => {
+    if (isActivePro || paywallTrackedRef.current) return;
+    paywallTrackedRef.current = true;
+    track("paywall_viewed", { source: "page" });
+  }, [isActivePro, track]);
+
   useEffect(() => {
     if (billingStatus === "success") {
       void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       void queryClient.invalidateQueries({ queryKey: ["billing", "subscription"] });
+      track("subscription_activated");
     }
-  }, [billingStatus, queryClient]);
+  }, [billingStatus, queryClient, track]);
 
   async function handleCheckout(planId: string) {
+    track("checkout_started", { plan: planId });
     setLoadingPlan(planId);
     setCheckoutError(null);
     try {

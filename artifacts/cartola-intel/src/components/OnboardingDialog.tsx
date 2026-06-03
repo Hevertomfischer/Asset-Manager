@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTrack } from "@/hooks/useTrack";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +82,7 @@ export function OnboardingDialog({ onClose }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const track = useTrack();
 
   async function handleSkip() {
     try {
@@ -88,6 +90,7 @@ export function OnboardingDialog({ onClose }: Props) {
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     } catch {
     }
+    track("onboarding_completed", { method: "skip" });
     onClose();
   }
 
@@ -97,9 +100,11 @@ export function OnboardingDialog({ onClose }: Props) {
     try {
       await patchPreferences({ defaultStrategy: selected, onboardingCompleted: true });
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      track("onboarding_completed", { method: "finish", strategy: selected });
       onClose();
       navigate(`/escalacao?strategy=${selected}&autoGenerate=true`);
     } catch {
+      track("onboarding_completed", { method: "finish_error", strategy: selected ?? "none" });
       onClose();
       navigate("/escalacao");
     }

@@ -1,8 +1,9 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useTrack } from "@/hooks/useTrack";
 
 interface ProGateProps {
   children: ReactNode;
@@ -13,6 +14,14 @@ interface ProGateProps {
 export function ProGate({ children, message, variant = "overlay" }: ProGateProps) {
   const { isPro, isLoading } = useAuth();
   const navigate = useNavigate();
+  const track = useTrack();
+  const trackedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || isPro || variant !== "overlay" || trackedRef.current) return;
+    trackedRef.current = true;
+    track("paywall_viewed", { source: "overlay" });
+  }, [isLoading, isPro, variant, track]);
 
   if (isLoading || isPro) return <>{children}</>;
 

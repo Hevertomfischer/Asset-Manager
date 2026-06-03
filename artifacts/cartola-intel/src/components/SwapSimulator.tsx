@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useTrack } from "@/hooks/useTrack";
 import {
   useGetPlayers,
   type LineupPlayer,
@@ -180,6 +181,7 @@ export function SwapSimulator({
   const [selectedCandidate, setSelectedCandidate] = useState<Player | null>(null);
   const [simulateResult, setSimulateResult] = useState<SimulateResult | null>(null);
   const [simulatingId, setSimulatingId] = useState<number | null>(null);
+  const track = useTrack();
 
   // Fetch eligible players of the same position
   const { data: playersData, isLoading: isFetchingPlayers } = useGetPlayers(
@@ -238,6 +240,11 @@ export function SwapSimulator({
       setSimulateResult(result);
       setSimulatingId(null);
       setPhase("result");
+      track("simulation_used", {
+        valid: result.valid,
+        outPlayerId: outPlayer.playerId ?? undefined,
+        inPlayerId: candidate.id ?? undefined,
+      });
     },
     onError: () => {
       setSimulatingId(null);

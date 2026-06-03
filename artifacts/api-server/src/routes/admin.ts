@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { dataCollectionLogTable, adminConfigTable } from "@workspace/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable } from "@workspace/db/schema";
+import { desc, eq, gte, sql } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
@@ -386,6 +386,43 @@ router.get("/admin/logs", async (req, res) => {
   } catch (error) {
     console.error("[admin/logs]", error);
     res.status(500).json({ error: "Failed to fetch logs" });
+  }
+});
+
+// ── GET /admin/funnel ─────────────────────────────────────────────────────────
+/**
+ * Returns event counts for the conversion funnel over the last N days.
+ * Query param: days (default 30, max 90)
+ *
+ * Response:
+ *   { days, since, events: [{ event, count, uniqueUsers }] }
+ *
+ * Ordered by count descending so the funnel top is first.
+ */
+router.get("/admin/funnel", async (req, res) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 90);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const rows = await db
+      .select({
+        event: analyticsEventsTable.event,
+        count: sql<number>`count(*)::int`,
+        uniqueUsers: sql<number>`count(distinct ${analyticsEventsTable.userId})::int`,
+      })
+      .from(analyticsEventsTable)
+      .where(gte(analyticsEventsTable.createdAt, since))
+      .groupBy(analyticsEventsTable.event)
+      .orderBy(sql`count(*) desc`);
+
+    res.json({
+      days,
+      since: since.toISOString(),
+      events: rows,
+    });
+  } catch (error) {
+    console.error("[admin/funnel]", error);
+    res.status(500).json({ error: "Failed to fetch funnel data" });
   }
 });
 

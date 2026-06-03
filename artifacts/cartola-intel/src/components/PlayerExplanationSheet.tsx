@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTrack } from "@/hooks/useTrack";
 import {
   Sheet,
   SheetContent,
@@ -77,6 +78,12 @@ export function PlayerExplanationSheet({ exp, playerName, position }: Props) {
   const { isPro, isLoading } = useAuth();
   const { openPaywall } = usePaywall();
   const [open, setOpen] = useState(false);
+  const track = useTrack();
+
+  function handleOpenChange(isOpen: boolean) {
+    if (isOpen) track("explanation_opened", { playerName: playerName ?? "unknown", position: position ?? "unknown" });
+    setOpen(isOpen);
+  }
 
   if (isLoading) return null;
 
@@ -125,7 +132,7 @@ export function PlayerExplanationSheet({ exp, playerName, position }: Props) {
         <span className="hidden sm:inline">Análise</span>
       </button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={handleOpenChange}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-sm overflow-y-auto"

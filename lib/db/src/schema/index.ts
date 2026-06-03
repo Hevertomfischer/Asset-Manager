@@ -13,3 +13,4 @@ export * from "./users";
 export * from "./subscriptions";
 export * from "./userPreferences";
 export * from "./notifications";
+export * from "./analyticsEvents";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PaywallProvider } from "@/context/PaywallContext";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import { useAuth } from "@/hooks";
+import { useTrack } from "@/hooks/useTrack";
 import NotFound from "@/pages/not-found";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -29,6 +30,34 @@ const queryClient = new QueryClient({
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+/**
+ * Fires a single login or signup event per browser session.
+ * Uses localStorage to distinguish first-ever login (signup) from returning
+ * logins, and sessionStorage to prevent re-firing within the same tab session.
+ */
+function SessionTracker() {
+  const { user, isLoading } = useAuth();
+  const track = useTrack();
+
+  useEffect(() => {
+    if (isLoading || !user) return;
+
+    const sessionKey = "ci_session_tracked";
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, "1");
+
+    const seenKey = `ci_seen_${user.id}`;
+    if (!localStorage.getItem(seenKey)) {
+      localStorage.setItem(seenKey, "1");
+      track("signup", { plan: user.plan });
+    } else {
+      track("login", { plan: user.plan });
+    }
+  }, [user, isLoading, track]);
+
+  return null;
+}
+
 function OnboardingGate() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const [dismissed, setDismissed] = useState(false);
@@ -43,6 +72,7 @@ function App() {
       <TooltipProvider>
         <BrowserRouter basename={BASE}>
           <PaywallProvider>
+          <SessionTracker />
           <OnboardingGate />
           <AppLayout>
             <Routes>
