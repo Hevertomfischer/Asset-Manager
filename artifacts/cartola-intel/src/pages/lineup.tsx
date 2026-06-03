@@ -7,132 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, Home, AlertTriangle, CheckCircle2, Info, Users, TrendingUp } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
 import { usePaywall } from "@/context/PaywallContext";
+import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
+import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 
-interface ExplanationJson {
-  averagePoints?: number;
-  formScore?: number;
-  shortAvg?: number;
-  mediumAvg?: number;
-  longAvg?: number;
-  volatility?: number;
-  formTrend?: number;
-  matchupScore?: number;
-  playProbability?: number;
-  cleanSheetProbability?: number;
-  attackParticipationProbability?: number;
-  isHome?: boolean;
-  recentRoundsAnalyzed?: number;
-  position?: string;
-  price?: number;
-  popularity?: number;
-  valueScore?: number;
-  differentialScore?: number;
-  isTrap?: boolean;
-  isHighVolatility?: boolean;
-  isLowVolatility?: boolean;
-  priceVariation?: number;
-  gamesPlayed?: number;
-  lowConfidence?: boolean;
-  missingGames?: number;
-}
-
-type InsightKind = "positive" | "warning" | "neutral" | "info";
-interface Insight { text: string; kind: InsightKind }
-
-function buildInsights(exp: ExplanationJson, isCaptain: boolean, isCoach: boolean): Insight[] {
-  if (isCoach) return [];
-  const insights: Insight[] = [];
-
-  if (isCaptain) {
-    insights.push({ text: "Maior piso entre os titulares — capitão recomendado", kind: "positive" });
-  }
-
-  if (exp.isTrap) {
-    insights.push({ text: "Popular mas com queda de forma — risco de trap", kind: "warning" });
-  }
-
-  if (exp.lowConfidence) {
-    const games = exp.gamesPlayed ?? 0;
-    insights.push({ text: `Poucos jogos registrados (${games}) — projeção incerta`, kind: "warning" });
-  }
-
-  const shortAvg = exp.shortAvg ?? 0;
-  const mediumAvg = exp.mediumAvg ?? 0;
-  if (shortAvg > 0 && mediumAvg > 0 && !exp.isTrap) {
-    if (shortAvg >= mediumAvg * 1.2 && shortAvg > 2) {
-      insights.push({ text: `Em alta: ${shortAvg.toFixed(1)} pts nas últimas rodadas`, kind: "positive" });
-    } else if (shortAvg < mediumAvg * 0.7 && mediumAvg > 2) {
-      insights.push({ text: `Queda de forma (${shortAvg.toFixed(1)} vs ${mediumAvg.toFixed(1)} na média)`, kind: "warning" });
-    }
-  }
-
-  if (exp.matchupScore != null) {
-    const loc = exp.isHome ? "em casa" : "fora";
-    if (exp.matchupScore >= 1.10) {
-      insights.push({ text: `Confronto favorável (${loc}, índice ${exp.matchupScore.toFixed(2)})`, kind: "positive" });
-    } else if (exp.matchupScore <= 0.93) {
-      insights.push({ text: `Confronto difícil (${loc}, índice ${exp.matchupScore.toFixed(2)})`, kind: "warning" });
-    } else if (exp.isHome && insights.length < 2) {
-      insights.push({ text: "Joga em casa", kind: "neutral" });
-    }
-  }
-
-  const position = exp.position ?? "";
-  if (["GOL", "ZAG", "LAT"].includes(position) && (exp.cleanSheetProbability ?? 0) > 0.5) {
-    insights.push({
-      text: `Alta prob. de saldo de gol (${Math.round((exp.cleanSheetProbability ?? 0) * 100)}%)`,
-      kind: "positive",
-    });
-  }
-
-  if ((exp.valueScore ?? 0) > 0.7 && !isCaptain) {
-    insights.push({ text: `Bom custo-benefício (${(exp.valueScore ?? 0).toFixed(2)} pts/C$)`, kind: "positive" });
-  }
-
-  if ((exp.popularity ?? 1) < 0.15 && !exp.isTrap) {
-    insights.push({
-      text: `Diferencial: ${Math.round((exp.popularity ?? 0) * 100)}% de escalação`,
-      kind: "info",
-    });
-  }
-
-  if ((exp.priceVariation ?? 0) > 1.5) {
-    insights.push({ text: `Valorizando: +C$ ${(exp.priceVariation ?? 0).toFixed(2)} na última rodada`, kind: "positive" });
-  } else if ((exp.priceVariation ?? 0) < -1.0) {
-    insights.push({ text: `Desvalorizando: C$ ${(exp.priceVariation ?? 0).toFixed(2)} na última rodada`, kind: "warning" });
-  }
-
-  if (insights.length === 0 && (exp.formScore ?? 0) > 3) {
-    insights.push({ text: `Forma estável: ${(exp.formScore ?? 0).toFixed(1)} pts na média`, kind: "neutral" });
-  }
-
-  return insights.slice(0, 3);
-}
-
-const insightIcon: Record<InsightKind, typeof CheckCircle2> = {
-  positive: CheckCircle2,
-  warning: AlertTriangle,
-  neutral: Home,
-  info: Info,
-};
-
-const insightColor: Record<InsightKind, string> = {
-  positive: "text-green-500",
-  warning: "text-yellow-500",
-  neutral: "text-muted-foreground",
-  info: "text-blue-400",
+const chipClass: Record<InsightKind, string> = {
+  positive: "bg-green-500/10 text-green-500 border-green-500/20",
+  warning:  "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+  info:     "bg-blue-400/10 text-blue-400 border-blue-400/20",
+  neutral:  "bg-secondary text-muted-foreground border-border/50",
 };
 
 function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; captainId?: number | null; coachId?: number | null }) {
   const isCaptain = player.playerId === captainId;
   const isCoach = player.position === "TEC" || player.playerId === coachId;
   const exp = (player.explanation ?? {}) as ExplanationJson;
-  const insights = buildInsights(exp, isCaptain, isCoach);
+  const topBadges = isCoach ? [] : getTopBadges(exp, { isCaptain });
 
   return (
     <div
@@ -178,17 +72,28 @@ function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; capt
         </div>
       )}
 
-      {insights.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
-          {insights.map((ins, i) => {
-            const Icon = insightIcon[ins.kind];
-            return (
-              <div key={i} className="flex items-start gap-1.5">
-                <Icon className={`w-3 h-3 mt-0.5 shrink-0 ${insightColor[ins.kind]}`} />
-                <span className={`text-[10px] leading-tight ${insightColor[ins.kind]}`}>{ins.text}</span>
-              </div>
-            );
-          })}
+      {!isCoach && (
+        <div className="mt-2 pt-2 border-t border-border/30 flex items-center justify-between gap-1 flex-wrap">
+          <div className="flex flex-wrap gap-1">
+            {topBadges.map((badge) =>
+              badge.requiresPro ? (
+                <ProGate key={badge.label} variant="inline">
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
+                    {badge.label}
+                  </span>
+                </ProGate>
+              ) : (
+                <span key={badge.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
+                  {badge.label}
+                </span>
+              )
+            )}
+          </div>
+          <PlayerExplanationSheet
+            exp={exp}
+            playerName={player.name ?? ""}
+            position={player.position ?? undefined}
+          />
         </div>
       )}
     </div>

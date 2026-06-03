@@ -1,0 +1,1 @@
+- [explainPlayer architecture](explainPlayer-architecture.md) — insight engine lives in lib/explainPlayer.ts; PlayerExplanationSheet handles Pro-gate internally (no ProGate wrapper needed around Sheet).
