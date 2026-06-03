@@ -1,15 +1,18 @@
 import { Router } from "express";
 import axios from "axios";
 import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
-import { getLatestProjectionRound } from "../repositories/projectionRepository";
+import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
 import {
   getLineupReserves,
   getLineupSubstitutions,
   insertLineupSubstitutions,
 } from "../repositories/lineupRepository";
 import { processSubstitutions } from "../services/reserveService";
+import { validateAndSimulate, type PlayerSnapshot } from "../services/swapValidation";
 import { isPro } from "../services/accessService";
 import { requirePro } from "../middlewares/requirePro";
+import { createLogger } from "../lib/logger";
+import { LINEUP_CONFIG } from "../config/projectionWeights";
 import { db } from "@workspace/db";
 import {
   clubsTable,
@@ -337,6 +340,148 @@ router.post("/lineup/:id/substitutions/simulate", requirePro, async (req, res) =
   } catch (error) {
     console.error("[lineup/:id/substitutions/simulate]", error);
     res.status(500).json({ error: "Failed to simulate substitutions" });
+  }
+});
+
+// ─── Simulate a player swap ───────────────────────────────────────────────────
+// POST /lineup/simulate  (requirePro)
+// Body: { lineup: number[], captainId?: number|null, swap: { outId, inId },
+//         budget?: number, round?: number }
+// Returns: { before, after, delta, valid, reason }
+router.post("/lineup/simulate", requirePro, async (req, res) => {
+  const log = createLogger("lineup/simulate");
+  try {
+    const {
+      lineup: lineupIds,
+      captainId = null,
+      swap,
+      budget,
+      round,
+    } = req.body as {
+      lineup: number[];
+      captainId?: number | null;
+      swap?: { outId: number; inId: number };
+      budget?: number;
+      round?: number;
+    };
+
+    // ── Validação de input ────────────────────────────────────────────────
+    if (!Array.isArray(lineupIds) || lineupIds.length === 0) {
+      res.status(400).json({ error: "Campo 'lineup' obrigatório (array de player IDs)." });
+      return;
+    }
+    if (!swap?.outId || !swap?.inId) {
+      res.status(400).json({ error: "Campo 'swap' obrigatório com outId e inId." });
+      return;
+    }
+    if (swap.outId === swap.inId) {
+      res.status(400).json({ error: "'outId' e 'inId' devem ser diferentes." });
+      return;
+    }
+
+    // ── Resolve round ────────────────────────────────────────────────────
+    const effectiveRound = round ?? (await getLatestProjectionRound());
+    if (effectiveRound == null) {
+      res.status(422).json({
+        error: "Nenhuma projeção disponível. Sincronize os dados primeiro.",
+      });
+      return;
+    }
+
+    const effectiveBudget = budget ?? LINEUP_CONFIG.defaultBudget;
+
+    // ── Busca projeções + jogadores da rodada (paralelo) ─────────────────
+    const [projections, players] = await Promise.all([
+      getProjectionsByRound(effectiveRound),
+      db.select().from(playersTable),
+    ]);
+
+    const projMap = new Map(projections.map((p) => [p.playerId, p]));
+    const playerMap = new Map(players.map((p) => [p.id, p]));
+
+    /** Monta o snapshot de um jogador a partir de projeção + cadastro. */
+    function buildSnapshot(playerId: number): PlayerSnapshot | null {
+      const player = playerMap.get(playerId);
+      const proj = projMap.get(playerId);
+      if (!player || !proj) return null;
+      const expJson = (proj.explanationJson ?? {}) as Record<string, unknown>;
+      return {
+        playerId,
+        position: player.position ?? "?",
+        clubId: player.clubId ?? null,
+        price: player.price ?? 0,
+        expectedPoints: proj.expectedPoints ?? 0,
+        riskScore: proj.riskScore ?? 0,
+        // popularity vem do explanationJson se disponível, senão do cadastro do jogador
+        popularity:
+          (expJson["popularity"] as number | undefined) ??
+          (player.popularity ?? null),
+      };
+    }
+
+    // ── Monta snapshots da escalação ─────────────────────────────────────
+    const lineupSnapshots: PlayerSnapshot[] = [];
+    const missingLineup: number[] = [];
+    for (const pid of lineupIds) {
+      const snap = buildSnapshot(pid);
+      if (!snap) { missingLineup.push(pid); continue; }
+      lineupSnapshots.push(snap);
+    }
+    if (missingLineup.length > 0) {
+      log.warn("Jogadores sem projeção na rodada", {
+        round: effectiveRound,
+        missing: missingLineup,
+      });
+      res.status(422).json({
+        error: `Jogadores sem projeção para a rodada ${effectiveRound}: ${missingLineup.join(", ")}.`,
+      });
+      return;
+    }
+
+    // ── Monta snapshot do jogador entrante ───────────────────────────────
+    const inSnapshot = buildSnapshot(swap.inId);
+    if (!inSnapshot) {
+      res.status(422).json({
+        error: `Jogador ${swap.inId} não possui projeção para a rodada ${effectiveRound}.`,
+      });
+      return;
+    }
+
+    log.info("Simulando troca", {
+      round: effectiveRound,
+      budget: effectiveBudget,
+      outId: swap.outId,
+      inId: swap.inId,
+      captainId,
+    });
+
+    // ── Valida e computa comparativo ─────────────────────────────────────
+    const result = validateAndSimulate({
+      lineup: lineupSnapshots,
+      captainId: captainId ?? null,
+      outId: swap.outId,
+      inPlayer: inSnapshot,
+      budget: effectiveBudget,
+    });
+
+    if (!result.valid) {
+      log.info("Troca inválida", { reason: result.reason });
+    } else {
+      log.info("Troca válida", {
+        deltaPoints: result.delta.expectedPoints,
+        deltaCost: result.delta.cost,
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    createLogger("lineup/simulate").error("Erro ao simular troca", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      error: "Falha ao simular troca.",
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 

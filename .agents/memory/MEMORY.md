@@ -1,1 +1,2 @@
 - [explainPlayer architecture](explainPlayer-architecture.md) — insight engine lives in lib/explainPlayer.ts; PlayerExplanationSheet handles Pro-gate internally (no ProGate wrapper needed around Sheet).
+- [Swap simulation design](swap-simulation.md) — POST /lineup/simulate in routes/lineup.ts; all validation logic in services/swapValidation.ts (pure, no DB); invalid swap returns 200+valid:false, not HTTP error.
