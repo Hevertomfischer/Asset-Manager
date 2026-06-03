@@ -12,6 +12,7 @@ import billingRouter from "./billing";
 import usersRouter from "./users";
 import notificationsRouter from "./notifications";
 import analyticsRouter from "./analytics";
+import statsRouter from "./stats";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
@@ -21,6 +22,7 @@ router.use(billingRouter);
 router.use(usersRouter);
 router.use(notificationsRouter);
 router.use(analyticsRouter);
+router.use(statsRouter);
 router.use(healthRouter);
 router.use(roundRouter);
 router.use(playersRouter);

@@ -19,6 +19,7 @@ import Historico from "@/pages/historico";
 import Conta from "@/pages/conta";
 import Planos from "@/pages/planos";
 import Fronteira from "@/pages/fronteira";
+import Desempenho from "@/pages/desempenho";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,22 +74,33 @@ function App() {
       <TooltipProvider>
         <BrowserRouter basename={BASE}>
           <PaywallProvider>
-          <SessionTracker />
-          <OnboardingGate />
-          <AppLayout>
+            <SessionTracker />
+            <OnboardingGate />
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/jogadores" element={<Players />} />
-              <Route path="/escalacao" element={<Lineup />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/confrontos" element={<Confrontos />} />
-              <Route path="/historico" element={<Historico />} />
-              <Route path="/conta" element={<Conta />} />
-              <Route path="/planos" element={<Planos />} />
-              <Route path="/fronteira" element={<Fronteira />} />
-              <Route path="*" element={<NotFound />} />
+              {/* Public standalone page — rendered without AppLayout (no sidebar) */}
+              <Route path="/desempenho" element={<Desempenho />} />
+
+              {/* All other routes — wrapped in AppLayout (sidebar + header) */}
+              <Route
+                path="*"
+                element={
+                  <AppLayout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/jogadores" element={<Players />} />
+                      <Route path="/escalacao" element={<Lineup />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/confrontos" element={<Confrontos />} />
+                      <Route path="/historico" element={<Historico />} />
+                      <Route path="/conta" element={<Conta />} />
+                      <Route path="/planos" element={<Planos />} />
+                      <Route path="/fronteira" element={<Fronteira />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </AppLayout>
+                }
+              />
             </Routes>
-          </AppLayout>
           </PaywallProvider>
         </BrowserRouter>
         <Toaster />
