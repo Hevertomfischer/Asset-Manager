@@ -5,8 +5,10 @@ import { desc, eq, gte, sql } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
+import { createLogger } from "../lib/logger";
 import axios from "axios";
 
+const log = createLogger("admin");
 const router = Router();
 
 let syncInProgress = false;
@@ -35,8 +37,8 @@ async function setConfigValue(key: string, value: string): Promise<void> {
 async function logAdminAction(source: string, status: string, message: string) {
   try {
     await db.insert(dataCollectionLogTable).values({ source, entityType: "admin_action", status, message });
-  } catch {
-    console.error(`[admin] Failed to write log for ${source}`);
+  } catch (err) {
+    log.error("Failed to write admin action log", { source, error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -73,7 +75,7 @@ router.post("/admin/sync/full", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/sync/full]", error);
+    log.error("Full sync failed", { error: msg });
     await logAdminAction("admin_full_sync", "error", `Full sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
   } finally {
@@ -96,7 +98,7 @@ router.post("/admin/sync/market", async (_req, res) => {
     res.json({ success: true, round, marketStatus: status.status_mercado });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/sync/market]", error);
+    log.error("Market sync failed", { error: msg });
     await logAdminAction("admin_market_sync", "error", `Market sync failed: ${msg}`);
     res.status(500).json({ error: "Market sync failed", details: msg });
   } finally {
@@ -134,7 +136,7 @@ router.post("/admin/sync/current-round", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/sync]", error);
+    log.error("Current round sync failed", { error: msg });
     await logAdminAction("admin_current_round_sync", "error", `Current round sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
   } finally {
@@ -151,19 +153,12 @@ router.post("/admin/recalculate-projections", async (_req, res) => {
   recalcInProgress = true;
   try {
     const currentRound = await getCurrentRound();
-
     await runProjectionEngine(currentRound);
-
     await logAdminAction("admin_recalculate", "success", `Projections recalculated for round ${currentRound}`);
-
-    res.json({
-      success: true,
-      round: currentRound,
-      message: `Projections recalculated for round ${currentRound}`,
-    });
+    res.json({ success: true, round: currentRound, message: `Projections recalculated for round ${currentRound}` });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/recalculate]", error);
+    log.error("Recalculation failed", { error: msg });
     await logAdminAction("admin_recalculate", "error", `Recalculation failed: ${msg}`);
     res.status(500).json({ error: "Recalculation failed", details: msg });
   } finally {
@@ -232,7 +227,8 @@ router.get("/admin/providers/status", async (_req, res) => {
       syncInProgress,
     });
   } catch (error) {
-    console.error("[admin/providers/status]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch provider status", { error: msg });
     res.status(500).json({ error: "Failed to fetch provider status" });
   }
 });
@@ -242,7 +238,8 @@ router.get("/admin/projection-weights", async (_req, res) => {
     const { PROJECTION_WEIGHTS } = await import("../config/projectionWeights");
     res.json({ weights: PROJECTION_WEIGHTS.weights });
   } catch (error) {
-    console.error("[admin/projection-weights]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch projection weights", { error: msg });
     res.status(500).json({ error: "Failed to fetch projection weights" });
   }
 });
@@ -267,7 +264,8 @@ router.post("/admin/projection-weights", async (req, res) => {
     await logAdminAction("admin_weights", "success", `Updated ${updated} projection weights`);
     res.json({ success: true, weights: PROJECTION_WEIGHTS.weights, updated });
   } catch (error) {
-    console.error("[admin/projection-weights POST]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to update projection weights", { error: msg });
     res.status(500).json({ error: "Failed to update projection weights" });
   }
 });
@@ -301,14 +299,10 @@ router.post("/admin/sync/xg", async (req, res) => {
         (result.degraded ? ` ⚠️ degraded — only ${result.clubsMapped} clubs matched (expected ≥${XG_CLUBS_DEGRADED_THRESHOLD})` : "")
     );
 
-    res.json({
-      success: true,
-      round,
-      ...result,
-    });
+    res.json({ success: true, round, ...result });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/sync/xg]", error);
+    log.error("xG sync failed", { error: msg });
     await logAdminAction("footystats_xg", "error", `xG sync failed: ${msg}`);
     res.status(500).json({ error: "xG sync failed", details: msg });
   }
@@ -330,7 +324,7 @@ router.post("/admin/sync/historical-round", async (req, res) => {
     res.json({ success: true, round: roundNum, message: `Pontos reais da rodada ${roundNum} sincronizados com sucesso.` });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[admin/sync/historical-round]", error);
+    log.error("Historical sync failed", { round: roundNum, error: msg });
     await logAdminAction("admin_historical_sync", "error", `Historical sync failed for round ${roundNum}: ${msg}`);
     res.status(500).json({ error: "Historical sync failed", details: msg });
   }
@@ -341,7 +335,8 @@ router.get("/admin/config", async (_req, res) => {
     const xgStaleDays = await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT);
     res.json({ xgStaleDays });
   } catch (error) {
-    console.error("[admin/config GET]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch config", { error: msg });
     res.status(500).json({ error: "Failed to fetch config" });
   }
 });
@@ -359,7 +354,8 @@ router.post("/admin/config", async (req, res) => {
     await logAdminAction("admin_config", "success", `Updated xgStaleDays to ${parsed}`);
     res.json({ xgStaleDays: parsed });
   } catch (error) {
-    console.error("[admin/config POST]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to update config", { error: msg });
     res.status(500).json({ error: "Failed to update config" });
   }
 });
@@ -384,7 +380,8 @@ router.get("/admin/logs", async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("[admin/logs]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch logs", { error: msg });
     res.status(500).json({ error: "Failed to fetch logs" });
   }
 });
@@ -421,7 +418,8 @@ router.get("/admin/funnel", async (req, res) => {
       events: rows,
     });
   } catch (error) {
-    console.error("[admin/funnel]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch funnel data", { error: msg });
     res.status(500).json({ error: "Failed to fetch funnel data" });
   }
 });
