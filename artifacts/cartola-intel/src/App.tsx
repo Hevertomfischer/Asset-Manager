@@ -13,6 +13,7 @@ import Admin from "@/pages/admin";
 import Confrontos from "@/pages/confrontos";
 import Historico from "@/pages/historico";
 import Conta from "@/pages/conta";
+import Planos from "@/pages/planos";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ function App() {
               <Route path="/confrontos" element={<Confrontos />} />
               <Route path="/historico" element={<Historico />} />
               <Route path="/conta" element={<Conta />} />
+              <Route path="/planos" element={<Planos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

@@ -57,6 +57,9 @@ function getBaseUrl(): string {
   return domain ? `https://${domain}` : "http://localhost:3000";
 }
 
+/** Base path do frontend — "/cartola-intel" em dev, "" em produção se a raiz for "/". */
+const frontendPath = (process.env["FRONTEND_BASE_PATH"] ?? "/cartola-intel").replace(/\/$/, "");
+
 /**
  * Cria uma Preference no Mercado Pago e retorna a URL de checkout (init_point).
  * external_reference = "<userId>:<plan>" para identificar o comprador no webhook.
@@ -90,9 +93,9 @@ export async function createCheckout(
         default_payment_method_id: "pix",
       },
       back_urls: {
-        success: `${baseUrl}/minha-conta?billing=success`,
-        failure: `${baseUrl}/minha-conta?billing=failure`,
-        pending: `${baseUrl}/minha-conta?billing=pending`,
+        success: `${baseUrl}${frontendPath}/planos?billing=success`,
+        failure: `${baseUrl}${frontendPath}/planos?billing=failure`,
+        pending: `${baseUrl}${frontendPath}/planos?billing=pending`,
       },
       auto_return: "approved",
     },
