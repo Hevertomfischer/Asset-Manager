@@ -17,6 +17,7 @@ import { useTrack } from "@/hooks/useTrack";
 import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
+import { LineupProbabilities } from "@/components/LineupProbabilities";
 import type { Player } from "@workspace/api-client-react";
 
 const chipClass: Record<InsightKind, string> = {
@@ -581,6 +582,9 @@ export default function Lineup() {
                 </div>
               )}
             </div>
+
+            {/* Monte Carlo probability distribution (Pro) */}
+            <LineupProbabilities lineup={currentLineup} />
           </div>
         ) : (
           <div className="w-full h-[600px] border-2 border-dashed border-border/50 rounded-3xl flex flex-col items-center justify-center text-muted-foreground bg-card/30">
