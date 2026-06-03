@@ -2,6 +2,7 @@ import { Router } from "express";
 import axios from "axios";
 import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
 import { generateFrontier } from "../services/frontierService";
+import { simulateLineup, type SimPlayer } from "../engines/monteCarlo";
 import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
 import {
   getLineupReserves,
@@ -481,6 +482,115 @@ router.post("/lineup/simulate", requirePro, async (req, res) => {
     });
     res.status(500).json({
       error: "Falha ao simular troca.",
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// ─── Monte Carlo lineup probability simulation (Pro) ─────────────────────────
+router.post("/lineup/probabilities", requirePro, async (req, res) => {
+  const log = createLogger("lineup/probabilities");
+  try {
+    const {
+      players: rawPlayers,
+      thresholds,
+      numSims: rawNumSims,
+      roundMean,
+    } = req.body as {
+      players?: unknown;
+      thresholds?: unknown;
+      numSims?: unknown;
+      roundMean?: unknown;
+    };
+
+    // ── Input validation ──────────────────────────────────────────────────────
+    if (!Array.isArray(rawPlayers) || rawPlayers.length === 0) {
+      res.status(400).json({ error: "Campo 'players' deve ser um array não vazio." });
+      return;
+    }
+    if (rawPlayers.length > 30) {
+      res.status(400).json({ error: "Máximo de 30 jogadores por simulação." });
+      return;
+    }
+
+    const REQUIRED_FIELDS = ["playerId", "expectedPoints", "floorPoints", "ceilingPoints", "volatility", "playProbability"];
+    for (const [i, p] of rawPlayers.entries()) {
+      if (typeof p !== "object" || p === null) {
+        res.status(400).json({ error: `players[${i}] inválido.` });
+        return;
+      }
+      for (const field of REQUIRED_FIELDS) {
+        if (typeof (p as Record<string, unknown>)[field] !== "number") {
+          res.status(400).json({ error: `players[${i}].${field} deve ser number.` });
+          return;
+        }
+      }
+    }
+
+    const players: SimPlayer[] = (rawPlayers as Array<Record<string, unknown>>).map((p) => ({
+      playerId:       Number(p["playerId"]),
+      expectedPoints: Number(p["expectedPoints"]),
+      floorPoints:    Number(p["floorPoints"]),
+      ceilingPoints:  Number(p["ceilingPoints"]),
+      volatility:     Number(p["volatility"]),
+      playProbability: Number(p["playProbability"]),
+      isCaptain:      Boolean(p["isCaptain"]),
+    }));
+
+    const captainCount = players.filter((p) => p.isCaptain).length;
+    if (captainCount !== 1) {
+      res.status(400).json({ error: `Exatamente 1 jogador deve ser capitão (recebido: ${captainCount}).` });
+      return;
+    }
+
+    // numSims capped at 50 000 to prevent DoS
+    const numSims = Math.min(Math.max(Number(rawNumSims ?? 10_000) || 10_000, 100), 50_000);
+
+    // Merge caller thresholds with roundMean (if provided)
+    const baseThresholds: number[] = Array.isArray(thresholds)
+      ? thresholds.filter((t) => typeof t === "number").map(Number)
+      : [75, 90, 100];
+    if (typeof roundMean === "number" && isFinite(roundMean) && !baseThresholds.includes(roundMean)) {
+      baseThresholds.push(roundMean);
+    }
+
+    log.info("Starting simulation", {
+      numPlayers: players.length,
+      numSims,
+      thresholds: baseThresholds,
+    });
+
+    const start = Date.now();
+    const simulation = simulateLineup(players, { numSims, thresholds: baseThresholds });
+    const elapsed = Date.now() - start;
+
+    log.info("Simulation complete", { elapsedMs: elapsed, mean: simulation.mean, stdDev: simulation.stdDev });
+
+    // ── Per-player breakdown (analytical, no extra simulation needed) ─────────
+    const playerBreakdown = players.map((p) => {
+      const captainMult = p.isCaptain ? 2.0 : 1.0;
+      return {
+        playerId: p.playerId,
+        expectedContribution: Math.round(p.expectedPoints * p.playProbability * captainMult * 100) / 100,
+        captainBonus: p.isCaptain
+          ? Math.round(p.expectedPoints * p.playProbability * 100) / 100
+          : 0,
+        playProbability: p.playProbability,
+        isCaptain: p.isCaptain,
+      };
+    });
+
+    res.json({
+      simulation,
+      playerBreakdown,
+      meta: { elapsedMs: elapsed, numSims },
+    });
+  } catch (error) {
+    createLogger("lineup/probabilities").error("Erro na simulação Monte Carlo", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      error: "Falha na simulação.",
       details: error instanceof Error ? error.message : String(error),
     });
   }
