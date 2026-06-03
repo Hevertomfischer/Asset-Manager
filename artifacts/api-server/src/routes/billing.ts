@@ -2,7 +2,7 @@ import { Router } from "express";
 import MercadoPagoConfig, { Payment } from "mercadopago";
 import { db } from "@workspace/db";
 import { subscriptionsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { createCheckout, type BillingPlan } from "../services/billing/mercadopagoProvider";
 import { validateMpSignature } from "../services/billing/webhookValidator";
 import { createLogger } from "../lib/logger";
@@ -18,11 +18,11 @@ function getMpClient(): MercadoPagoConfig {
 
 /** Calcula currentPeriodEnd conforme o plano. */
 function computePeriodEnd(plan: BillingPlan): Date {
-  const now = new Date();
   if (plan === "pro_monthly") {
-    return new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   }
-  return new Date(now.getFullYear(), 11, 7);
+  const year = new Date().getFullYear();
+  return new Date(year, 11, 7);
 }
 
 /**
@@ -59,11 +59,15 @@ router.post("/billing/checkout", async (req, res) => {
  * - Faz upsert idempotente na subscriptionsTable
  */
 router.post("/billing/webhook", async (req, res) => {
-  const body = req.body as {
-    type?: string;
-    action?: string;
-    data?: { id?: string | number };
-  };
+  let body: { type?: string; action?: string; data?: { id?: string | number } };
+  try {
+    const raw = req.body instanceof Buffer ? req.body.toString("utf8") : JSON.stringify(req.body);
+    body = JSON.parse(raw) as typeof body;
+  } catch {
+    log.warn("Webhook com body inválido");
+    res.status(400).json({ error: "Body inválido" });
+    return;
+  }
 
   const eventType = body?.type;
   const paymentId = String(body?.data?.id ?? "");
@@ -177,7 +181,7 @@ router.get("/billing/subscription", async (req, res) => {
       })
       .from(subscriptionsTable)
       .where(eq(subscriptionsTable.userId, req.user.id))
-      .orderBy(subscriptionsTable.updatedAt)
+      .orderBy(desc(subscriptionsTable.updatedAt))
       .limit(1);
 
     if (!sub) {
