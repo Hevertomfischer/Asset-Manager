@@ -7,13 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
 import { usePaywall } from "@/context/PaywallContext";
+import { useAuth } from "@/hooks/useAuth";
 import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
+import { SwapSimulator } from "@/components/SwapSimulator";
+import type { Player } from "@workspace/api-client-react";
 
 const chipClass: Record<InsightKind, string> = {
   positive: "bg-green-500/10 text-green-500 border-green-500/20",
@@ -22,7 +25,17 @@ const chipClass: Record<InsightKind, string> = {
   neutral:  "bg-secondary text-muted-foreground border-border/50",
 };
 
-function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; captainId?: number | null; coachId?: number | null }) {
+function PlayerCard({
+  player,
+  captainId,
+  coachId,
+  onSwapRequest,
+}: {
+  player: LineupPlayer;
+  captainId?: number | null;
+  coachId?: number | null;
+  onSwapRequest?: () => void;
+}) {
   const isCaptain = player.playerId === captainId;
   const isCoach = player.position === "TEC" || player.playerId === coachId;
   const exp = (player.explanation ?? {}) as ExplanationJson;
@@ -89,11 +102,23 @@ function PlayerCard({ player, captainId, coachId }: { player: LineupPlayer; capt
               )
             )}
           </div>
-          <PlayerExplanationSheet
-            exp={exp}
-            playerName={player.name ?? ""}
-            position={player.position ?? undefined}
-          />
+          <div className="flex items-center gap-1">
+            {onSwapRequest && (
+              <button
+                onClick={onSwapRequest}
+                title="Simular troca"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all"
+              >
+                <ArrowLeftRight className="w-3 h-3" />
+                Trocar
+              </button>
+            )}
+            <PlayerExplanationSheet
+              exp={exp}
+              playerName={player.name ?? ""}
+              position={player.position ?? undefined}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -158,10 +183,12 @@ export default function Lineup() {
 
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
+  const { isPro } = useAuth();
   const generateLineupMutation = useGenerateLineup();
   const saveLineupMutation = useSaveLineup();
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
+  const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
 
   const autoGenerateRef = useRef(false);
 
@@ -236,6 +263,53 @@ export default function Lineup() {
         onError: () => toast({ title: "Falha ao salvar", variant: "destructive" }),
       }
     );
+  };
+
+  const handleSwapRequest = (player: LineupPlayer) => {
+    if (!isPro) {
+      openPaywall();
+      return;
+    }
+    setSwapOutPlayer(player);
+  };
+
+  const handleApplySwap = (
+    outId: number,
+    inPlayer: Player,
+    afterMetrics: { expectedPoints: number; totalRisk: number; costUsed: number; differential: number }
+  ) => {
+    if (!currentLineup) return;
+    const outName = currentLineup.players?.find((p) => p.playerId === outId)?.name ?? "Jogador";
+    const newLineupPlayer: LineupPlayer = {
+      playerId: inPlayer.id,
+      name: inPlayer.name,
+      nickname: inPlayer.nickname,
+      position: currentLineup.players?.find((p) => p.playerId === outId)?.position,
+      price: inPlayer.price,
+      averagePoints: inPlayer.averagePoints,
+      expectedPoints: inPlayer.projection?.expectedPoints ?? null,
+      floorPoints: inPlayer.projection?.floorPoints ?? null,
+      ceilingPoints: inPlayer.projection?.ceilingPoints ?? null,
+      riskScore: inPlayer.projection?.riskScore ?? null,
+      explanation: (inPlayer.projection?.explanationJson ?? null) as Record<string, unknown> | null,
+      clubId: inPlayer.club?.id ?? null,
+      clubAbbr: inPlayer.club?.abbreviation ?? null,
+      clubName: inPlayer.club?.name ?? null,
+    };
+    setCurrentLineup({
+      ...currentLineup,
+      players: currentLineup.players?.map((p) =>
+        p.playerId === outId ? newLineupPlayer : p
+      ) ?? [],
+      expectedPoints: afterMetrics.expectedPoints,
+      totalCost: afterMetrics.costUsed,
+      riskScore: afterMetrics.totalRisk,
+    });
+    setSwapOutPlayer(null);
+    toast({
+      title: "Troca aplicada",
+      description: `${outName} → ${inPlayer.name}`,
+    });
   };
 
   const strategies: { value: ValidStrategy; label: string; icon: typeof Shield; desc: string; requiresPro?: boolean }[] = [
@@ -452,6 +526,7 @@ export default function Lineup() {
                           player={p}
                           captainId={currentLineup.captainPlayerId}
                           coachId={currentLineup.coachPlayerId}
+                          onSwapRequest={() => handleSwapRequest(p)}
                         />
                       ))}
                     </div>
@@ -511,6 +586,18 @@ export default function Lineup() {
           </div>
         )}
       </div>
+
+      {/* Swap simulator sheet */}
+      {swapOutPlayer && currentLineup && (
+        <SwapSimulator
+          isOpen={!!swapOutPlayer}
+          onClose={() => setSwapOutPlayer(null)}
+          outPlayer={swapOutPlayer}
+          lineup={currentLineup}
+          budget={budget}
+          onApply={handleApplySwap}
+        />
+      )}
     </div>
   );
 }
