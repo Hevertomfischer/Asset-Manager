@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus, Star, CheckCircle2, XCircle } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import {
@@ -726,6 +726,291 @@ function LineupBacktestTab() {
   );
 }
 
+// ── Perfect Team ─────────────────────────────────────────────────────────────
+
+interface PerfectTeamPlayer {
+  playerId: number;
+  name: string;
+  nickname: string | null;
+  position: string;
+  clubId: number | null;
+  clubName: string | null;
+  clubBadgeUrl: string | null;
+  actualPoints: number;
+  ourProjection: number | null;
+  ourRankInPosition: number | null;
+  totalInPosition: number;
+  wasInOurLineup: boolean;
+}
+
+interface PerfectTeamStats {
+  hitCount: number;
+  hitPct: number;
+  avgDeviation: number | null;
+  avgRank: number | null;
+  totalActual: number;
+  totalProjected: number | null;
+}
+
+interface PerfectTeamResponse {
+  round: number;
+  perfectTeam: PerfectTeamPlayer[];
+  stats: PerfectTeamStats | null;
+  message: string | null;
+}
+
+async function fetchPerfectTeam(round: number): Promise<PerfectTeamResponse> {
+  const res = await fetch(`/api/history/perfect-team?round=${round}`, { credentials: "include" });
+  if (!res.ok) throw Object.assign(new Error("Failed"), { status: res.status });
+  return res.json() as Promise<PerfectTeamResponse>;
+}
+
+async function fetchPerfectTeamRounds(): Promise<{ rounds: number[] }> {
+  const res = await fetch("/api/history/perfect-team-rounds", { credentials: "include" });
+  if (!res.ok) throw new Error("Failed");
+  return res.json() as Promise<{ rounds: number[] }>;
+}
+
+const POSITION_ORDER = ["GOL", "ZAG", "LAT", "MEI", "ATA", "TEC"];
+
+function PerfectTeamTab() {
+  const [selectedRound, setSelectedRound] = useState<string>("");
+
+  const { data: roundsData } = useQuery({
+    queryKey: ["perfect-team-rounds"],
+    queryFn: fetchPerfectTeamRounds,
+  });
+
+  const rounds = roundsData?.rounds ?? [];
+
+  // Default to latest round
+  useEffect(() => {
+    if (rounds.length > 0 && !selectedRound) {
+      setSelectedRound(String(rounds[rounds.length - 1]));
+    }
+  }, [rounds, selectedRound]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["perfect-team", selectedRound],
+    queryFn: () => fetchPerfectTeam(Number(selectedRound)),
+    enabled: !!selectedRound,
+  });
+
+  const stats = data?.stats;
+  const team = data?.perfectTeam ?? [];
+  const grouped = POSITION_ORDER.reduce<Record<string, PerfectTeamPlayer[]>>((acc, pos) => {
+    acc[pos] = team.filter((p) => p.position === pos);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-5">
+      {/* Round selector */}
+      <div className="flex items-center gap-3">
+        <Select value={selectedRound} onValueChange={setSelectedRound}>
+          <SelectTrigger className="w-44 bg-secondary border-border">
+            <SelectValue placeholder="Selecione a rodada" />
+          </SelectTrigger>
+          <SelectContent>
+            {[...rounds].reverse().map((r) => (
+              <SelectItem key={r} value={String(r)}>Rodada {r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedRound && (
+          <p className="text-xs text-muted-foreground">
+            Time perfeito hindsight — melhores pontuadores reais por posição
+          </p>
+        )}
+      </div>
+
+      {isLoading && <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>}
+      {isError && (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="flex items-center gap-3 pt-6">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <p className="text-sm text-red-400">Falha ao carregar time perfeito.</p>
+          </CardContent>
+        </Card>
+      )}
+      {data?.message && !isLoading && (
+        <p className="text-sm text-muted-foreground text-center py-8">{data.message}</p>
+      )}
+
+      {!isLoading && !isError && stats && (
+        <>
+          {/* Stats cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className={stats.hitPct >= 50 ? "border-primary/30 bg-primary/5" : "border-yellow-500/30 bg-yellow-500/5"}>
+              <CardContent className="pt-5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: stats.hitPct >= 50 ? "hsl(var(--primary))" : "#eab308" }}>
+                    % Acerto
+                  </p>
+                  <Tooltip>
+                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipContent className="max-w-56">
+                      Percentual dos jogadores do time perfeito que estavam na nossa escalação sugerida para esta rodada.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-bold font-mono" style={{ color: stats.hitPct >= 50 ? "hsl(var(--primary))" : "#eab308" }}>
+                  {stats.hitPct}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{stats.hitCount} de {team.length} jogadores</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Desvio Médio</p>
+                  <Tooltip>
+                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipContent className="max-w-56">
+                      Diferença absoluta média entre nossa projeção e os pontos reais dos jogadores do time perfeito.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-bold font-mono text-foreground">
+                  {stats.avgDeviation !== null ? stats.avgDeviation : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">pts por jogador</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Rank Médio</p>
+                  <Tooltip>
+                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipContent className="max-w-56">
+                      Posição média em que rankeamos os jogadores do time perfeito nas nossas projeções por posição. Rank 1 = mais bem projetado.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-bold font-mono text-foreground">
+                  #{stats.avgRank !== null ? stats.avgRank : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">posição média no ranking</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Pontos Totais</p>
+                <p className="text-3xl font-bold font-mono text-foreground">{stats.totalActual}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.totalProjected !== null ? `projetamos ${stats.totalProjected} pts` : "sem projeção"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Perfect team grid */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Star className="w-4 h-4 text-yellow-400" />
+                Time Perfeito — Rodada {selectedRound}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/40 text-[11px] text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-4 py-2 font-medium">Pos</th>
+                      <th className="text-left px-4 py-2 font-medium">Jogador</th>
+                      <th className="text-right px-4 py-2 font-medium">Pts Reais</th>
+                      <th className="text-right px-4 py-2 font-medium">Nossa Proj.</th>
+                      <th className="text-right px-4 py-2 font-medium">Rank</th>
+                      <th className="text-center px-4 py-2 font-medium">No Nosso Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {POSITION_ORDER.flatMap((pos) =>
+                      (grouped[pos] ?? []).map((p, i) => {
+                        const deviation = p.ourProjection !== null ? p.ourProjection - p.actualPoints : null;
+                        const deviationColor = deviation === null ? "" : Math.abs(deviation) <= 2 ? "text-green-400" : Math.abs(deviation) <= 5 ? "text-yellow-400" : "text-red-400";
+                        return (
+                          <tr key={`${p.playerId}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(p.position)}`}>
+                                {p.position}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {p.clubBadgeUrl && (
+                                  <img src={p.clubBadgeUrl} alt="" className="w-5 h-5 object-contain shrink-0" />
+                                )}
+                                <div>
+                                  <p className="font-semibold text-foreground leading-tight">
+                                    {p.nickname ?? p.name}
+                                  </p>
+                                  {p.clubName && (
+                                    <p className="text-[10px] text-muted-foreground">{p.clubName}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="font-mono font-bold text-yellow-400">{p.actualPoints}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {p.ourProjection !== null ? (
+                                <div>
+                                  <span className="font-mono text-foreground">{p.ourProjection}</span>
+                                  {deviation !== null && (
+                                    <span className={`text-[10px] ml-1 ${deviationColor}`}>
+                                      ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)})
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {p.ourRankInPosition !== null ? (
+                                <span className={`font-mono text-sm ${p.ourRankInPosition <= 3 ? "text-green-400 font-bold" : p.ourRankInPosition <= 8 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                                  #{p.ourRankInPosition}
+                                  <span className="text-muted-foreground font-normal text-[10px]">/{p.totalInPosition}</span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {p.wasInOurLineup ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-400 mx-auto" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-muted-foreground/40 mx-auto" />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Legend */}
+          <p className="text-[11px] text-muted-foreground">
+            <strong>Rank:</strong> posição do jogador no nosso ranking de projeções por posição nesta rodada.
+            Verde = top 3, Amarelo = top 8. Desvio = nossa projeção − pontos reais.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Historico() {
   return (
     <div className="space-y-6">
@@ -740,8 +1025,12 @@ export default function Historico() {
       </div>
 
       <ProGate>
-        <Tabs defaultValue="escalacao">
-          <TabsList className="mb-2">
+        <Tabs defaultValue="time-perfeito">
+          <TabsList className="mb-2 flex-wrap h-auto gap-1">
+            <TabsTrigger value="time-perfeito" className="flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              Time Perfeito
+            </TabsTrigger>
             <TabsTrigger value="escalacao" className="flex items-center gap-2">
               <Crown className="w-4 h-4" />
               Backtest de Escalação
@@ -751,6 +1040,9 @@ export default function Historico() {
               Backtest por Jogador
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="time-perfeito">
+            <PerfectTeamTab />
+          </TabsContent>
           <TabsContent value="escalacao">
             <LineupBacktestTab />
           </TabsContent>

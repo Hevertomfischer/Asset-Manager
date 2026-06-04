@@ -428,4 +428,174 @@ router.get("/history/lineup-rounds", async (_req, res) => {
   }
 });
 
+// ── Time Perfeito ─────────────────────────────────────────────────────────────
+// Standard Cartola FC "perfect team" slots per position
+const PERFECT_TEAM_SLOTS: Record<string, number> = {
+  GOL: 1, ZAG: 2, LAT: 2, MEI: 3, ATA: 3, TEC: 1,
+};
+
+router.get("/history/perfect-team", requirePro, async (req, res) => {
+  try {
+    const roundParam = req.query["round"] ? Number(req.query["round"]) : null;
+    if (!roundParam) {
+      res.status(400).json({ error: "round param required" });
+      return;
+    }
+
+    // 1. Actual points for the round (only positive scorers)
+    const actuals = await db
+      .select({
+        playerId: playerScoutRoundTable.playerId,
+        points: playerScoutRoundTable.points,
+        playerName: playersTable.name,
+        playerNickname: playersTable.nickname,
+        position: playersTable.position,
+        clubId: playersTable.clubId,
+      })
+      .from(playerScoutRoundTable)
+      .innerJoin(playersTable, eq(playerScoutRoundTable.playerId, playersTable.id))
+      .where(
+        and(
+          eq(playerScoutRoundTable.round, roundParam),
+          isNotNull(playerScoutRoundTable.points),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+        )
+      );
+
+    if (actuals.length === 0) {
+      res.json({ round: roundParam, perfectTeam: [], stats: null, message: "Sem dados reais para esta rodada." });
+      return;
+    }
+
+    // 2. Our projections for the round
+    const projections = await db
+      .select({
+        playerId: playerProjectionTable.playerId,
+        expectedPoints: playerProjectionTable.expectedPoints,
+      })
+      .from(playerProjectionTable)
+      .where(eq(playerProjectionTable.round, roundParam));
+
+    const projMap = new Map(projections.map((p) => [p.playerId, p.expectedPoints ?? 0]));
+
+    // 3. Our lineup suggestion for the round (latest one)
+    const lineupSuggestions = await db
+      .select({ id: lineupSuggestionTable.id })
+      .from(lineupSuggestionTable)
+      .where(eq(lineupSuggestionTable.round, roundParam))
+      .orderBy(desc(lineupSuggestionTable.id))
+      .limit(1);
+
+    const suggestedPlayerIds = new Set<number>();
+    if (lineupSuggestions.length > 0) {
+      const lineupPlayers = await db
+        .select({ playerId: lineupSuggestionPlayerTable.playerId })
+        .from(lineupSuggestionPlayerTable)
+        .where(eq(lineupSuggestionPlayerTable.lineupSuggestionId, lineupSuggestions[0]!.id));
+      for (const lp of lineupPlayers) suggestedPlayerIds.add(lp.playerId);
+    }
+
+    // 4. Build rank map per position (rank by our projection desc)
+    const byPosition = new Map<string, typeof actuals>();
+    for (const a of actuals) {
+      const pos = a.position ?? "?";
+      if (!byPosition.has(pos)) byPosition.set(pos, []);
+      byPosition.get(pos)!.push(a);
+    }
+
+    const rankMap = new Map<number, number>();
+    for (const [, group] of byPosition) {
+      const sorted = [...group].sort((a, b) => (projMap.get(b.playerId) ?? 0) - (projMap.get(a.playerId) ?? 0));
+      sorted.forEach((p, i) => rankMap.set(p.playerId, i + 1));
+    }
+
+    // 5. Clubs lookup
+    const clubs = await db.select().from(clubsTable);
+    const clubMap = new Map(clubs.map((c) => [c.id, c]));
+
+    // 6. Build perfect team: top N per position
+    const perfectTeam: Array<{
+      playerId: number;
+      name: string;
+      nickname: string | null;
+      position: string;
+      clubId: number | null;
+      clubName: string | null;
+      clubBadgeUrl: string | null;
+      actualPoints: number;
+      ourProjection: number | null;
+      ourRankInPosition: number | null;
+      totalInPosition: number;
+      wasInOurLineup: boolean;
+    }> = [];
+
+    for (const [pos, slots] of Object.entries(PERFECT_TEAM_SLOTS)) {
+      const group = (byPosition.get(pos) ?? [])
+        .filter((p) => (p.points ?? 0) > 0)
+        .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+        .slice(0, slots);
+
+      const totalInPos = (byPosition.get(pos) ?? []).filter((p) => projMap.has(p.playerId)).length;
+
+      for (const p of group) {
+        const club = p.clubId ? clubMap.get(p.clubId) ?? null : null;
+        perfectTeam.push({
+          playerId: p.playerId,
+          name: p.playerName ?? "?",
+          nickname: p.playerNickname ?? null,
+          position: pos,
+          clubId: p.clubId ?? null,
+          clubName: club?.name ?? null,
+          clubBadgeUrl: club?.badgeUrl ?? null,
+          actualPoints: Number((p.points ?? 0).toFixed(2)),
+          ourProjection: projMap.has(p.playerId) ? Number((projMap.get(p.playerId) ?? 0).toFixed(2)) : null,
+          ourRankInPosition: rankMap.get(p.playerId) ?? null,
+          totalInPosition: totalInPos,
+          wasInOurLineup: suggestedPlayerIds.has(p.playerId),
+        });
+      }
+    }
+
+    // 7. Aggregate stats
+    const withProjection = perfectTeam.filter((p) => p.ourProjection !== null);
+    const hitCount = perfectTeam.filter((p) => p.wasInOurLineup).length;
+    const hitPct = perfectTeam.length > 0 ? Number(((hitCount / perfectTeam.length) * 100).toFixed(1)) : 0;
+    const avgDeviation = withProjection.length > 0
+      ? Number((withProjection.reduce((s, p) => s + Math.abs((p.ourProjection ?? 0) - p.actualPoints), 0) / withProjection.length).toFixed(2))
+      : null;
+    const avgRank = withProjection.filter((p) => p.ourRankInPosition !== null).length > 0
+      ? Number((withProjection.reduce((s, p) => s + (p.ourRankInPosition ?? 0), 0) / withProjection.filter((p) => p.ourRankInPosition !== null).length).toFixed(1))
+      : null;
+    const totalActual = Number(perfectTeam.reduce((s, p) => s + p.actualPoints, 0).toFixed(2));
+    const totalProjected = withProjection.length > 0
+      ? Number(withProjection.reduce((s, p) => s + (p.ourProjection ?? 0), 0).toFixed(2))
+      : null;
+
+    log.info("Perfect team computed", { round: roundParam, players: perfectTeam.length, hitPct });
+
+    res.json({
+      round: roundParam,
+      perfectTeam,
+      stats: { hitCount, hitPct, avgDeviation, avgRank, totalActual, totalProjected },
+      message: null,
+    });
+  } catch (err) {
+    log.error("Perfect team failed", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Failed to compute perfect team" });
+  }
+});
+
+router.get("/history/perfect-team-rounds", requirePro, async (_req, res) => {
+  try {
+    const rows = await db
+      .selectDistinct({ round: playerScoutRoundTable.round })
+      .from(playerScoutRoundTable)
+      .where(inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"]))
+      .orderBy(playerScoutRoundTable.round);
+    res.json({ rounds: rows.map((r) => r.round) });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to list rounds" });
+  }
+});
+
 export default router;
