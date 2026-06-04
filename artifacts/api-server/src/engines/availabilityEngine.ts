@@ -20,11 +20,38 @@ function normalizePlayerName(name: string): string {
 
 const PLAYED_LAST_ROUND_PENALTY = 0.10;
 
+/**
+ * Apply price-variation as a play-probability signal.
+ *
+ * Cartola FC market prices reflect player performance and availability:
+ *   - Big price drop (≤-5 C$) → player very likely DNP or had a very poor game
+ *   - Significant drop (≤-3 C$) → strong signal of underperformance / rotation
+ *   - Moderate drop (≤-1.5 C$) → below-average last round
+ *   - Big price rise (≥+3 C$) → player performed well, likely started
+ *
+ * This signal is independent from status/injury data and captures real-time
+ * market information that correlates with actual availability.
+ */
+function applyPriceVariationSignal(base: number, priceVariation: number | null): number {
+  if (priceVariation == null || priceVariation === 0) return base;
+
+  if (priceVariation <= -5.0) return base * 0.55; // major drop: very likely DNP/injured
+  if (priceVariation <= -3.0) return base * 0.72; // significant: likely poor performance/rotation
+  if (priceVariation <= -1.5) return base * 0.87; // moderate: below average last round
+
+  // Upward price signal: player performed well → more likely to start next round
+  if (priceVariation >= 5.0) return Math.min(1.0, base * 1.10);
+  if (priceVariation >= 3.0) return Math.min(1.0, base * 1.05);
+
+  return base;
+}
+
 function calculatePlayProbability(
   status: string | null,
   isProbable: boolean,
   cartolaStatusRecord: PlayerStatusRecord | null,
-  playedLastRound: boolean | null
+  playedLastRound: boolean | null,
+  priceVariation: number | null = null
 ): number {
   let base: number;
 
@@ -52,6 +79,13 @@ function calculatePlayProbability(
   const isProvavel = status === PROBABLE_STATUS || isProbable;
   if (isProvavel && playedLastRound === false) {
     base = Math.max(0, base - PLAYED_LAST_ROUND_PENALTY);
+  }
+
+  // Apply price-variation as a market signal for availability.
+  // Only apply when there's no hard status override (injured/suspended already have low base).
+  const hasHardStatus = status === INJURY_STATUS || status === SUSPENSION_STATUS || status === NULL_STATUS;
+  if (!hasHardStatus) {
+    base = applyPriceVariationSignal(base, priceVariation);
   }
 
   return base;
@@ -105,7 +139,7 @@ export async function runAvailabilityEngine(
         : 0;
 
     const effectiveStatus = cartolaStatusRecord?.statusLabel ?? player.status;
-    const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null);
+    const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null, player.priceVariation ?? null);
     const expectedMinutes = calculateExpectedMinutes(playProbability, recentAvgMinutes);
     const riskScore = calculateRiskScore(playProbability, effectiveStatus);
 
@@ -149,7 +183,7 @@ export function getPlayerAvailabilitySync(
     ? (cartolaStatusMap.get(player.externalId) ?? null)
     : null;
   const effectiveStatus = cartolaStatusRecord?.statusLabel ?? player.status;
-  const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null);
+  const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null, player.priceVariation ?? null);
   const expectedMinutes = calculateExpectedMinutes(playProbability, 75);
   const riskScore = calculateRiskScore(playProbability, effectiveStatus);
   return { playProbability, expectedMinutes, riskScore };

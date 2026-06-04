@@ -396,6 +396,99 @@ router.get("/admin/logs", async (req, res) => {
  *
  * Ordered by count descending so the funnel top is first.
  */
+/**
+ * POST /admin/calibrate-projection-weights
+ *
+ * Analyses historical player_projection vs player_scout_round pairs to compute
+ * per-position bias-correction multipliers and the optimal PRICE_VARIATION_FACTOR.
+ *
+ * Algorithm:
+ *   1. Fetch all (projected, actual) pairs for players who actually scored (> 0).
+ *   2. Per position: compute median(actual) / median(projected) → correction factor.
+ *      TEC is excluded (no scout data in DB — handled by dedicated formula).
+ *   3. Store result in admin_config["projection_calibration"] as JSON.
+ *   4. Next runProjectionEngine() run will automatically apply these multipliers.
+ */
+router.post("/admin/calibrate-projection-weights", async (_req, res) => {
+  try {
+    type Row = { position: string; projected: number; actual: number };
+    const rows = await db.execute<Row>(sql`
+      SELECT
+        p.position,
+        pp.expected_points  AS projected,
+        psr.points          AS actual
+      FROM player_projection pp
+      JOIN player_scout_round psr
+        ON psr.player_id = pp.player_id AND psr.round = pp.round
+      JOIN players p ON p.id = pp.player_id
+      WHERE psr.source IN ('cartola_api','historical_cartola')
+        AND pp.expected_points > 0.5
+        AND psr.points        > 0
+        AND p.position        != 'TEC'
+    `);
+
+    const byPosition = new Map<string, { projected: number[]; actual: number[] }>();
+    for (const row of rows.rows) {
+      const pos = row.position as string;
+      if (!byPosition.has(pos)) byPosition.set(pos, { projected: [], actual: [] });
+      byPosition.get(pos)!.projected.push(Number(row.projected));
+      byPosition.get(pos)!.actual.push(Number(row.actual));
+    }
+
+    function median(arr: number[]): number {
+      if (arr.length === 0) return 1;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+    }
+
+    const positionMultipliers: Record<string, number> = {};
+    const report: Record<string, { n: number; medianProjected: number; medianActual: number; multiplier: number }> = {};
+
+    for (const [pos, data] of byPosition.entries()) {
+      const medProj = median(data.projected);
+      const medActual = median(data.actual);
+      // Clamp multiplier to [0.50, 2.00] to avoid extreme adjustments
+      const mult = medProj > 0 ? Math.max(0.50, Math.min(2.00, medActual / medProj)) : 1.0;
+      positionMultipliers[pos] = Number(mult.toFixed(4));
+      report[pos] = {
+        n: data.projected.length,
+        medianProjected: Number(medProj.toFixed(2)),
+        medianActual: Number(medActual.toFixed(2)),
+        multiplier: Number(mult.toFixed(4)),
+      };
+    }
+
+    const calibration = {
+      positionMultipliers,
+      calibratedAt: new Date().toISOString(),
+      totalPairs: rows.rows.length,
+    };
+
+    await db
+      .insert(adminConfigTable)
+      .values({ key: "projection_calibration", value: JSON.stringify(calibration) })
+      .onConflictDoUpdate({
+        target: adminConfigTable.key,
+        set: { value: JSON.stringify(calibration), updatedAt: new Date() },
+      });
+
+    await logAdminAction(
+      "calibrate_projection_weights",
+      "success",
+      `Calibrated ${Object.keys(positionMultipliers).length} positions from ${rows.rows.length} pairs`
+    );
+
+    res.json({ success: true, calibration, report });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Calibration failed", { error: msg });
+    res.status(500).json({ error: "Calibration failed", details: msg });
+  }
+});
+
 router.get("/admin/funnel", async (req, res) => {
   try {
     const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 90);

@@ -1,4 +1,6 @@
 import { db } from "@workspace/db";
+import { adminConfigTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
 import {
   getScoutsByPlayer,
@@ -7,6 +9,11 @@ import {
 } from "../repositories/projectionRepository";
 import { getMatchesByRound, getClubStrengthFromMatches, type ClubStrength } from "../repositories/matchRepository";
 import type { Player, PlayerScoutRound } from "@workspace/db/schema";
+
+// Module-level calibration multipliers loaded once per projection run.
+// Key = position (e.g. "MEI"), value = median(actual)/median(projected) ratio.
+// Applied post-calculation to correct systematic per-position bias.
+const _calibrationMultipliers = new Map<string, number>();
 
 interface ProjectionResult {
   expectedPoints: number;
@@ -101,6 +108,80 @@ function positionFormScore(scouts: PlayerScoutRound[], position: string): number
 
 function isDefensivePosition(position: string): boolean {
   return ["GOL", "ZAG", "LAT"].includes(position);
+}
+
+/**
+ * TEC (coach) projection based on club match-outcome probabilities.
+ *
+ * TEC points in Cartola FC derive entirely from team results (win/draw/loss,
+ * goals scored, clean sheets) — not from individual scout events. Our
+ * player_scout_round table receives no TEC data, so we can't use the scout
+ * formula. Instead, we estimate from:
+ *   - Club's recent form win/draw rates
+ *   - matchupScore (home advantage + opponent strength)
+ *   - API averagePoints as a sanity anchor
+ *
+ * Typical Cartola TEC scoring: win ≈ 5-7 pts, draw ≈ 2-3 pts, loss ≈ 0-1 pt.
+ */
+function buildTecProjection(
+  player: Player,
+  matchupScore: number,
+  playProbability: number,
+  isHome: boolean,
+  clubForm: string[] | null,
+): ProjectionResult {
+  const averagePoints = player.averagePoints ?? 3.5;
+  const price = player.price ?? 1;
+
+  // Estimate win/draw rates from recent club form (last 5 games)
+  const form = (clubForm ?? []).slice(0, 5);
+  const winRate  = form.length > 0 ? form.filter(r => r === 'v').length / form.length : 0.38;
+  const drawRate = form.length > 0 ? form.filter(r => r === 'e').length / form.length : 0.25;
+
+  // Cartola TEC scoring approximation: win~6pts, draw~2pts, loss~0pts
+  // (includes goals scored bonus, clean sheet bonus on average)
+  const resultPts = winRate * 6.0 + drawRate * 2.0;
+
+  // matchupScore > 1 = favorable attacking matchup → more goals, higher TEC score
+  const matchupBonus = (matchupScore - 1.0) * 2.0;
+  const homeBonus = isHome ? 0.3 : 0;
+
+  // Blend: 55% club-form formula + 45% API averagePoints (sanity anchor)
+  const formulaResult = resultPts + matchupBonus + homeBonus;
+  const baseExpected = (formulaResult * 0.55 + averagePoints * 0.45) * playProbability;
+  const expectedPoints = clamp(baseExpected, 0, 20);
+
+  const formScore = winRate * 5 + drawRate * 2;
+  const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
+
+  return {
+    expectedPoints: Number(expectedPoints.toFixed(2)),
+    floorPoints: Number(clamp(expectedPoints * 0.30, 0, expectedPoints).toFixed(2)),
+    ceilingPoints: Number(clamp(expectedPoints * 1.80, expectedPoints, 30).toFixed(2)),
+    riskScore: Number(clamp(1 - playProbability, 0, 1).toFixed(3)),
+    playProbability,
+    expectedMinutes: 90,
+    matchupScore: Number(matchupScore.toFixed(3)),
+    formScore: Number(formScore.toFixed(2)),
+    valueScore: Number(valueScore.toFixed(3)),
+    cleanSheetProbability: 0,
+    attackParticipationProbability: 0,
+    recommendationScore: Number(clamp(expectedPoints * 0.6 + playProbability * 5, 0, 100).toFixed(2)),
+    explanationJson: {
+      tecFormula: true,
+      averagePoints,
+      winRate: Number(winRate.toFixed(2)),
+      drawRate: Number(drawRate.toFixed(2)),
+      resultPts: Number(resultPts.toFixed(2)),
+      matchupBonus: Number(matchupBonus.toFixed(2)),
+      homeBonus,
+      formulaResult: Number(formulaResult.toFixed(2)),
+      matchupScore,
+      playProbability,
+      isHome,
+      price,
+    },
+  };
 }
 
 function isAttackerPosition(position: string): boolean {
@@ -204,6 +285,13 @@ async function calculateProjection(
   attackXg?: number | null,
   opponentAttackXg?: number | null
 ): Promise<ProjectionResult> {
+  // TEC (coaches) score based on club match outcomes, not individual scout events.
+  // Use club-performance formula instead of the scout-based pipeline.
+  if (player.position === 'TEC') {
+    const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength, attackXg);
+    return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm);
+  }
+
   const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
   const allScouts = await getScoutsByPlayer(player.id, 20);
 
@@ -312,7 +400,10 @@ async function calculateProjection(
         ? PROJECTION_WEIGHTS.riskPenalty.mediumProbability
         : PROJECTION_WEIGHTS.riskPenalty.lowProbability;
 
-  const expectedPoints = clamp(baseExpected * probMultiplier, 0, 50);
+  // Apply calibration multiplier (per-position bias correction from historical data).
+  // Defaults to 1.0 when no calibration has been run yet.
+  const calibMult = _calibrationMultipliers.get(player.position) ?? 1.0;
+  const expectedPoints = clamp(baseExpected * probMultiplier * calibMult, 0, 50);
 
   const { volatility: vol } = PROJECTION_WEIGHTS;
   const isHighVolatility = volatility > vol.highThreshold;
@@ -420,6 +511,23 @@ async function calculateProjection(
 }
 
 export async function runProjectionEngine(round: number): Promise<void> {
+  // Load historical calibration multipliers from admin_config (if available).
+  // These are position-specific bias-correction factors computed by POST /admin/calibrate-projection-weights.
+  _calibrationMultipliers.clear();
+  try {
+    const rows = await db.select().from(adminConfigTable)
+      .where(eq(adminConfigTable.key, "projection_calibration")).limit(1);
+    if (rows.length > 0) {
+      const cal = JSON.parse(rows[0].value) as { positionMultipliers?: Record<string, number> };
+      for (const [pos, mult] of Object.entries(cal.positionMultipliers ?? {})) {
+        _calibrationMultipliers.set(pos, mult);
+      }
+      console.log(`[projectionEngine] Loaded calibration for ${_calibrationMultipliers.size} positions`);
+    }
+  } catch (err) {
+    console.warn("[projectionEngine] Could not load calibration weights, using defaults:", err instanceof Error ? err.message : String(err));
+  }
+
   const players = await db.query.playersTable.findMany();
   const availabilities = await getAvailabilityByRound(round);
   const matches = await getMatchesByRound(round);
