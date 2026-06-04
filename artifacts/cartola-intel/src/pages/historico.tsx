@@ -46,6 +46,9 @@ interface ByRound {
 
 interface BacktestSummary {
   mae: number;
+  maePlayedOnly: number;
+  playedCount: number;
+  dnpCount: number;
   totalPlayers: number;
   byPosition: Record<string, ByPosition>;
   byRound: ByRound[];
@@ -401,32 +404,53 @@ function PlayerBacktestTab() {
       {!isLoading && !isError && !hasData && <GenericEmptyState message={summary?.message ?? undefined} />}
       {!isLoading && !isError && hasData && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm text-muted-foreground font-medium">Erro Médio Absoluto</p>
+              <CardContent className="pt-5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">MAE Geral</p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
-                    <TooltipContent className="max-w-52">MAE: média da diferença absoluta entre projeção e real. Quanto menor, melhor.</TooltipContent>
+                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipContent className="max-w-60">
+                      Inclui todos os jogadores projetados — mesmo quem não jogou (pontos = 0). O erro desses jogadores é menor porque a projeção já foi descontada pela probabilidade de jogo, mascarando o erro real do motor.
+                    </TooltipContent>
                   </Tooltip>
                 </div>
                 <p className="text-3xl font-bold font-mono text-foreground">{summary?.mae ?? "-"}</p>
-                <p className="text-xs text-muted-foreground mt-1">pts por jogador</p>
+                <p className="text-xs text-muted-foreground mt-1">pts · todos os projetados</p>
+              </CardContent>
+            </Card>
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-xs text-primary font-semibold uppercase tracking-wide">MAE Quem Jogou</p>
+                  <Tooltip>
+                    <TooltipTrigger><Info className="w-3 h-3 text-primary/60" /></TooltipTrigger>
+                    <TooltipContent className="max-w-60">
+                      MAE honesto: compara projeções apenas com jogadores que efetivamente entraram em campo (pontuação &gt; 0). Este é o indicador real da acurácia do motor de pontuação.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-3xl font-bold font-mono text-primary">{summary?.maePlayedOnly ?? "-"}</p>
+                <p className="text-xs text-primary/70 mt-1">pts · {summary?.playedCount ?? 0} jogadores ativos</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground font-medium mb-1">Jogadores Analisados</p>
-                <p className="text-3xl font-bold font-mono text-foreground">{summary?.totalPlayers ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">pares projeção × real</p>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Não Jogaram</p>
+                <p className="text-3xl font-bold font-mono text-foreground">{summary?.dnpCount ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {summary && summary.totalPlayers > 0
+                    ? `${((summary.dnpCount / summary.totalPlayers) * 100).toFixed(0)}% do total`
+                    : "jogadores ausentes"}
+                </p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground font-medium mb-1">Rodadas com Dados</p>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Rodadas Avaliadas</p>
                 <p className="text-3xl font-bold font-mono text-foreground">{byRound.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">rodadas avaliadas</p>
+                <p className="text-xs text-muted-foreground mt-1">{summary?.totalPlayers ?? 0} pares projeção × real</p>
               </CardContent>
             </Card>
           </div>

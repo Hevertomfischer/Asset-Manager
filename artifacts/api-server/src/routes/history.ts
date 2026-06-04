@@ -25,6 +25,7 @@ interface BacktestPlayer {
   error: number;
   absError: number;
   overestimated: boolean;
+  didNotPlay: boolean;
 }
 
 router.get("/history/backtest", requirePro, async (req, res) => {
@@ -39,6 +40,7 @@ router.get("/history/backtest", requirePro, async (req, res) => {
         playerId: playerProjectionTable.playerId,
         round: playerProjectionTable.round,
         expectedPoints: playerProjectionTable.expectedPoints,
+        playProbability: playerProjectionTable.playProbability,
         playerName: playersTable.name,
         position: playersTable.position,
       })
@@ -94,12 +96,13 @@ router.get("/history/backtest", requirePro, async (req, res) => {
         error: Number(error.toFixed(2)),
         absError: Number(Math.abs(error).toFixed(2)),
         overestimated: error > 0,
+        didNotPlay: actual === 0,
       });
     }
 
     if (compared.length === 0) {
       res.json({
-        summary: { mae: 0, totalPlayers: 0, byPosition: {}, byRound: [], message: "No actual points yet for projected rounds. Wait for round to complete." },
+        summary: { mae: 0, maePlayedOnly: 0, playedCount: 0, dnpCount: 0, totalPlayers: 0, byPosition: {}, byRound: [], message: "No actual points yet for projected rounds. Wait for round to complete." },
         bestPredictions: [],
         worstPredictions: [],
       });
@@ -107,6 +110,15 @@ router.get("/history/backtest", requirePro, async (req, res) => {
     }
 
     const mae = compared.reduce((sum, c) => sum + c.absError, 0) / compared.length;
+
+    // MAE for players who actually played (actual > 0) — the honest accuracy of the scoring model.
+    // Including DNP players (actual = 0) deflates the overall MAE because their projected pts
+    // are small (already discounted by playProbability), making the error artificially low.
+    const playedOnly = compared.filter((c) => !c.didNotPlay);
+    const maePlayedOnly = playedOnly.length > 0
+      ? playedOnly.reduce((sum, c) => sum + c.absError, 0) / playedOnly.length
+      : 0;
+    const dnpCount = compared.filter((c) => c.didNotPlay).length;
 
     const byPosition: Record<string, { mae: number; count: number; overestimatedPct: number }> = {};
     const posGroups = new Map<string, BacktestPlayer[]>();
@@ -138,11 +150,14 @@ router.get("/history/backtest", requirePro, async (req, res) => {
     const bestPredictions = sorted.slice(0, limitParam);
     const worstPredictions = [...compared].sort((a, b) => b.absError - a.absError).slice(0, limitParam);
 
-    log.info("Backtest computed", { totalPlayers: compared.length, mae: mae.toFixed(2) });
+    log.info("Backtest computed", { totalPlayers: compared.length, mae: mae.toFixed(2), maePlayedOnly: maePlayedOnly.toFixed(2) });
 
     res.json({
       summary: {
         mae: Number(mae.toFixed(2)),
+        maePlayedOnly: Number(maePlayedOnly.toFixed(2)),
+        playedCount: playedOnly.length,
+        dnpCount,
         totalPlayers: compared.length,
         byPosition,
         byRound: Object.values(byRound).sort((a, b) => a.round - b.round),
