@@ -27,6 +27,7 @@ export const lineupSuggestionPlayerTable = pgTable("lineup_suggestion_player", {
   position: text("position"),
   orderIndex: integer("order_index"),
   projectedPoints: real("projected_points"),
+  price: real("price"),
 });
 
 export const insertLineupSuggestionSchema = createInsertSchema(lineupSuggestionTable).omit({ id: true, generatedAt: true });

@@ -585,6 +585,252 @@ router.get("/history/perfect-team", requirePro, async (req, res) => {
   }
 });
 
+// ── Budget-Optimal (hindsight best team within each strategy's budget) ────────
+
+const SLOTS_BY_POSITION: Record<string, number> = {
+  GOL: 1, ZAG: 2, LAT: 2, MEI: 3, ATA: 3, TEC: 1,
+};
+const SLOT_ORDER = ["GOL", "ZAG", "LAT", "MEI", "ATA", "TEC"];
+
+/** Greedy hindsight: pick highest-actual-points players within budget, per slot */
+function greedyHindsight(
+  candidates: Array<{ playerId: number; position: string; actualPoints: number; price: number; name: string; nickname: string | null; clubId: number | null; }>,
+  budgetLimit: number
+): Array<typeof candidates[number]> {
+  const selected: Array<typeof candidates[number]> = [];
+  let remaining = budgetLimit;
+
+  for (const pos of SLOT_ORDER) {
+    const slots = SLOTS_BY_POSITION[pos] ?? 0;
+    const usedIds = new Set(selected.map((p) => p.playerId));
+    const pool = candidates
+      .filter((c) => c.position === pos && !usedIds.has(c.playerId))
+      .sort((a, b) => b.actualPoints - a.actualPoints);
+
+    let filled = 0;
+    for (const p of pool) {
+      if (filled >= slots) break;
+      if (p.price <= remaining) {
+        selected.push(p);
+        remaining -= p.price;
+        filled++;
+      }
+    }
+    // if budget too tight, grab cheapest available to at least fill the slot
+    if (filled < slots) {
+      const usedIds2 = new Set(selected.map((p) => p.playerId));
+      const cheapPool = candidates
+        .filter((c) => c.position === pos && !usedIds2.has(c.playerId))
+        .sort((a, b) => a.price - b.price);
+      for (const p of cheapPool) {
+        if (filled >= slots) break;
+        selected.push(p);
+        remaining -= p.price;
+        filled++;
+      }
+    }
+  }
+  return selected;
+}
+
+router.get("/history/budget-optimal", requirePro, async (req, res) => {
+  try {
+    const roundParam = req.query["round"] ? Number(req.query["round"]) : null;
+    if (!roundParam) {
+      res.status(400).json({ error: "round param required" });
+      return;
+    }
+
+    // 1. All lineup suggestions for this round (latest per strategy)
+    const allSuggestions = await db
+      .select({
+        id: lineupSuggestionTable.id,
+        strategyType: lineupSuggestionTable.strategyType,
+        budgetLimit: lineupSuggestionTable.budgetLimit,
+        totalCost: lineupSuggestionTable.totalCost,
+        expectedPoints: lineupSuggestionTable.expectedPoints,
+      })
+      .from(lineupSuggestionTable)
+      .where(eq(lineupSuggestionTable.round, roundParam))
+      .orderBy(desc(lineupSuggestionTable.id));
+
+    if (allSuggestions.length === 0) {
+      res.json({ round: roundParam, strategies: [], message: "Nenhuma escalação salva para esta rodada." });
+      return;
+    }
+
+    // Deduplicate: keep latest per strategyType
+    const seenStrategy = new Set<string>();
+    const suggestions = allSuggestions.filter((s) => {
+      if (seenStrategy.has(s.strategyType)) return false;
+      seenStrategy.add(s.strategyType);
+      return true;
+    });
+
+    // 2. Actual points for the round
+    const actualsRaw = await db
+      .select({
+        playerId: playerScoutRoundTable.playerId,
+        points: playerScoutRoundTable.points,
+        playerName: playersTable.name,
+        playerNickname: playersTable.nickname,
+        position: playersTable.position,
+        clubId: playersTable.clubId,
+        price: playersTable.price,
+      })
+      .from(playerScoutRoundTable)
+      .innerJoin(playersTable, eq(playerScoutRoundTable.playerId, playersTable.id))
+      .where(
+        and(
+          eq(playerScoutRoundTable.round, roundParam),
+          isNotNull(playerScoutRoundTable.points),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+        )
+      );
+
+    const actualMap = new Map(actualsRaw.map((a) => [a.playerId, a]));
+
+    // Candidate pool for greedy (players with known price + actual points)
+    const candidates = actualsRaw
+      .filter((a) => (a.price ?? 0) > 0 && a.position)
+      .map((a) => ({
+        playerId: a.playerId,
+        position: a.position!,
+        actualPoints: Number((a.points ?? 0).toFixed(2)),
+        price: a.price ?? 0,
+        name: a.playerName ?? "?",
+        nickname: a.playerNickname ?? null,
+        clubId: a.clubId ?? null,
+      }));
+
+    // 3. Clubs
+    const clubs = await db.select().from(clubsTable);
+    const clubMap = new Map(clubs.map((c) => [c.id, c]));
+
+    // 4. For each strategy, load our players and compute optimal
+    const allLineupIds = suggestions.map((s) => s.id);
+    const allLineupPlayers = await db
+      .select({
+        lineupSuggestionId: lineupSuggestionPlayerTable.lineupSuggestionId,
+        playerId: lineupSuggestionPlayerTable.playerId,
+        position: lineupSuggestionPlayerTable.position,
+        projectedPoints: lineupSuggestionPlayerTable.projectedPoints,
+        savedPrice: lineupSuggestionPlayerTable.price,
+      })
+      .from(lineupSuggestionPlayerTable)
+      .where(inArray(lineupSuggestionPlayerTable.lineupSuggestionId, allLineupIds));
+
+    const playersByLineup = new Map<number, typeof allLineupPlayers>();
+    for (const p of allLineupPlayers) {
+      if (!playersByLineup.has(p.lineupSuggestionId)) playersByLineup.set(p.lineupSuggestionId, []);
+      playersByLineup.get(p.lineupSuggestionId)!.push(p);
+    }
+
+    type StrategyPlayer = {
+      playerId: number;
+      name: string;
+      nickname: string | null;
+      position: string;
+      clubId: number | null;
+      clubName: string | null;
+      clubBadgeUrl: string | null;
+      price: number;
+      projectedPoints: number | null;
+      actualPoints: number | null;
+    };
+
+    type StrategyResult = {
+      strategyType: string;
+      budgetLimit: number;
+      totalCost: number;
+      ourProjectedPoints: number;
+      ourActualPoints: number;
+      optimalActualPoints: number;
+      pointsGap: number;
+      efficiencyPct: number;
+      ourPlayers: (StrategyPlayer & { wasOptimal: boolean })[];
+      optimalPlayers: (StrategyPlayer & { wasInOurTeam: boolean })[];
+    };
+
+    const strategies: StrategyResult[] = [];
+
+    for (const s of suggestions) {
+      const budget = s.budgetLimit ?? 100;
+      const ourRawPlayers = playersByLineup.get(s.id) ?? [];
+
+      const ourPlayers: (StrategyPlayer & { wasOptimal: boolean })[] = ourRawPlayers.map((p) => {
+        const actual = actualMap.get(p.playerId);
+        const club = actual?.clubId ? clubMap.get(actual.clubId) ?? null : null;
+        return {
+          playerId: p.playerId,
+          name: actual?.playerName ?? "?",
+          nickname: actual?.playerNickname ?? null,
+          position: p.position ?? actual?.position ?? "?",
+          clubId: actual?.clubId ?? null,
+          clubName: club?.name ?? null,
+          clubBadgeUrl: club?.badgeUrl ?? null,
+          price: p.savedPrice ?? actual?.price ?? 0,
+          projectedPoints: p.projectedPoints ?? null,
+          actualPoints: actual ? Number((actual.points ?? 0).toFixed(2)) : null,
+          wasOptimal: false,
+        };
+      });
+
+      const optimal = greedyHindsight(candidates, budget);
+      const optimalIds = new Set(optimal.map((p) => p.playerId));
+      const ourIds = new Set(ourPlayers.map((p) => p.playerId));
+
+      // Mark wasOptimal on our players
+      for (const op of ourPlayers) {
+        op.wasOptimal = optimalIds.has(op.playerId);
+      }
+
+      const optimalPlayers: (StrategyPlayer & { wasInOurTeam: boolean })[] = optimal.map((p) => {
+        const club = p.clubId ? clubMap.get(p.clubId) ?? null : null;
+        return {
+          playerId: p.playerId,
+          name: p.name,
+          nickname: p.nickname,
+          position: p.position,
+          clubId: p.clubId,
+          clubName: club?.name ?? null,
+          clubBadgeUrl: club?.badgeUrl ?? null,
+          price: p.price,
+          projectedPoints: null,
+          actualPoints: p.actualPoints,
+          wasInOurTeam: ourIds.has(p.playerId),
+        };
+      });
+
+      const ourActualPoints = Number(ourPlayers.reduce((s2, p) => s2 + (p.actualPoints ?? 0), 0).toFixed(2));
+      const optimalActualPoints = Number(optimalPlayers.reduce((s2, p) => s2 + (p.actualPoints ?? 0), 0).toFixed(2));
+      const pointsGap = Number((optimalActualPoints - ourActualPoints).toFixed(2));
+      const efficiencyPct = optimalActualPoints > 0
+        ? Number(((ourActualPoints / optimalActualPoints) * 100).toFixed(1))
+        : 0;
+
+      strategies.push({
+        strategyType: s.strategyType,
+        budgetLimit: budget,
+        totalCost: s.totalCost ?? 0,
+        ourProjectedPoints: s.expectedPoints ?? 0,
+        ourActualPoints,
+        optimalActualPoints,
+        pointsGap,
+        efficiencyPct,
+        ourPlayers,
+        optimalPlayers,
+      });
+    }
+
+    log.info("Budget optimal computed", { round: roundParam, strategies: strategies.length });
+    res.json({ round: roundParam, strategies, message: null });
+  } catch (err) {
+    log.error("Budget optimal failed", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Failed to compute budget optimal" });
+  }
+});
+
 router.get("/history/perfect-team-rounds", requirePro, async (_req, res) => {
   try {
     const rows = await db

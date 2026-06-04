@@ -377,6 +377,7 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     position: pw.player.position,
     orderIndex: idx,
     projectedPoints: pw.projection.expectedPoints ?? null,
+    price: pw.player.price ?? null,
   }));
 
   const saved = await insertLineupSuggestion(

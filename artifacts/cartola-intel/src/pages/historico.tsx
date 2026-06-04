@@ -1011,6 +1011,274 @@ function PerfectTeamTab() {
   );
 }
 
+// ── Budget Optimal ────────────────────────────────────────────────────────────
+
+interface BudgetOptimalPlayer {
+  playerId: number;
+  name: string;
+  nickname: string | null;
+  position: string;
+  clubId: number | null;
+  clubName: string | null;
+  clubBadgeUrl: string | null;
+  price: number;
+  projectedPoints: number | null;
+  actualPoints: number | null;
+}
+
+interface BudgetOptimalStrategy {
+  strategyType: string;
+  budgetLimit: number;
+  totalCost: number;
+  ourProjectedPoints: number;
+  ourActualPoints: number;
+  optimalActualPoints: number;
+  pointsGap: number;
+  efficiencyPct: number;
+  ourPlayers: (BudgetOptimalPlayer & { wasOptimal: boolean })[];
+  optimalPlayers: (BudgetOptimalPlayer & { wasInOurTeam: boolean })[];
+}
+
+interface BudgetOptimalResponse {
+  round: number;
+  strategies: BudgetOptimalStrategy[];
+  message: string | null;
+}
+
+async function fetchBudgetOptimal(round: number): Promise<BudgetOptimalResponse> {
+  const res = await fetch(`/api/history/budget-optimal?round=${round}`, { credentials: "include" });
+  if (!res.ok) throw Object.assign(new Error("Failed"), { status: res.status });
+  return res.json() as Promise<BudgetOptimalResponse>;
+}
+
+const STRATEGY_LABELS: Record<string, string> = {
+  safe: "Segura",
+  equilibrada: "Equilibrada",
+  balanced: "Equilibrada",
+  aggressive: "Agressiva",
+  agressiva: "Agressiva",
+  "cost-benefit": "Custo-Benefício",
+  frontier: "Fronteira",
+};
+
+function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
+  const [open, setOpen] = useState(false);
+  const label = STRATEGY_LABELS[s.strategyType] ?? s.strategyType;
+  const effColor = s.efficiencyPct >= 80 ? "text-green-400" : s.efficiencyPct >= 60 ? "text-yellow-400" : "text-red-400";
+  const matchCount = s.ourPlayers.filter((p) => p.wasOptimal).length;
+
+  const ourByPos = POSITION_ORDER.reduce<Record<string, (BudgetOptimalPlayer & { wasOptimal: boolean })[]>>((acc, pos) => {
+    acc[pos] = s.ourPlayers.filter((p) => p.position === pos);
+    return acc;
+  }, {});
+  const optByPos = POSITION_ORDER.reduce<Record<string, (BudgetOptimalPlayer & { wasInOurTeam: boolean })[]>>((acc, pos) => {
+    acc[pos] = s.optimalPlayers.filter((p) => p.position === pos);
+    return acc;
+  }, {});
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        className="pb-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            Estratégia: {label}
+          </CardTitle>
+          <Badge variant="outline" className="text-xs font-mono">
+            C$ {s.budgetLimit.toFixed(1)}
+          </Badge>
+        </div>
+        {/* Summary row */}
+        <div className="grid grid-cols-4 gap-3 mt-3">
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nossos Pts</p>
+            <p className="text-xl font-bold font-mono text-foreground">{s.ourActualPoints}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Melhor Possível</p>
+            <p className="text-xl font-bold font-mono text-yellow-400">{s.optimalActualPoints}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Gap</p>
+            <p className={`text-xl font-bold font-mono ${s.pointsGap > 0 ? "text-red-400" : "text-green-400"}`}>
+              {s.pointsGap > 0 ? "-" : "+"}{Math.abs(s.pointsGap)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Eficiência</p>
+            <p className={`text-xl font-bold font-mono ${effColor}`}>{s.efficiencyPct}%</p>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          {matchCount} de {s.ourPlayers.length} jogadores coincidem com o ótimo •{" "}
+          <span className="text-muted-foreground/70">clique para ver detalhe</span>
+        </p>
+      </CardHeader>
+
+      {open && (
+        <CardContent className="p-0 border-t border-border/40">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40 text-[11px] text-muted-foreground uppercase tracking-wide bg-muted/10">
+                  <th className="text-left px-3 py-2 font-medium w-14">Pos</th>
+                  <th className="text-left px-3 py-2 font-medium">Nosso Time</th>
+                  <th className="text-right px-3 py-2 font-medium">Pts</th>
+                  <th className="text-left px-3 py-2 font-medium pl-5 border-l border-border/30">Melhor Possível</th>
+                  <th className="text-right px-3 py-2 font-medium">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {POSITION_ORDER.flatMap((pos) => {
+                  const ourGroup = ourByPos[pos] ?? [];
+                  const optGroup = optByPos[pos] ?? [];
+                  const maxLen = Math.max(ourGroup.length, optGroup.length);
+                  return Array.from({ length: maxLen }, (_, i) => {
+                    const ours = ourGroup[i];
+                    const opt = optGroup[i];
+                    const same = ours && opt && ours.playerId === opt.playerId;
+                    return (
+                      <tr key={`${pos}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors">
+                        <td className="px-3 py-2.5">
+                          {i === 0 && (
+                            <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(pos)}`}>
+                              {pos}
+                            </Badge>
+                          )}
+                        </td>
+                        {/* Our player */}
+                        <td className="px-3 py-2.5">
+                          {ours ? (
+                            <div className="flex items-center gap-1.5">
+                              {ours.clubBadgeUrl && <img src={ours.clubBadgeUrl} alt="" className="w-4 h-4 object-contain shrink-0" />}
+                              <span className={`font-medium leading-tight ${same ? "text-muted-foreground" : ""}`}>
+                                {ours.nickname ?? ours.name}
+                              </span>
+                              {ours.wasOptimal && <CheckCircle2 className="w-3 h-3 text-green-400 shrink-0" />}
+                            </div>
+                          ) : <span className="text-muted-foreground text-xs">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          {ours && (
+                            <span className={`font-mono text-sm ${(ours.actualPoints ?? 0) === 0 ? "text-muted-foreground" : "text-foreground"}`}>
+                              {ours.actualPoints ?? "—"}
+                            </span>
+                          )}
+                        </td>
+                        {/* Optimal player */}
+                        <td className="px-3 py-2.5 pl-5 border-l border-border/30">
+                          {opt && !same ? (
+                            <div className="flex items-center gap-1.5">
+                              {opt.clubBadgeUrl && <img src={opt.clubBadgeUrl} alt="" className="w-4 h-4 object-contain shrink-0" />}
+                              <span className="font-medium text-yellow-300 leading-tight">{opt.nickname ?? opt.name}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">C${opt.price.toFixed(1)}</span>
+                            </div>
+                          ) : opt && same ? (
+                            <span className="text-[11px] text-green-400">✓ mesmo jogador</span>
+                          ) : <span className="text-muted-foreground text-xs">—</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          {opt && !same && (
+                            <span className="font-mono text-sm text-yellow-400">{opt.actualPoints ?? "—"}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border/40 bg-muted/10">
+                  <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-right text-muted-foreground">Total</td>
+                  <td className="px-3 py-2 text-right font-mono font-bold text-foreground">{s.ourActualPoints}</td>
+                  <td className="px-3 py-2 pl-5 border-l border-border/30 text-xs text-muted-foreground">ótimo no orçamento</td>
+                  <td className="px-3 py-2 text-right font-mono font-bold text-yellow-400">{s.optimalActualPoints}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border/20">
+            Preço atual dos jogadores como aproximação do preço na rodada •
+            ✓ = coincide com o ótimo
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function BudgetOptimalTab() {
+  const [selectedRound, setSelectedRound] = useState<string>("");
+
+  const { data: roundsData } = useQuery({
+    queryKey: ["lineup-rounds"],
+    queryFn: fetchLineupRounds,
+  });
+
+  const rounds = roundsData?.rounds ?? [];
+
+  useEffect(() => {
+    if (rounds.length > 0 && !selectedRound) {
+      setSelectedRound(String(rounds[rounds.length - 1]));
+    }
+  }, [rounds, selectedRound]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["budget-optimal", selectedRound],
+    queryFn: () => fetchBudgetOptimal(Number(selectedRound)),
+    enabled: !!selectedRound,
+  });
+
+  return (
+    <div className="space-y-5">
+      {/* Round selector */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={selectedRound} onValueChange={setSelectedRound}>
+          <SelectTrigger className="w-44 bg-secondary border-border">
+            <SelectValue placeholder="Selecione a rodada" />
+          </SelectTrigger>
+          <SelectContent>
+            {[...rounds].reverse().map((r) => (
+              <SelectItem key={r} value={String(r)}>Rodada {r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Melhor time possível com o mesmo orçamento de cada estratégia salva
+        </p>
+      </div>
+
+      {isLoading && <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>}
+      {isError && (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="flex items-center gap-3 pt-6">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <p className="text-sm text-red-400">Falha ao carregar comparativo.</p>
+          </CardContent>
+        </Card>
+      )}
+      {data?.message && !isLoading && (
+        <p className="text-sm text-muted-foreground text-center py-8">{data.message}</p>
+      )}
+
+      {!isLoading && !isError && data && data.strategies.length > 0 && (
+        <div className="space-y-4">
+          {data.strategies.map((s) => (
+            <StrategyCompareCard key={s.strategyType} s={s} />
+          ))}
+          <p className="text-[11px] text-muted-foreground">
+            <strong>Eficiência</strong> = nossos pts reais ÷ melhor possível no orçamento × 100.
+            Preços usados são aproximações do momento atual — podem diferir em ±5% do valor real na rodada.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Historico() {
   return (
     <div className="space-y-6">
@@ -1031,6 +1299,10 @@ export default function Historico() {
               <Star className="w-4 h-4" />
               Time Perfeito
             </TabsTrigger>
+            <TabsTrigger value="melhor-orcamento" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Melhor no Orçamento
+            </TabsTrigger>
             <TabsTrigger value="escalacao" className="flex items-center gap-2">
               <Crown className="w-4 h-4" />
               Backtest de Escalação
@@ -1042,6 +1314,9 @@ export default function Historico() {
           </TabsList>
           <TabsContent value="time-perfeito">
             <PerfectTeamTab />
+          </TabsContent>
+          <TabsContent value="melhor-orcamento">
+            <BudgetOptimalTab />
           </TabsContent>
           <TabsContent value="escalacao">
             <LineupBacktestTab />
