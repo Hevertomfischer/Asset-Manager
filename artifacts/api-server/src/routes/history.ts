@@ -85,6 +85,10 @@ router.get("/history/backtest", requirePro, async (req, res) => {
       const actual = actualMap.get(`${proj.playerId}-${proj.round}`);
       if (actual === undefined) continue;
       const projected = proj.expectedPoints ?? 0;
+      // Skip zero-projection players — the model already flagged them as unavailable.
+      // Including them (projected=0, actual=0) creates trivially "perfect" predictions
+      // that inflate accuracy metrics without reflecting real forecasting quality.
+      if (projected < 0.01) continue;
       const error = projected - actual;
       compared.push({
         playerId: proj.playerId,
