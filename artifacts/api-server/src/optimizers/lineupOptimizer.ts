@@ -71,13 +71,14 @@ function getScoringFn(
 ): (pw: PlayerWithProjection) => number {
   switch (strategy) {
     case "safe":
-      // Blend floor (consistency), expected points (quality) AND value (cost-efficiency).
-      // This prevents overspending on a single premium position at the expense of others.
+      // Prioritise absolute performance (floor + expected) with a light value tiebreaker.
+      // valueScore (pts/price) used to be weighted *8 which caused the solver to always
+      // prefer cheap players, leaving most of the budget unused even at C$140.
       return (pw) =>
-        (pw.projection.floorPoints ?? 0) * 0.3 +
-        (pw.projection.expectedPoints ?? 0) * 0.3 +
-        (pw.projection.valueScore ?? 0) * 8 -
-        (pw.projection.riskScore ?? 0) * 5 -
+        (pw.projection.floorPoints ?? 0) * 0.4 +
+        (pw.projection.expectedPoints ?? 0) * 0.5 +
+        (pw.projection.valueScore ?? 0) * 1.5 -
+        (pw.projection.riskScore ?? 0) * 3 -
         samplePenalty(pw);
     case "aggressive":
       return (pw) =>
@@ -85,8 +86,10 @@ function getScoringFn(
         (pw.projection.expectedPoints ?? 0) * 0.3 -
         samplePenalty(pw) * 0.5;
     case "cost-benefit":
+      // valueScore reduced so cost-efficiency complements expected pts, not replaces it.
       return (pw) =>
-        (pw.projection.valueScore ?? 0) * 4 +
+        (pw.projection.expectedPoints ?? 0) * 0.4 +
+        (pw.projection.valueScore ?? 0) * 2 +
         (pw.projection.recommendationScore ?? 0) * 0.3 -
         samplePenalty(pw);
     case "antimassa": {

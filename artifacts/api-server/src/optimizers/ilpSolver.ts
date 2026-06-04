@@ -164,8 +164,13 @@ export function solveLineupILP(
     modelConstraints[`pos_${position}`] = { min: count, max: count };
   }
 
-  // Budget
-  modelConstraints["budget"] = { max: budgetLimit };
+  // Budget ceiling always applied.
+  // 80% utilization floor only when there is no risk cap — a tight risk cap may
+  // require cheap/safe players that genuinely cannot fill 80% of the budget.
+  modelConstraints["budget"] = {
+    ...(constraints.maxTotalRisk == null ? { min: budgetLimit * 0.80 } : {}),
+    max: budgetLimit,
+  };
 
   // Optional risk cap: Σ(riskScore_i · x_i) ≤ maxTotalRisk
   if (constraints.maxTotalRisk != null) {
