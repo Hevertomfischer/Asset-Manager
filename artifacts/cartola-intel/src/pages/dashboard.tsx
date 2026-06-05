@@ -292,7 +292,7 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {positions.map((pos) => {
-                const tops = getTopByPos(pos, 3);
+                const tops = getTopByPos(pos, 5);
                 if (!tops.length) return null;
 
                 return (
