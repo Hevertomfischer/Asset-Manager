@@ -58,9 +58,9 @@ function PlayerCard({
           {isCaptain && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
           {isCoach && !isCaptain && <Star className="w-4 h-4 text-primary shrink-0" />}
           <div className="min-w-0">
-            <p className="font-bold text-sm text-foreground truncate">{player.name}</p>
+            <p className="font-bold text-sm text-foreground truncate">{player.nickname ?? player.name}</p>
             <p className="text-[10px] text-muted-foreground">
-              {player.clubAbbr ?? player.clubName ?? player.nickname ?? ""}
+              {player.clubAbbr ?? player.clubName ?? ""}
             </p>
           </div>
         </div>
@@ -117,7 +117,7 @@ function PlayerCard({
             )}
             <PlayerExplanationSheet
               exp={exp}
-              playerName={player.name ?? ""}
+              playerName={player.nickname ?? player.name ?? ""}
               position={player.position ?? undefined}
             />
           </div>
@@ -146,7 +146,7 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="min-w-0">
-          <p className="font-semibold text-xs text-foreground truncate">{reserve.name ?? "Desconhecido"}</p>
+          <p className="font-semibold text-xs text-foreground truncate">{reserve.nickname ?? reserve.name ?? "Desconhecido"}</p>
           <p className="text-[10px] text-muted-foreground">{reserve.clubAbbr ?? reserve.clubName ?? ""}</p>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -284,7 +284,8 @@ export default function Lineup() {
     afterMetrics: { expectedPoints: number; totalRisk: number; costUsed: number; differential: number }
   ) => {
     if (!currentLineup) return;
-    const outName = currentLineup.players?.find((p) => p.playerId === outId)?.name ?? "Jogador";
+    const outPlayer = currentLineup.players?.find((p) => p.playerId === outId);
+    const outName = outPlayer?.nickname ?? outPlayer?.name ?? "Jogador";
     const newLineupPlayer: LineupPlayer = {
       playerId: inPlayer.id,
       name: inPlayer.name,
@@ -313,7 +314,7 @@ export default function Lineup() {
     setSwapOutPlayer(null);
     toast({
       title: "Troca aplicada",
-      description: `${outName} → ${inPlayer.name}`,
+      description: `${outName} → ${inPlayer.nickname ?? inPlayer.name}`,
     });
   };
 
