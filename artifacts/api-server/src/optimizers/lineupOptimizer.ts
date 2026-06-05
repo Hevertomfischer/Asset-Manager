@@ -4,7 +4,7 @@ import { getProjectionsByRound } from "../repositories/projectionRepository";
 import { insertLineupSuggestion, insertLineupReserves } from "../repositories/lineupRepository";
 import { getMatchesByRound } from "../repositories/matchRepository";
 import { selectReserves, type ReservePlayer } from "../services/reserveService";
-import { LINEUP_CONFIG } from "../config/projectionWeights";
+import { LINEUP_CONFIG, PROJECTION_WEIGHTS } from "../config/projectionWeights";
 import { createLogger } from "../lib/logger";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 import { solveLineupILP, type IlpCandidate, CAPTAIN_MIN_GAMES } from "./ilpSolver";
@@ -105,6 +105,7 @@ function getScoringFn(
       };
     }
     case "valorizacao": {
+      const { aboveMinimoBonus, comfortableAboveMinimoBonus } = PROJECTION_WEIGHTS.valorizacao;
       return (pw) => {
         const explanation = pw.projection.explanationJson as Record<string, unknown> | null;
         const priceVariation = (explanation?.priceVariation as number | undefined) ?? (pw.player.priceVariation ?? 0);
@@ -113,6 +114,7 @@ function getScoringFn(
         const mediumAvg = (explanation?.mediumAvg as number | undefined) ?? 0;
         const expected = pw.projection.expectedPoints ?? 0;
         const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
+        const minimoParaValorizar = pw.player.minimoParaValorizar ?? null;
 
         const variationSignal = priceVariation * 3;
         const momentumSignal = shortAvg > 0 && mediumAvg > 0
@@ -121,10 +123,27 @@ function getScoringFn(
         const formTrendBonus = formTrend * 4;
         const trapPenalty = isTrap ? 6 : 0;
 
+        // Bonus for players whose recent average exceeds the minimum needed to valorize.
+        // Uses shortAvg (3-round window) as the proxy for "média atual".
+        // minimoParaValorizar = null means Cartola hasn't published the threshold yet → no bonus/penalty.
+        let minimoBonus = 0;
+        if (minimoParaValorizar != null && shortAvg > 0) {
+          if (shortAvg >= minimoParaValorizar * 1.2) {
+            // Comfortably above threshold — strong valorization signal
+            minimoBonus = aboveMinimoBonus + comfortableAboveMinimoBonus;
+          } else if (shortAvg >= minimoParaValorizar) {
+            // At or just above threshold — moderate valorization signal
+            minimoBonus = aboveMinimoBonus;
+          }
+          // Below minimoParaValorizar → no bonus (depreciating player, not penalized
+          // separately since priceVariation already captures negative drift)
+        }
+
         return (
           variationSignal +
           momentumSignal +
           formTrendBonus +
+          minimoBonus +
           expected * 0.25 +
           (pw.projection.valueScore ?? 0) * 2 -
           trapPenalty -

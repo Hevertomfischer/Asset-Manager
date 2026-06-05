@@ -79,6 +79,19 @@ export const PROJECTION_WEIGHTS = {
     trapRiskThreshold: 0.4,
     trapFormDeclineThreshold: 0.7,
   },
+  valorizacao: {
+    /**
+     * Bonus added to the score when a player's recent average (shortAvg)
+     * is above their minimoParaValorizar — i.e. they are on track to increase
+     * in price next round.
+     */
+    aboveMinimoBonus: 5.0,
+    /**
+     * Extra bonus for players well above the minimum (shortAvg ≥ minimoParaValorizar * 1.2).
+     * Rewards players comfortably on track to valorize, not just barely above the threshold.
+     */
+    comfortableAboveMinimoBonus: 3.0,
+  },
 };
 
 export const LINEUP_CONFIG = {
