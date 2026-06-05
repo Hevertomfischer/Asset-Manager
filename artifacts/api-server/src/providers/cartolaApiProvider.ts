@@ -104,6 +104,7 @@ export type CartolaPlayer = {
   priceVariation: number | null;
   playedLastRound: boolean | null;
   gamesPlayed: number | null;
+  minimoParaValorizar: number | null;
   cumulativeScouts: Record<string, number> | null;
 };
 
@@ -184,6 +185,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     priceVariation: atleta.variacao_num ?? null,
     playedLastRound: atleta.entrou_em_campo ?? null,
     gamesPlayed: atleta.jogos_num ?? null,
+    minimoParaValorizar: atleta.minimo_para_valorizar ?? null,
     cumulativeScouts: atleta.scout ?? null,
   }));
 
@@ -242,6 +244,7 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
       priceVariation: atleta.variacao_num ?? null,
       playedLastRound: atleta.entrou_em_campo ?? null,
       gamesPlayed: atleta.jogos_num ?? null,
+      minimoParaValorizar: atleta.minimo_para_valorizar ?? null,
       cumulativeScouts: atleta.scout ?? null,
     }));
 

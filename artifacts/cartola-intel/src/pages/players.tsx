@@ -222,6 +222,8 @@ export default function Players() {
                 <TableHead className="py-4 font-semibold">Posição</TableHead>
                 <TableHead className="py-4 font-semibold text-right">Preço</TableHead>
                 <TableHead className="py-4 font-semibold text-right">Média</TableHead>
+                <TableHead className="py-4 font-semibold text-right">Mín. Val.</TableHead>
+                <TableHead className="py-4 font-semibold text-right">Média Base</TableHead>
                 <TableHead className="py-4 font-semibold text-right">Projeção</TableHead>
                 <TableHead className="py-4 font-semibold text-right">Piso</TableHead>
                 <TableHead className="py-4 font-semibold text-right">Teto</TableHead>
@@ -232,7 +234,7 @@ export default function Players() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-64 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-64 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       Carregando base de dados...
@@ -241,7 +243,7 @@ export default function Players() {
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-64 text-center">
+                  <TableCell colSpan={11} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-destructive">
                       <AlertCircle className="w-8 h-8 opacity-70" />
                       <p className="text-sm font-medium">Erro ao carregar jogadores.</p>
@@ -251,7 +253,7 @@ export default function Players() {
                 </TableRow>
               ) : paginatedPlayers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-64 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-64 text-center text-muted-foreground">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     Nenhum jogador encontrado.
                   </TableCell>
@@ -277,6 +279,8 @@ export default function Players() {
                                 exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
                                 playerName={player.name ?? ""}
                                 position={player.position ?? undefined}
+                                minimoParaValorizar={player.minimoParaValorizar}
+                                baseAverage={player.baseAverage}
                               />
                             </div>
                             <p className="text-xs text-muted-foreground">{player.club?.name}</p>
@@ -306,6 +310,16 @@ export default function Players() {
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-muted-foreground">
                         {player.averagePoints?.toFixed(1) ?? '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm" title="Mínimo para valorizar: pontuação mínima para aumentar de preço">
+                        {player.minimoParaValorizar != null
+                          ? <span className="text-amber-500 font-semibold">↑{player.minimoParaValorizar.toFixed(1)}</span>
+                          : <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm" title="Média base: pontuação sem contar Gols, Assistências e SG">
+                        {player.baseAverage != null
+                          ? <span className="text-blue-400">base {player.baseAverage.toFixed(1)}</span>
+                          : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="font-mono font-bold text-primary text-base">

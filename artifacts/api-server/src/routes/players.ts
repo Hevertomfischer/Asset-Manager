@@ -68,8 +68,24 @@ router.get("/players", async (req, res) => {
       const proj = projMap.get(player.id);
       const avail = availMap.get(player.id);
       const club = player.clubId ? clubMap.get(player.clubId) : null;
+
+      // Calculate baseAverage: average points minus goal-event contributions
+      // Formula: (averagePoints * gamesPlayed - G*8 - A*5 - SG*5) / gamesPlayed
+      let baseAverage: number | null = null;
+      const scouts = player.cumulativeScouts;
+      const gp = player.gamesPlayed;
+      const avg = player.averagePoints;
+      if (scouts != null && gp != null && gp > 0 && avg != null) {
+        const totalPoints = avg * gp;
+        const goalEvents = (scouts["G"] ?? 0) * 8 + (scouts["A"] ?? 0) * 5 + (scouts["SG"] ?? 0) * 5;
+        const base = (totalPoints - goalEvents) / gp;
+        baseAverage = Math.round(base * 100) / 100;
+      }
+
       return {
         ...player,
+        minimoParaValorizar: player.minimoParaValorizar ?? null,
+        baseAverage,
         club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
         projection: proj
           ? {

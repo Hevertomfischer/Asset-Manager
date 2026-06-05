@@ -115,6 +115,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           priceVariation: player.priceVariation,
           playedLastRound: player.playedLastRound,
           gamesPlayed: player.gamesPlayed,
+          minimoParaValorizar: player.minimoParaValorizar,
           cumulativeScouts: player.cumulativeScouts,
         });
         playersUpserted++;

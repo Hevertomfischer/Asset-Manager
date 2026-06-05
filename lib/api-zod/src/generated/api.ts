@@ -69,6 +69,18 @@ export const GetPlayersResponse = zod.object({
         .describe(
           "Number of games played this season (jogos_num). Used for confidence scaling.",
         ),
+      minimoParaValorizar: zod
+        .number()
+        .nullish()
+        .describe(
+          "Minimum points needed to increase price next round (minimo_para_valorizar from Cartola API).",
+        ),
+      baseAverage: zod
+        .number()
+        .nullish()
+        .describe(
+          "Average points excluding goal-event contributions (G×8, A×5, SG×5). Represents position-scout baseline.",
+        ),
       club: zod
         .object({
           id: zod.number().optional(),
@@ -161,6 +173,18 @@ export const GetPlayerByIdResponse = zod
       .nullish()
       .describe(
         "Number of games played this season (jogos_num). Used for confidence scaling.",
+      ),
+    minimoParaValorizar: zod
+      .number()
+      .nullish()
+      .describe(
+        "Minimum points needed to increase price next round (minimo_para_valorizar from Cartola API).",
+      ),
+    baseAverage: zod
+      .number()
+      .nullish()
+      .describe(
+        "Average points excluding goal-event contributions (G×8, A×5, SG×5). Represents position-scout baseline.",
       ),
     club: zod
       .object({

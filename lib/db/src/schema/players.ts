@@ -18,6 +18,7 @@ export const playersTable = pgTable("players", {
   priceVariation: real("price_variation"),
   playedLastRound: boolean("played_last_round"),
   gamesPlayed: integer("games_played"),
+  minimoParaValorizar: real("minimo_para_valorizar"),
   cumulativeScouts: jsonb("cumulative_scouts").$type<Record<string, number>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

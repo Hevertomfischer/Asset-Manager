@@ -72,9 +72,11 @@ interface Props {
   exp: ExplanationJson;
   playerName: string;
   position?: string;
+  minimoParaValorizar?: number | null;
+  baseAverage?: number | null;
 }
 
-export function PlayerExplanationSheet({ exp, playerName, position }: Props) {
+export function PlayerExplanationSheet({ exp, playerName, position, minimoParaValorizar, baseAverage }: Props) {
   const { isPro, isLoading } = useAuth();
   const { openPaywall } = usePaywall();
   const [open, setOpen] = useState(false);
@@ -210,8 +212,8 @@ export function PlayerExplanationSheet({ exp, playerName, position }: Props) {
           </div>
 
           {/* Dados brutos resumidos */}
-          {exp.averagePoints != null && (
-            <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="mt-5 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               {exp.averagePoints != null && (
                 <div className="bg-secondary/30 rounded-lg p-2.5 text-center">
                   <p className="text-[10px] text-muted-foreground">Média geral</p>
@@ -231,7 +233,23 @@ export function PlayerExplanationSheet({ exp, playerName, position }: Props) {
                 </div>
               )}
             </div>
-          )}
+            {(minimoParaValorizar != null || baseAverage != null) && (
+              <div className="grid grid-cols-2 gap-2">
+                {minimoParaValorizar != null && (
+                  <div className="bg-amber-500/10 rounded-lg p-2.5 text-center" title="Pontuação mínima para o jogador aumentar de preço na próxima rodada">
+                    <p className="text-[10px] text-muted-foreground">Mín. para valorizar</p>
+                    <p className="font-bold text-sm text-amber-500">↑{minimoParaValorizar.toFixed(1)} pts</p>
+                  </div>
+                )}
+                {baseAverage != null && (
+                  <div className="bg-blue-400/10 rounded-lg p-2.5 text-center" title="Média de pontos excluindo Gols (G×8), Assistências (A×5) e Saldo de Gols (SG×5) — representa o quanto o jogador pontua sem eventos de gol">
+                    <p className="text-[10px] text-muted-foreground">Média base (sem G/A/SG)</p>
+                    <p className="font-bold text-sm text-blue-400">{baseAverage.toFixed(1)} pts</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <Button
             variant="outline"

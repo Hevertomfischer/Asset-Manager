@@ -23,6 +23,10 @@ export interface Player {
   playedLastRound?: boolean | null;
   /** Number of games played this season (jogos_num). Used for confidence scaling. */
   gamesPlayed?: number | null;
+  /** Minimum points needed to increase price next round (minimo_para_valorizar from Cartola API). */
+  minimoParaValorizar?: number | null;
+  /** Average points excluding goal-event contributions (G×8, A×5, SG×5). Represents position-scout baseline. */
+  baseAverage?: number | null;
   club?: Club | null;
   projection?: PlayerProjectionSummary;
   availability?: PlayerAvailabilitySummary;

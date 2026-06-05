@@ -12,6 +12,7 @@ export interface ProviderStatus {
   status: string;
   lastCollectedAt?: string | null;
   lastMessage?: string | null;
+  clubsMapped?: number | null;
   recentErrorCount?: number;
   recentLogs?: ProviderLog[];
 }

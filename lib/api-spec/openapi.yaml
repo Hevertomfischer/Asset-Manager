@@ -452,6 +452,14 @@ components:
           type: integer
           nullable: true
           description: Number of games played this season (jogos_num). Used for confidence scaling.
+        minimoParaValorizar:
+          type: number
+          nullable: true
+          description: Minimum points needed to increase price next round (minimo_para_valorizar from Cartola API).
+        baseAverage:
+          type: number
+          nullable: true
+          description: Average points excluding goal-event contributions (G×8, A×5, SG×5). Represents position-scout baseline.
         club:
           $ref: "#/components/schemas/Club"
           nullable: true
