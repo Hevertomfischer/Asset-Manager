@@ -111,7 +111,7 @@ router.get("/players", async (req, res) => {
     });
 
     if (probableOnly === "true") {
-      enriched = enriched.filter((p) => (p.availability?.playProbability ?? 0) >= 0.7);
+      enriched = enriched.filter((p) => (p.availability?.playProbability ?? 0) >= 0.5);
     }
 
     if (minProjection) {

@@ -63,7 +63,7 @@ function calculatePlayProbability(
   } else if (status === SUSPENSION_STATUS) {
     base = 0.02;
   } else if (status === NULL_STATUS) {
-    base = 0.0;
+    base = 0.5;
   } else if (status === DOUBT_STATUS) {
     base = isProbable ? 0.6 : 0.3;
   } else if (isProbable) {

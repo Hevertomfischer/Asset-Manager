@@ -4,6 +4,7 @@ import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable } from "
 import { desc, eq, gte, sql } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
+import { runAvailabilityEngine } from "../engines/availabilityEngine";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
 import { createLogger } from "../lib/logger";
 import axios from "axios";
@@ -153,6 +154,7 @@ router.post("/admin/recalculate-projections", async (_req, res) => {
   recalcInProgress = true;
   try {
     const currentRound = await getCurrentRound();
+    await runAvailabilityEngine(currentRound, []);
     await runProjectionEngine(currentRound);
     await logAdminAction("admin_recalculate", "success", `Projections recalculated for round ${currentRound}`);
     res.json({ success: true, round: currentRound, message: `Projections recalculated for round ${currentRound}` });
