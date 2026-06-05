@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock } from "lucide-react";
+import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock, RotateCcw } from "lucide-react";
 
 export default function Admin() {
   const { toast } = useToast();
@@ -37,13 +37,15 @@ export default function Admin() {
   const syncCurrentRound = useSyncCurrentRound();
   const recalcProjections = useRecalculateProjections();
 
-  const [weights, setWeights] = useState<Record<string, number>>({
+  const DEFAULT_WEIGHTS: Record<string, number> = {
     formWeight: 0.3,
     availabilityWeight: 0.3,
     fixtureWeight: 0.2,
     valueWeight: 0.1,
     historyWeight: 0.1,
-  });
+  };
+
+  const [weights, setWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
 
   const [xgStaleDaysInput, setXgStaleDaysInput] = useState<string>("");
 
@@ -280,7 +282,7 @@ export default function Admin() {
                 </p>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-3 flex-wrap">
                 <Button
                   onClick={handleSaveWeights}
                   disabled={updateWeights.isPending || weightsError}
@@ -297,6 +299,18 @@ export default function Admin() {
                 >
                   {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                   Recalcular Agora
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setWeights(DEFAULT_WEIGHTS);
+                    toast({ title: "Pesos restaurados", description: "Valores voltaram ao padrão do sistema. Clique em Salvar para persistir." });
+                  }}
+                  className="border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/60"
+                  title="Restaurar valores padrão"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Restaurar Default
                 </Button>
               </div>
             </div>
