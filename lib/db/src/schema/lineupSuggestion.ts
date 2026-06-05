@@ -17,6 +17,7 @@ export const lineupSuggestionTable = pgTable("lineup_suggestion", {
   captainPlayerId: integer("captain_player_id").references(() => playersTable.id),
   coachPlayerId: integer("coach_player_id").references(() => playersTable.id),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  savedAt: timestamp("saved_at"),
 });
 
 export const lineupSuggestionPlayerTable = pgTable("lineup_suggestion_player", {

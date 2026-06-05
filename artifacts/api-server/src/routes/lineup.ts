@@ -8,6 +8,7 @@ import {
   getLineupReserves,
   getLineupSubstitutions,
   insertLineupSubstitutions,
+  markLineupSaved,
 } from "../repositories/lineupRepository";
 import { processSubstitutions } from "../services/reserveService";
 import { validateAndSimulate, type PlayerSnapshot } from "../services/swapValidation";
@@ -646,6 +647,20 @@ router.get("/lineup/:id/substitutions", async (req, res) => {
   } catch (error) {
     console.error("[lineup/:id/substitutions]", error);
     res.status(500).json({ error: "Failed to fetch substitutions" });
+  }
+});
+
+// POST /lineup/:id/save — mark lineup as saved/favourite
+router.post("/lineup/:id/save", async (req, res) => {
+  try {
+    const lineupId = Number(req.params["id"]);
+    if (isNaN(lineupId)) { res.status(400).json({ error: "Invalid lineup id" }); return; }
+    const updated = await markLineupSaved(lineupId);
+    if (!updated) { res.status(404).json({ error: "Lineup not found" }); return; }
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[lineup/:id/save]", error);
+    res.status(500).json({ error: "Failed to save lineup" });
   }
 });
 

@@ -70,3 +70,12 @@ export async function getLineupPlayers(lineupId: number): Promise<LineupSuggesti
     orderBy: (t) => [t.orderIndex],
   });
 }
+
+export async function markLineupSaved(lineupId: number): Promise<LineupSuggestion | null> {
+  const [updated] = await db
+    .update(lineupSuggestionTable)
+    .set({ savedAt: new Date() })
+    .where(eq(lineupSuggestionTable.id, lineupId))
+    .returning();
+  return updated ?? null;
+}
