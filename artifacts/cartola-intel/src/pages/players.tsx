@@ -273,11 +273,11 @@ export default function Players() {
                           </Avatar>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{player.name}</p>
+                              <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{player.nickname ?? player.name}</p>
                               {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
                               <PlayerExplanationSheet
                                 exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
-                                playerName={player.name ?? ""}
+                                playerName={player.nickname ?? player.name ?? ""}
                                 position={player.position ?? undefined}
                                 minimoParaValorizar={player.minimoParaValorizar}
                                 baseAverage={player.baseAverage}
