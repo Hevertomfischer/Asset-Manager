@@ -61,7 +61,6 @@ export default function Players() {
 
   const { data, isLoading, isError, error } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
-    clubId: clubFilter === "ALL" ? undefined : Number(clubFilter),
     minPrice: minPrice > 0 ? minPrice : undefined,
     maxPrice,
     probableOnly: probableOnly ? "true" : "false",
@@ -71,24 +70,28 @@ export default function Players() {
     if (isError && (error as { status?: number })?.status === 402) openPaywall();
   }, [isError, error, openPaywall]);
 
+  const { data: allPlayersData } = useGetPlayers({ probableOnly: "false" });
+
   const players = data?.players || [];
 
   const clubs = useMemo(() => {
+    const source = allPlayersData?.players ?? players;
     const seen = new Map<number, string>();
-    players.forEach(p => {
+    source.forEach(p => {
       const clubId = p.club?.id;
       if (p.club && clubId !== undefined && !seen.has(clubId)) {
         seen.set(clubId, p.club.name ?? '');
       }
     });
     return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [players]);
+  }, [allPlayersData, players]);
 
   const filteredPlayers = useMemo(() => {
     return players
       .filter(p => {
-        const nameMatch = p.name.toLowerCase().includes(search.toLowerCase()) || 
-                          (p.nickname && p.nickname.toLowerCase().includes(search.toLowerCase()));
+        const q = search.toLowerCase();
+        const nameMatch = p.name.toLowerCase().includes(q) ||
+                          (p.nickname?.toLowerCase().includes(q) ?? false);
         const clubMatch = clubFilter === "ALL" || String(p.club?.id) === clubFilter;
         return nameMatch && clubMatch;
       })
