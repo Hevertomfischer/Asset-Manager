@@ -106,7 +106,7 @@ export default function Dashboard() {
   const getTopByPos = (pos: string, limit = 3) => {
     return projections
       .filter((p) => getPlayerField(p, "position") === pos)
-      .sort((a, b) => (b.recommendationScore ?? 0) - (a.recommendationScore ?? 0))
+      .sort((a, b) => (b.expectedPoints ?? 0) - (a.expectedPoints ?? 0))
       .slice(0, limit);
   };
 
