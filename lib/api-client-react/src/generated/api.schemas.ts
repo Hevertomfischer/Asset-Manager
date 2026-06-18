@@ -289,6 +289,8 @@ export type GetPlayersParams = {
   maxPrice?: number;
   probableOnly?: string;
   minProjection?: number;
+  maxMinimo?: number;
+  minBaseAverage?: number;
   round?: number;
 };
 

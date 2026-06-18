@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { usePaywall } from "@/context/PaywallContext";
 import { useGetPlayers } from "@workspace/api-client-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown } from "lucide-react";
+import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
@@ -47,6 +47,28 @@ function PlayerBadges({ exp }: { exp: ExplanationJson }) {
   );
 }
 
+type SortColumn =
+  | "name"
+  | "position"
+  | "price"
+  | "averagePoints"
+  | "minimoParaValorizar"
+  | "baseAverage"
+  | "projection"
+  | "floorPoints"
+  | "ceilingPoints"
+  | "riskScore"
+  | "playProbability";
+
+type SortDirection = "asc" | "desc";
+
+function SortIcon({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn; sortDirection: SortDirection }) {
+  if (column !== sortColumn) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
+  return sortDirection === "asc"
+    ? <ArrowUp className="w-3 h-3 ml-1 text-primary" />
+    : <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
+}
+
 export default function Players() {
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState<string>("ALL");
@@ -54,8 +76,12 @@ export default function Players() {
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(30);
   const [minProjection, setMinProjection] = useState<string>("");
+  const [maxMinimo, setMaxMinimo] = useState<string>("");
+  const [minBaseAverage, setMinBaseAverage] = useState<string>("");
   const [probableOnly, setProbableOnly] = useState(true);
   const [page, setPage] = useState(0);
+  const [sortColumn, setSortColumn] = useState<SortColumn>("projection");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const pageSize = 20;
   const { openPaywall } = usePaywall();
 
@@ -65,6 +91,8 @@ export default function Players() {
     maxPrice,
     probableOnly: probableOnly ? "true" : "false",
     minProjection: minProjection ? Number(minProjection) : undefined,
+    maxMinimo: maxMinimo ? Number(maxMinimo) : undefined,
+    minBaseAverage: minBaseAverage ? Number(minBaseAverage) : undefined,
   });
   useEffect(() => {
     if (isError && (error as { status?: number })?.status === 402) openPaywall();
@@ -86,23 +114,74 @@ export default function Players() {
     return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [allPlayersData, players]);
 
+  const handleSort = useCallback((col: SortColumn) => {
+    setSortColumn(prev => {
+      if (prev === col) {
+        setSortDirection(d => d === "asc" ? "desc" : "asc");
+        return col;
+      }
+      setSortDirection("desc");
+      return col;
+    });
+    setPage(0);
+  }, []);
+
   const filteredPlayers = useMemo(() => {
-    return players
-      .filter(p => {
-        const q = search.toLowerCase();
-        const nameMatch = p.name.toLowerCase().includes(q) ||
-                          (p.nickname?.toLowerCase().includes(q) ?? false);
-        const clubMatch = clubFilter === "ALL" || String(p.club?.id) === clubFilter;
-        return nameMatch && clubMatch;
-      })
-      .sort((a, b) => (b.projection?.expectedPoints || 0) - (a.projection?.expectedPoints || 0));
-  }, [players, search, clubFilter]);
+    const q = search.toLowerCase();
+    const filtered = players.filter(p => {
+      const nameMatch = p.name.toLowerCase().includes(q) ||
+                        (p.nickname?.toLowerCase().includes(q) ?? false);
+      const clubMatch = clubFilter === "ALL" || String(p.club?.id) === clubFilter;
+      return nameMatch && clubMatch;
+    });
+
+    const getValue = (p: typeof filtered[0], col: SortColumn): number | string => {
+      switch (col) {
+        case "name": return p.name ?? "";
+        case "position": return p.position ?? "";
+        case "price": return p.price ?? 0;
+        case "averagePoints": return p.averagePoints ?? 0;
+        case "minimoParaValorizar": return p.minimoParaValorizar ?? -Infinity;
+        case "baseAverage": return (p as unknown as { baseAverage?: number }).baseAverage ?? -Infinity;
+        case "projection": return p.projection?.expectedPoints ?? -Infinity;
+        case "floorPoints": return p.projection?.floorPoints ?? -Infinity;
+        case "ceilingPoints": return p.projection?.ceilingPoints ?? -Infinity;
+        case "riskScore": return p.availability?.riskScore ?? Infinity;
+        case "playProbability": return p.availability?.playProbability ?? -Infinity;
+        default: return 0;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const av = getValue(a, sortColumn);
+      const bv = getValue(b, sortColumn);
+      let cmp = 0;
+      if (typeof av === "string" && typeof bv === "string") {
+        cmp = av.localeCompare(bv);
+      } else {
+        cmp = (av as number) - (bv as number);
+      }
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+  }, [players, search, clubFilter, sortColumn, sortDirection]);
 
   const totalPages = Math.ceil(filteredPlayers.length / pageSize);
   const paginatedPlayers = filteredPlayers.slice(page * pageSize, (page + 1) * pageSize);
 
   const handlePositionChange = (val: string) => { setPosition(val); setPage(0); };
   const handleClubChange = (val: string) => { setClubFilter(val); setPage(0); };
+
+  const SortableHead = ({ col, children, className }: { col: SortColumn; children: React.ReactNode; className?: string }) => (
+    <TableHead
+      className={`py-4 font-semibold cursor-pointer select-none hover:text-primary transition-colors ${className ?? ""}`}
+      onClick={() => handleSort(col)}
+    >
+      <span className="inline-flex items-center">
+        {children}
+        <SortIcon column={col} sortColumn={sortColumn} sortDirection={sortDirection} />
+      </span>
+    </TableHead>
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -115,7 +194,7 @@ export default function Players() {
 
       {/* Filters Bar */}
       <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-lg shadow-black/5">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
           {/* Search */}
           <div className="space-y-2 xl:col-span-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Buscar</Label>
@@ -166,7 +245,7 @@ export default function Players() {
           </div>
 
           {/* Price Range */}
-          <div className="space-y-2">
+          <div className="space-y-2 xl:col-span-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-muted-foreground uppercase">Faixa de Preço</Label>
               <span className="text-xs font-mono font-bold text-primary">C$ {minPrice} – {maxPrice}</span>
@@ -199,6 +278,36 @@ export default function Players() {
               />
             </div>
           </div>
+
+          {/* Max Minimo para Valorizar */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">Mín. Val. máx. (pts)</Label>
+            <div className="relative">
+              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+              <Input 
+                type="number"
+                placeholder="ex: 5.0"
+                className="pl-9 bg-background border-border focus-visible:ring-primary/50 rounded-xl h-10"
+                value={maxMinimo}
+                onChange={(e) => { setMaxMinimo(e.target.value); setPage(0); }}
+              />
+            </div>
+          </div>
+
+          {/* Min Base Average */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">Média Base mín. (pts)</Label>
+            <div className="relative">
+              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+              <Input 
+                type="number"
+                placeholder="ex: 2.0"
+                className="pl-9 bg-background border-border focus-visible:ring-primary/50 rounded-xl h-10"
+                value={minBaseAverage}
+                onChange={(e) => { setMinBaseAverage(e.target.value); setPage(0); }}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
@@ -221,17 +330,17 @@ export default function Players() {
           <Table>
             <TableHeader className="bg-secondary/40 border-b border-border/50">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[280px] py-4 font-semibold">Jogador</TableHead>
-                <TableHead className="py-4 font-semibold">Posição</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Preço</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Média</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Mín. Val.</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Média Base</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Projeção</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Piso</TableHead>
-                <TableHead className="py-4 font-semibold text-right">Teto</TableHead>
-                <TableHead className="py-4 font-semibold text-center">Risco</TableHead>
-                <TableHead className="py-4 font-semibold text-center">Prob. Jogo</TableHead>
+                <SortableHead col="name" className="w-[280px]">Jogador</SortableHead>
+                <SortableHead col="position">Posição</SortableHead>
+                <SortableHead col="price" className="text-right">Preço</SortableHead>
+                <SortableHead col="averagePoints" className="text-right">Média</SortableHead>
+                <SortableHead col="minimoParaValorizar" className="text-right">Mín. Val.</SortableHead>
+                <SortableHead col="baseAverage" className="text-right">Média Base</SortableHead>
+                <SortableHead col="projection" className="text-right">Projeção</SortableHead>
+                <SortableHead col="floorPoints" className="text-right">Piso</SortableHead>
+                <SortableHead col="ceilingPoints" className="text-right">Teto</SortableHead>
+                <SortableHead col="riskScore" className="text-center">Risco</SortableHead>
+                <SortableHead col="playProbability" className="text-center">Prob. Jogo</SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -33,6 +33,8 @@ router.get("/players", async (req, res) => {
       maxPrice,
       probableOnly,
       minProjection,
+      maxMinimo,
+      minBaseAverage,
       round,
     } = req.query as Record<string, string>;
 
@@ -116,6 +118,14 @@ router.get("/players", async (req, res) => {
 
     if (minProjection) {
       enriched = enriched.filter((p) => (p.projection?.expectedPoints ?? 0) >= Number(minProjection));
+    }
+
+    if (maxMinimo) {
+      enriched = enriched.filter((p) => p.minimoParaValorizar != null && p.minimoParaValorizar <= Number(maxMinimo));
+    }
+
+    if (minBaseAverage) {
+      enriched = enriched.filter((p) => p.baseAverage != null && p.baseAverage >= Number(minBaseAverage));
     }
 
     res.json({ players: enriched, total: enriched.length });
