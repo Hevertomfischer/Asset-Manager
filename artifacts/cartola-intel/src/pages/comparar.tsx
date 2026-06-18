@@ -218,7 +218,7 @@ function PlayerHeader({
   const posColor = getPositionColor(player.position ?? "");
 
   return (
-    <th className="px-4 py-3 text-center min-w-[160px] max-w-[220px] relative">
+    <th className="px-4 py-3 text-center relative">
       {/* Remove button */}
       <button
         onClick={onRemove}
@@ -537,7 +537,7 @@ export default function Comparar() {
       ) : (
         <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse table-fixed">
 
               {/* ── Player headers ─────────────────────────────────────────── */}
               <thead>
