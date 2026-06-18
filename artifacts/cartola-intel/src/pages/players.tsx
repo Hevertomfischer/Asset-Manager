@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
@@ -58,7 +58,8 @@ type SortColumn =
   | "floorPoints"
   | "ceilingPoints"
   | "riskScore"
-  | "playProbability";
+  | "playProbability"
+  | "valoriza";
 
 type SortDirection = "asc" | "desc";
 
@@ -79,6 +80,7 @@ export default function Players() {
   const [maxMinimo, setMaxMinimo] = useState<string>("");
   const [minBaseAverage, setMinBaseAverage] = useState<string>("");
   const [probableOnly, setProbableOnly] = useState(true);
+  const [valorizaOnly, setValorizaOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [sortColumn, setSortColumn] = useState<SortColumn>("projection");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -135,6 +137,12 @@ export default function Players() {
       return nameMatch && clubMatch;
     });
 
+    const isValoriza = (p: typeof filtered[0]) => {
+      const exp = p.projection?.expectedPoints;
+      const min = p.minimoParaValorizar;
+      return exp != null && min != null && exp >= min;
+    };
+
     const getValue = (p: typeof filtered[0], col: SortColumn): number | string => {
       switch (col) {
         case "name": return p.name ?? "";
@@ -148,11 +156,14 @@ export default function Players() {
         case "ceilingPoints": return p.projection?.ceilingPoints ?? -Infinity;
         case "riskScore": return p.availability?.riskScore ?? Infinity;
         case "playProbability": return p.availability?.playProbability ?? -Infinity;
+        case "valoriza": return isValoriza(p) ? 1 : 0;
         default: return 0;
       }
     };
 
-    return filtered.sort((a, b) => {
+    const postFiltered = valorizaOnly ? filtered.filter(isValoriza) : filtered;
+
+    return postFiltered.sort((a, b) => {
       const av = getValue(a, sortColumn);
       const bv = getValue(b, sortColumn);
       let cmp = 0;
@@ -163,7 +174,7 @@ export default function Players() {
       }
       return sortDirection === "asc" ? cmp : -cmp;
     });
-  }, [players, search, clubFilter, sortColumn, sortDirection]);
+  }, [players, search, clubFilter, sortColumn, sortDirection, valorizaOnly]);
 
   const totalPages = Math.ceil(filteredPlayers.length / pageSize);
   const paginatedPlayers = filteredPlayers.slice(page * pageSize, (page + 1) * pageSize);
@@ -310,15 +321,29 @@ export default function Players() {
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Switch 
-              id="probable" 
-              checked={probableOnly} 
-              onCheckedChange={(v) => { setProbableOnly(v); setPage(0); }} 
-              className="data-[state=checked]:bg-primary"
-            />
-            <Label className="text-sm font-medium cursor-pointer" htmlFor="probable">Apenas Prováveis</Label>
+        <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch 
+                id="probable" 
+                checked={probableOnly} 
+                onCheckedChange={(v) => { setProbableOnly(v); setPage(0); }} 
+                className="data-[state=checked]:bg-primary"
+              />
+              <Label className="text-sm font-medium cursor-pointer" htmlFor="probable">Apenas Prováveis</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch 
+                id="valoriza" 
+                checked={valorizaOnly} 
+                onCheckedChange={(v) => { setValorizaOnly(v); setPage(0); }} 
+                className="data-[state=checked]:bg-emerald-500"
+              />
+              <Label className="text-sm font-medium cursor-pointer flex items-center gap-1" htmlFor="valoriza">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                Apenas Valorizando
+              </Label>
+            </div>
           </div>
           <span className="text-xs text-muted-foreground">{filteredPlayers.length} jogadores encontrados</span>
         </div>
@@ -341,12 +366,13 @@ export default function Players() {
                 <SortableHead col="ceilingPoints" className="text-right">Teto</SortableHead>
                 <SortableHead col="riskScore" className="text-center">Risco</SortableHead>
                 <SortableHead col="playProbability" className="text-center">Prob. Jogo</SortableHead>
+                <SortableHead col="valoriza" className="text-center">Valoriza</SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-64 text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="h-64 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       Carregando base de dados...
@@ -355,7 +381,7 @@ export default function Players() {
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-64 text-center">
+                  <TableCell colSpan={12} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-destructive">
                       <AlertCircle className="w-8 h-8 opacity-70" />
                       <p className="text-sm font-medium">Erro ao carregar jogadores.</p>
@@ -365,7 +391,7 @@ export default function Players() {
                 </TableRow>
               ) : paginatedPlayers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="h-64 text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="h-64 text-center text-muted-foreground">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     Nenhum jogador encontrado.
                   </TableCell>
@@ -473,6 +499,29 @@ export default function Players() {
                             </div>
                           ) : <span className="text-muted-foreground text-xs">-</span>}
                         </ProGate>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const exp = player.projection?.expectedPoints;
+                          const min = player.minimoParaValorizar;
+                          if (exp == null || min == null) {
+                            return <span className="text-muted-foreground text-xs">-</span>;
+                          }
+                          const diff = exp - min;
+                          if (diff >= 0) {
+                            return (
+                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" title={`Projeção supera o mínimo por ${diff.toFixed(1)} pts`}>
+                                <Sparkles className="w-3 h-3" />
+                                +{diff.toFixed(1)}
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="inline-flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] font-bold bg-secondary text-muted-foreground" title={`Falta ${Math.abs(diff).toFixed(1)} pts para valorizar`}>
+                              {diff.toFixed(1)}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   );
