@@ -22,12 +22,25 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
   next();
 }
 
-router.get("/auth/google", requireGoogleOAuth, passport.authenticate("google", { scope: ["email", "profile"] }));
+function getCallbackURL(req: Request): string {
+  const host = req.get("host") ?? "";
+  const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
+  return `${proto}://${host}/api/auth/google/callback`;
+}
+
+router.get("/auth/google", requireGoogleOAuth, (req, res, next) => {
+  const callbackURL = getCallbackURL(req);
+  log.info("Iniciando Google OAuth", { callbackURL });
+  passport.authenticate("google", { scope: ["email", "profile"], callbackURL } as object)(req, res, next);
+});
 
 router.get(
   "/auth/google/callback",
   requireGoogleOAuth,
-  passport.authenticate("google", { failureRedirect: "/api/auth/error" }),
+  (req, res, next) => {
+    const callbackURL = getCallbackURL(req);
+    passport.authenticate("google", { failureRedirect: "/api/auth/error", callbackURL } as object)(req, res, next);
+  },
   (req, res) => {
     log.info("Login via Google bem-sucedido", { userId: req.user?.id });
     res.redirect("/");

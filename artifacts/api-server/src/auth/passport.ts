@@ -25,11 +25,10 @@ export function isGoogleOAuthConfigured(): boolean {
 export function configurePassport(): void {
   const clientID = process.env["GOOGLE_CLIENT_ID"];
   const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-  const callbackURL = process.env["OAUTH_CALLBACK_URL"];
 
-  if (!clientID || !clientSecret || !callbackURL) {
+  if (!clientID || !clientSecret) {
     log.error(
-      "Google OAuth não configurado — GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET ou OAUTH_CALLBACK_URL ausentes. " +
+      "Google OAuth não configurado — GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET ausentes. " +
       "As rotas /api/auth/google retornarão 503 até que as variáveis sejam definidas e o servidor reiniciado."
     );
   } else {
@@ -38,9 +37,10 @@ export function configurePassport(): void {
         {
           clientID,
           clientSecret,
-          callbackURL,
+          callbackURL: "/api/auth/google/callback",
           scope: ["email", "profile"],
           state: true,
+          proxy: true,
         },
         async (_accessToken, _refreshToken, profile, done) => {
           try {
@@ -84,7 +84,7 @@ export function configurePassport(): void {
     );
 
     _googleConfigured = true;
-    log.info("Google OAuth configurado", { callbackURL });
+    log.info("Google OAuth configurado (callbackURL dinâmico por request)");
   }
 
   passport.serializeUser((user, done) => {
