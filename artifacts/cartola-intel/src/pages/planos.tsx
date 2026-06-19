@@ -163,7 +163,7 @@ export default function Planos() {
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-4">
           <Sparkles className="w-3.5 h-3.5" />
-          Cartola Intel Pro
+          Mitometro Pro
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
           Escale melhor. Pontue mais.

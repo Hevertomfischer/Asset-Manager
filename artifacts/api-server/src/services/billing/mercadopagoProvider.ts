@@ -42,8 +42,8 @@ const log = createLogger("billing");
 export type BillingPlan = "pro_monthly" | "season_pass";
 
 const PLAN_CONFIG: Record<BillingPlan, { title: string; price: number }> = {
-  pro_monthly: { title: "Cartola Intel Pro — Mensal", price: 19.9 },
-  season_pass: { title: "Cartola Intel Pro — Season Pass 2025", price: 99.9 },
+  pro_monthly: { title: "Mitometro Pro — Mensal", price: 19.9 },
+  season_pass: { title: "Mitometro Pro — Season Pass 2025", price: 99.9 },
 };
 
 function getMpClient(): MercadoPagoConfig {

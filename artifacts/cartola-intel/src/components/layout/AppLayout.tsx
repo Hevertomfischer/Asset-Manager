@@ -42,7 +42,7 @@ export const AppSidebar = () => {
           </div>
           <div>
             <h1 className="font-display font-bold text-xl text-foreground tracking-tight leading-none">
-              Cartola<span className="text-primary">Intel</span>
+              Mito<span className="text-primary">metro</span>
             </h1>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5 font-medium">Pro Analytics</p>
           </div>

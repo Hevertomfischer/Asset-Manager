@@ -191,7 +191,7 @@ export default function Desempenho() {
   // SEO — set page title while mounted
   useEffect(() => {
     const prev = document.title;
-    document.title = "Desempenho do Modelo — CartolIntel";
+    document.title = "Desempenho do Modelo — Mitometro";
     return () => {
       document.title = prev;
     };
@@ -232,7 +232,7 @@ export default function Desempenho() {
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <span className="font-display font-bold text-lg text-foreground leading-none">
-              Cartola<span className="text-primary">Intel</span>
+              Mito<span className="text-primary">metro</span>
             </span>
           </Link>
 
@@ -624,7 +624,7 @@ export default function Desempenho() {
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-primary" />
             <span>
-              <strong className="text-foreground">CartolIntel</strong> · Analytics para Cartola FC
+              <strong className="text-foreground">Mitometro</strong> · Analytics para Cartola FC
             </span>
           </div>
           <span className="opacity-50">

@@ -139,7 +139,7 @@ export function OnboardingDialog({ onClose }: Props) {
           <div className="p-6 space-y-5">
             <div>
               <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">
-                Bem-vindo ao Cartola Intel
+                Bem-vindo ao Mitometro
               </p>
               <h2 className="text-xl font-bold leading-snug">
                 Inteligência para escalar melhor
