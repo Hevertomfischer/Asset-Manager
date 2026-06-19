@@ -23,7 +23,11 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
 }
 
 function getCallbackURL(req: Request): string {
-  const host = req.get("host") ?? "";
+  // Prefer explicit env var — covers custom domains (e.g. mitometro.com.br)
+  const envURL = process.env["OAUTH_CALLBACK_URL"];
+  if (envURL) return envURL;
+  // Fallback: build from request headers (dev without env var)
+  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
   return `${proto}://${host}/api/auth/google/callback`;
 }
@@ -39,11 +43,28 @@ router.get(
   requireGoogleOAuth,
   (req, res, next) => {
     const callbackURL = getCallbackURL(req);
-    passport.authenticate("google", { failureRedirect: "/api/auth/error", callbackURL } as object)(req, res, next);
-  },
-  (req, res) => {
-    log.info("Login via Google bem-sucedido", { userId: req.user?.id });
-    res.redirect("/");
+    passport.authenticate(
+      "google",
+      { callbackURL } as object,
+      (err: Error | null, user: Express.User | false, info: unknown) => {
+        if (err) {
+          log.error("Google OAuth erro interno", { error: err.message, stack: err.stack });
+          return res.redirect("/api/auth/error");
+        }
+        if (!user) {
+          log.warn("Google OAuth falhou — sem usuário", { info: JSON.stringify(info) });
+          return res.redirect("/api/auth/error");
+        }
+        req.login(user, (loginErr) => {
+          if (loginErr) {
+            log.error("Erro ao criar sessão após OAuth", { error: loginErr.message });
+            return next(loginErr);
+          }
+          log.info("Login via Google bem-sucedido", { userId: (user as { id: number }).id });
+          res.redirect("/");
+        });
+      }
+    )(req, res, next);
   }
 );
 
