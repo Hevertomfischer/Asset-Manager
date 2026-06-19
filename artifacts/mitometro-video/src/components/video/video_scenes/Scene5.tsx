@@ -169,7 +169,7 @@ export default function Scene5() {
           boxShadow: '0 0 30px rgba(16,185,129,0.4)',
         }}
       >
-        mitometro.app
+        mitometro.com.br
       </motion.div>
 
       {/* Bottom gradient bar */}
