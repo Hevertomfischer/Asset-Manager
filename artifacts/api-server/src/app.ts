@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import passport from "passport";
 import cors from "cors";
 import router from "./routes";
@@ -13,21 +14,35 @@ if (!SESSION_SECRET) {
   throw new Error("SESSION_SECRET não definido — defina esta variável de ambiente antes de iniciar o servidor.");
 }
 
+const DATABASE_URL = process.env["DATABASE_URL"];
+if (!DATABASE_URL) {
+  throw new Error("DATABASE_URL não definido.");
+}
+
 configurePassport();
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 app.use(cors());
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const PgSession = connectPgSimple(session);
+
 app.use(
   session({
+    store: new PgSession({
+      conString: DATABASE_URL,
+      tableName: "session",
+      pruneSessionInterval: 60 * 60,
+    }),
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "lax", secure: process.env["NODE_ENV"] === "production" },
+    cookie: { httpOnly: true, sameSite: "lax", secure: false },
   })
 );
 
