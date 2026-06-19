@@ -22,14 +22,21 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
   next();
 }
 
+const CALLBACK_PATH = "/api/auth/google/callback";
+
 function getCallbackURL(req: Request): string {
   // Prefer explicit env var — covers custom domains (e.g. mitometro.com.br)
   const envURL = process.env["OAUTH_CALLBACK_URL"];
-  if (envURL) return envURL;
+  if (envURL) {
+    // Strip trailing slash and ensure the callback path is present
+    const base = envURL.replace(/\/$/, "");
+    if (base.endsWith(CALLBACK_PATH)) return base;
+    return base + CALLBACK_PATH;
+  }
   // Fallback: build from request headers (dev without env var)
   const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
-  return `${proto}://${host}/api/auth/google/callback`;
+  return `${proto}://${host}${CALLBACK_PATH}`;
 }
 
 router.get("/auth/google", requireGoogleOAuth, (req, res, next) => {
