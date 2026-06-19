@@ -31,7 +31,9 @@
 import { createRequire } from "module";
 import { createLogger } from "../lib/logger";
 
-const _require = createRequire(import.meta.url);
+const _require = createRequire(
+  (import.meta as { url?: string }).url ?? `file://${process.cwd()}/`
+);
 
 interface LpSolverLib {
   Solve(model: LpModel): LpResult;
