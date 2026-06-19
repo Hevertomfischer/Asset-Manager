@@ -1,0 +1,31 @@
+kind = "video"
+previewPath = "/mitometro-video/"
+title = "Mitometro — Video Apresentação"
+version = "1.0.0"
+id = "artifacts/mitometro-video"
+router = "path"
+
+[[integratedSkills]]
+name = "video-js"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/mitometro-video/" ]
+localPort = 18210
+
+[services.development]
+run = "pnpm --filter @workspace/mitometro-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mitometro-video", "run", "build" ]
+publicDir = "artifacts/mitometro-video/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18210"
+BASE_PATH = "/mitometro-video/"
