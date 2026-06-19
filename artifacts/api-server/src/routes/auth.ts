@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import passport from "passport";
+import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { isGoogleOAuthConfigured } from "../auth/passport";
 import { getUserPlan } from "../services/accessService";
 import { createLogger } from "../lib/logger";
@@ -23,26 +24,50 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
 }
 
 const CALLBACK_PATH = "/api/auth/google/callback";
+const CSRF_COOKIE = "oauth_csrf";
 
 function getCallbackURL(req: Request): string {
-  // Prefer explicit env var — covers custom domains (e.g. mitometro.com.br)
   const envURL = process.env["OAUTH_CALLBACK_URL"];
   if (envURL) {
-    // Strip trailing slash and ensure the callback path is present
     const base = envURL.replace(/\/$/, "");
     if (base.endsWith(CALLBACK_PATH)) return base;
     return base + CALLBACK_PATH;
   }
-  // Fallback: build from request headers (dev without env var)
   const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
   return `${proto}://${host}${CALLBACK_PATH}`;
 }
 
+function signState(raw: string): string {
+  const secret = process.env["SESSION_SECRET"] ?? "fallback";
+  const sig = createHmac("sha256", secret).update(raw).digest("hex").slice(0, 24);
+  return `${raw}.${sig}`;
+}
+
+function verifyState(signed: string): boolean {
+  const dot = signed.lastIndexOf(".");
+  if (dot === -1) return false;
+  const raw = signed.slice(0, dot);
+  const expected = Buffer.from(signState(raw));
+  const provided = Buffer.from(signed);
+  if (expected.length !== provided.length) return false;
+  return timingSafeEqual(expected, provided);
+}
+
 router.get("/auth/google", requireGoogleOAuth, (req, res, next) => {
   const callbackURL = getCallbackURL(req);
+  const raw = randomBytes(16).toString("hex");
+  const state = signState(raw);
+
+  res.cookie(CSRF_COOKIE, state, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 10 * 60 * 1000,
+  });
+
   log.info("Iniciando Google OAuth", { callbackURL });
-  passport.authenticate("google", { scope: ["email", "profile"], callbackURL } as object)(req, res, next);
+  passport.authenticate("google", { scope: ["email", "profile"], callbackURL, state } as object)(req, res, next);
 });
 
 router.get(
@@ -50,6 +75,23 @@ router.get(
   requireGoogleOAuth,
   (req, res, next) => {
     const callbackURL = getCallbackURL(req);
+    const cookieState = req.cookies?.[CSRF_COOKIE] as string | undefined;
+    const queryState = req.query["state"] as string | undefined;
+
+    log.info("OAuth callback recebido", { cookieState: !!cookieState, queryState: !!queryState });
+
+    if (!cookieState || !queryState || cookieState !== queryState || !verifyState(cookieState)) {
+      log.warn("OAuth CSRF falhou", {
+        hasCookie: !!cookieState,
+        hasQuery: !!queryState,
+        match: cookieState === queryState,
+      });
+      res.redirect("/api/auth/error");
+      return;
+    }
+
+    res.clearCookie(CSRF_COOKIE);
+
     passport.authenticate(
       "google",
       { callbackURL } as object,

@@ -39,7 +39,7 @@ export function configurePassport(): void {
           clientSecret,
           callbackURL: "/api/auth/google/callback",
           scope: ["email", "profile"],
-          state: true,
+          state: false,
           proxy: true,
         },
         async (_accessToken, _refreshToken, profile, done) => {

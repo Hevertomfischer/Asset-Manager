@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import cookieParser from "cookie-parser";
 import passport from "passport";
 import cors from "cors";
 import router from "./routes";
@@ -25,6 +26,7 @@ const app: Express = express();
 
 app.set("trust proxy", 1);
 
+app.use(cookieParser());
 app.use(cors());
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
