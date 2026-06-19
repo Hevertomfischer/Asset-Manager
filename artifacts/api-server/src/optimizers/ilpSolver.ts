@@ -28,6 +28,7 @@
  *     Captain bound: c_i ≤ x_i                              for each field player i
  */
 
+import { createRequire } from "module";
 import { createLogger } from "../lib/logger";
 
 interface LpSolverLib {
@@ -47,8 +48,8 @@ interface LpResult {
   [varName: string]: number | boolean | undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const lpSolver = require("javascript-lp-solver") as LpSolverLib;
+const _require = createRequire(import.meta.url);
+const lpSolver = _require("javascript-lp-solver") as LpSolverLib;
 
 const log = createLogger("ilp-solver");
 
