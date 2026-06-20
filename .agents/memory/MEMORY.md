@@ -1,4 +1,5 @@
 - [explainPlayer architecture](explainPlayer-architecture.md) — insight engine lives in lib/explainPlayer.ts; PlayerExplanationSheet handles Pro-gate internally (no ProGate wrapper needed around Sheet).
 - [Swap simulation design](swap-simulation.md) — POST /lineup/simulate in routes/lineup.ts; all validation logic in services/swapValidation.ts (pure, no DB); invalid swap returns 200+valid:false, not HTTP error.
 - [ILP lineup optimizer](ilp-optimizer.md) — greedy replaced by ILP in ilpSolver.ts; javascript-lp-solver via createRequire (CJS-in-ESM); pre-filter 25+5cheap per position; CAPTAIN_EPSILON=1e-3; vitest in api-server.
+- [Production CJS build crash](prod-cjs-crash.md) — import.meta.url is undefined in esbuild CJS output; use typeof __filename !== "undefined" ? __filename : import.meta.url pattern.
 - [Projection engine calibration](projection-calibration.md) — POST /admin/calibrate-projection-weights stores per-position multipliers in admin_config["projection_calibration"]; projectionEngine loads them at start of each run; TEC uses buildTecProjection() (club form formula); priceVariation now signals play probability.

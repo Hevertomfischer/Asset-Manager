@@ -48,7 +48,11 @@ interface LpResult {
   [varName: string]: number | boolean | undefined;
 }
 
-const _require = createRequire(import.meta.url);
+// In CJS builds (production), __filename is available; in ESM (dev/tsx), use import.meta.url
+declare const __filename: string | undefined;
+const _require = createRequire(
+  typeof __filename !== "undefined" ? __filename : import.meta.url
+);
 const lpSolver = _require("javascript-lp-solver") as LpSolverLib;
 
 const log = createLogger("ilp-solver");
