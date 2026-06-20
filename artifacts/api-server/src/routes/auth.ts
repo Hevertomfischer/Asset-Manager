@@ -24,7 +24,6 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
 }
 
 const CALLBACK_PATH = "/api/auth/google/callback";
-const CSRF_COOKIE = "oauth_csrf";
 
 function getCallbackURL(req: Request): string {
   const envURL = process.env["OAUTH_CALLBACK_URL"];
@@ -38,34 +37,34 @@ function getCallbackURL(req: Request): string {
   return `${proto}://${host}${CALLBACK_PATH}`;
 }
 
-function signState(raw: string): string {
+/**
+ * Stateless CSRF: embed a HMAC-signed nonce in the OAuth state parameter.
+ * No cookie or server-side session needed — the signature is self-verifying.
+ */
+function createSignedState(): string {
   const secret = process.env["SESSION_SECRET"] ?? "fallback";
-  const sig = createHmac("sha256", secret).update(raw).digest("hex").slice(0, 24);
-  return `${raw}.${sig}`;
+  const nonce = randomBytes(16).toString("hex");
+  const sig = createHmac("sha256", secret).update(nonce).digest("hex");
+  return `${nonce}.${sig}`;
 }
 
-function verifyState(signed: string): boolean {
-  const dot = signed.lastIndexOf(".");
+function verifySignedState(state: string): boolean {
+  const secret = process.env["SESSION_SECRET"] ?? "fallback";
+  const dot = state.lastIndexOf(".");
   if (dot === -1) return false;
-  const raw = signed.slice(0, dot);
-  const expected = Buffer.from(signState(raw));
-  const provided = Buffer.from(signed);
-  if (expected.length !== provided.length) return false;
-  return timingSafeEqual(expected, provided);
+  const nonce = state.slice(0, dot);
+  const providedSig = state.slice(dot + 1);
+  const expectedSig = createHmac("sha256", secret).update(nonce).digest("hex");
+  try {
+    return timingSafeEqual(Buffer.from(expectedSig, "hex"), Buffer.from(providedSig, "hex"));
+  } catch {
+    return false;
+  }
 }
 
 router.get("/auth/google", requireGoogleOAuth, (req, res, next) => {
   const callbackURL = getCallbackURL(req);
-  const raw = randomBytes(16).toString("hex");
-  const state = signState(raw);
-
-  res.cookie(CSRF_COOKIE, state, {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-    maxAge: 10 * 60 * 1000,
-  });
-
+  const state = createSignedState();
   log.info("Iniciando Google OAuth", { callbackURL });
   passport.authenticate("google", { scope: ["email", "profile"], callbackURL, state } as object)(req, res, next);
 });
@@ -75,22 +74,13 @@ router.get(
   requireGoogleOAuth,
   (req, res, next) => {
     const callbackURL = getCallbackURL(req);
-    const cookieState = req.cookies?.[CSRF_COOKIE] as string | undefined;
     const queryState = req.query["state"] as string | undefined;
 
-    log.info("OAuth callback recebido", { cookieState: !!cookieState, queryState: !!queryState });
-
-    if (!cookieState || !queryState || cookieState !== queryState || !verifyState(cookieState)) {
-      log.warn("OAuth CSRF falhou", {
-        hasCookie: !!cookieState,
-        hasQuery: !!queryState,
-        match: cookieState === queryState,
-      });
+    if (!queryState || !verifySignedState(queryState)) {
+      log.warn("OAuth CSRF falhou — state inválido ou ausente", { hasState: !!queryState });
       res.redirect("/api/auth/error");
       return;
     }
-
-    res.clearCookie(CSRF_COOKIE);
 
     passport.authenticate(
       "google",
