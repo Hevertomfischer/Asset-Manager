@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  ChevronDown,
+  ChevronUp,
   GitCompare,
   Lock,
   Search,
@@ -41,6 +43,36 @@ const POSITION_LABEL: Record<string, string> = {
   GOL: "Goleiro", LAT: "Lateral", ZAG: "Zagueiro",
   MEI: "Meia", ATA: "Atacante", TEC: "Técnico",
 };
+
+interface ScoutDef {
+  label: string;
+  lowerIsBetter?: boolean;
+  /** Positions where this scout is shown prominently (undefined = all) */
+  positions?: string[];
+}
+
+const SCOUT_DISPLAY: Array<{ key: string } & ScoutDef> = [
+  { key: "G",  label: "Gols",                  positions: ["ATA","MEI","LAT","ZAG"] },
+  { key: "A",  label: "Assistências",           positions: ["ATA","MEI","LAT","ZAG"] },
+  { key: "SG", label: "Sem sofrer gol",         positions: ["GOL","ZAG","LAT"] },
+  { key: "FT", label: "Fin. na trave",          positions: ["ATA","MEI"] },
+  { key: "FD", label: "Fin. defendida",         positions: ["ATA","MEI"] },
+  { key: "FF", label: "Fin. para fora",         positions: ["ATA","MEI"] },
+  { key: "DS", label: "Desarmes",               positions: ["ZAG","LAT","MEI"] },
+  { key: "DE", label: "Defesas",                positions: ["GOL"] },
+  { key: "PS", label: "Pên. sofrido",           positions: ["GOL"] },
+  { key: "DP", label: "Defesa de pênalti",      positions: ["GOL"] },
+  { key: "FS", label: "Faltas sofridas",        positions: ["ATA","MEI","LAT"] },
+  { key: "FC", label: "Faltas cometidas",       lowerIsBetter: true, positions: ["ZAG","LAT","MEI","ATA"] },
+  { key: "GS", label: "Gols sofridos",          lowerIsBetter: true, positions: ["GOL","ZAG","LAT"] },
+  { key: "GC", label: "Gol contra",             lowerIsBetter: true },
+  { key: "CA", label: "Cartão amarelo",         lowerIsBetter: true },
+  { key: "CV", label: "Cartão vermelho",        lowerIsBetter: true },
+  { key: "PP", label: "Pênalti perdido",        lowerIsBetter: true, positions: ["ATA","MEI"] },
+  { key: "I",  label: "Impedimentos",           lowerIsBetter: true, positions: ["ATA"] },
+];
+
+type CumulativeScouts = Record<string, number | undefined>;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -285,6 +317,7 @@ export default function Comparar() {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showScouts, setShowScouts] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
@@ -386,6 +419,27 @@ export default function Comparar() {
       const v = (p.projection?.explanationJson as ExpJson)?.[key];
       return typeof v === "number" ? v : null;
     });
+
+  const scoutValues = (key: string) =>
+    selectedPlayers.map((p) => {
+      const scouts = (p as unknown as { cumulativeScouts?: CumulativeScouts }).cumulativeScouts;
+      const v = scouts?.[key];
+      return typeof v === "number" ? v : 0;
+    });
+
+  // Decide which scouts to show: union of all relevant positions among selected players
+  const selectedPositions = useMemo(
+    () => new Set(selectedPlayers.map((p) => p.position ?? "")),
+    [selectedPlayers]
+  );
+  const visibleScouts = useMemo(
+    () =>
+      SCOUT_DISPLAY.filter((s) => {
+        if (!s.positions) return true;
+        return s.positions.some((pos) => selectedPositions.has(pos));
+      }),
+    [selectedPositions]
+  );
 
   // ── Dummy blurred rows for ProGate overlay ─────────────────────────────────
   const dummyRows = (
@@ -665,6 +719,49 @@ export default function Comparar() {
                     );
                   })}
                 </tr>
+
+                {/* ── Toggle: scouts detalhados ─────────────────────────────── */}
+                <tr className="border-t border-border/30">
+                  <td colSpan={selectedPlayers.length + 1} className="px-4 py-2">
+                    <button
+                      onClick={() => setShowScouts((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      {showScouts ? (
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                      {showScouts ? "Ver menos" : "Ver mais informações"}
+                      <span className="text-muted-foreground/60 font-normal">
+                        — scouts da temporada
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+
+                {/* ── Scout rows (expanded) ─────────────────────────────────── */}
+                {showScouts && (
+                  <>
+                    <tr className="border-b border-border/20 bg-secondary/10">
+                      <td
+                        colSpan={selectedPlayers.length + 1}
+                        className="px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/60"
+                      >
+                        Scouts acumulados na temporada
+                      </td>
+                    </tr>
+                    {visibleScouts.map((s) => (
+                      <MetricRow
+                        key={s.key}
+                        label={s.label}
+                        values={scoutValues(s.key)}
+                        lowerIsBetter={s.lowerIsBetter}
+                        fmt={(v) => v.toFixed(0)}
+                      />
+                    ))}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
