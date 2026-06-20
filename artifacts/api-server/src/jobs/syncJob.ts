@@ -273,10 +273,10 @@ export function startSyncJob(): void {
   log.info(`Scheduling market check with cron: "${MARKET_CHECK_CRON}"`);
 
   if (!cron.validate(FULL_SYNC_CRON)) {
-    log.error(`Invalid CARTOLA_FULL_SYNC_CRON: "${FULL_SYNC_CRON}". Falling back to "0 */6 * * *"`);
+    log.error(`Invalid CARTOLA_FULL_SYNC_CRON: "${FULL_SYNC_CRON}". Falling back to "0 * * * *"`);
   }
 
-  cron.schedule(cron.validate(FULL_SYNC_CRON) ? FULL_SYNC_CRON : "0 */6 * * *", async () => {
+  cron.schedule(cron.validate(FULL_SYNC_CRON) ? FULL_SYNC_CRON : "0 * * * *", async () => {
     if (isSyncing) {
       log.warn("Sync already in progress, skipping");
       return;
@@ -315,6 +315,6 @@ export function startSyncJob(): void {
     }
   });
 
-  const validMarketCheck = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "0 */2 * * *";
+  const validMarketCheck = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "*/30 * * * *";
   cron.schedule(validMarketCheck, checkMarketStatus);
 }
