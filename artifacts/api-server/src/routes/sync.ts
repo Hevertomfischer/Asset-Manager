@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { adminConfigTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { getIsSyncing } from "../jobs/syncJob";
 
 const router = Router();
 
@@ -21,11 +22,9 @@ router.get("/sync/status", async (_req, res) => {
 
     const lastSyncAt = rows[0]?.value ?? null;
     const marketStatus = marketRows[0]?.value ?? null;
+    const isRunning = getIsSyncing();
 
-    res.json({
-      lastSyncAt,
-      marketStatus,
-    });
+    res.json({ lastSyncAt, isRunning, marketStatus });
   } catch {
     res.status(500).json({ error: "Falha ao buscar status de sincronização" });
   }

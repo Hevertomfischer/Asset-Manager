@@ -8,11 +8,11 @@ const ADMIN_SECRET = process.env["ADMIN_SECRET"];
 /**
  * Protects all /admin routes.
  *
- * Two modes:
+ * Three modes, evaluated in order:
  *  1. ADMIN_SECRET configured → requires x-admin-secret header (or ?adminSecret query).
  *     Use this in production with a strong random value.
- *  2. ADMIN_SECRET not configured → falls back to Passport session check.
- *     Only authenticated users (Google OAuth) may access admin routes.
+ *  2. ADMIN_SECRET not configured + user is authenticated with role "admin" → allow.
+ *  3. ADMIN_SECRET not configured + user is authenticated without admin role → 403.
  *
  * Non-admin paths always pass through.
  */
@@ -33,11 +33,17 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
     return;
   }
 
-  // No ADMIN_SECRET set — require at minimum an authenticated session so
-  // anonymous users cannot access admin endpoints.
+  // No ADMIN_SECRET set — require an authenticated session first.
   if (!req.isAuthenticated() || !req.user) {
     log.warn("Unauthenticated admin access attempt", { ip: req.ip, path: req.path });
     res.status(401).json({ error: "Autenticação necessária." });
+    return;
+  }
+
+  // Then require admin role.
+  if (req.user.role !== "admin") {
+    log.warn("Non-admin user attempted admin access", { userId: req.user.id, role: req.user.role, path: req.path });
+    res.status(403).json({ error: "Acesso restrito a administradores." });
     return;
   }
 

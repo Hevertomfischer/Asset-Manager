@@ -267,36 +267,38 @@ export default function Admin() {
             )}
 
             <div className="pt-4 border-t border-border/50 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-orange-400" />
-                  Alerta de dados xG após X dias
-                </Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={xgStaleDaysInput}
-                    onChange={(e) => setXgStaleDaysInput(e.target.value)}
-                    className="h-9 w-24"
-                    placeholder="4"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveConfig}
-                    disabled={updateConfig.isPending}
-                    variant="outline"
-                    className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
-                  >
-                    {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
-                    Salvar
-                  </Button>
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-orange-400" />
+                    Alerta de dados xG após X dias
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={xgStaleDaysInput}
+                      onChange={(e) => setXgStaleDaysInput(e.target.value)}
+                      className="h-9 w-24"
+                      placeholder="4"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveConfig}
+                      disabled={updateConfig.isPending}
+                      variant="outline"
+                      className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+                    >
+                      {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                      Salvar
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
+                  </p>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
-                </p>
-              </div>
+              )}
 
               {isAdmin && (
                 <div className="flex gap-3 flex-wrap">

@@ -10,6 +10,10 @@ const log = createLogger("sync-job");
 
 let isSyncing = false;
 
+export function getIsSyncing(): boolean {
+  return isSyncing;
+}
+
 const FULL_SYNC_CRON = process.env["CARTOLA_FULL_SYNC_CRON"] ?? "0 * * * *";
 const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "*/30 * * * *";
 
