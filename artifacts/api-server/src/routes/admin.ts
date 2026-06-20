@@ -519,7 +519,7 @@ router.get("/admin/funnel", async (req, res) => {
   }
 });
 
-router.post("/users/grant-pro", async (req, res) => {
+router.post("/admin/users/grant-pro", async (req, res) => {
   const { email } = req.body as { email?: string };
   if (!email) return res.status(400).json({ error: "email required" });
 
