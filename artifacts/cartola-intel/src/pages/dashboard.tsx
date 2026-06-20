@@ -42,6 +42,39 @@ function getNestedField(proj: ProjectionItem, parent: string, field: string): Pl
   return nested ? (nested[field] as PlayerField) : null;
 }
 
+function formatMatchDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "Data a definir";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data a definir";
+  return date.toLocaleString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+type MatchClub = { name?: string | null; shortName?: string | null; abbreviation?: string | null; badgeUrl?: string | null } | null | undefined;
+
+function ClubBadge({ club }: { club: MatchClub }) {
+  if (club?.badgeUrl) {
+    return (
+      <img
+        src={club.badgeUrl}
+        alt={club.name ?? ""}
+        className="w-6 h-6 object-contain shrink-0"
+        loading="lazy"
+      />
+    );
+  }
+  return (
+    <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
+      {(club?.abbreviation ?? club?.name ?? "?").slice(0, 3).toUpperCase()}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { data: roundData, isLoading: roundLoading, isError: roundError } = useGetCurrentRound();
   const { data: providersData, isError: providersError } = useGetProvidersStatus();
@@ -557,6 +590,34 @@ export default function Dashboard() {
               <Calendar className="w-5 h-5 text-primary" />
               <h3 className="text-xl font-display font-bold">Partidas</h3>
             </div>
+
+            {/* Lineup deadline / round status */}
+            {roundData?.closingDate && (
+              <div
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm ${
+                  roundData.marketOpen
+                    ? "border-primary/40 bg-primary/10"
+                    : "border-destructive/40 bg-destructive/10"
+                }`}
+              >
+                <Clock
+                  className={`w-4 h-4 shrink-0 ${
+                    roundData.marketOpen ? "text-primary" : "text-destructive"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="font-semibold leading-tight">
+                    {roundData.marketOpen
+                      ? "Escalações encerram em"
+                      : "Rodada fechada — mercado encerrado"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {formatMatchDateTime(roundData.closingDate)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {matchesLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
@@ -573,16 +634,33 @@ export default function Dashboard() {
               <div className="space-y-2">
                 {matches.slice(0, 6).map((match) => (
                   <Card key={match.id} className="bg-card border-border/50">
-                    <div className="p-3 flex items-center justify-between gap-2">
-                      <div className="flex-1 text-right">
-                        <p className="font-semibold text-sm truncate">{match.homeClub?.name ?? "?"}</p>
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-1 items-center justify-end gap-2 min-w-0">
+                          <p className="font-semibold text-sm truncate">{match.homeClub?.name ?? "?"}</p>
+                          <ClubBadge club={match.homeClub} />
+                        </div>
+                        <div className="px-2 py-1 rounded-lg bg-secondary text-xs font-bold font-mono text-muted-foreground whitespace-nowrap">
+                          vs
+                        </div>
+                        <div className="flex flex-1 items-center justify-start gap-2 min-w-0">
+                          <ClubBadge club={match.awayClub} />
+                          <p className="font-semibold text-sm truncate">{match.awayClub?.name ?? "?"}</p>
+                        </div>
                       </div>
-                      <div className="px-2 py-1 rounded-lg bg-secondary text-xs font-bold font-mono text-muted-foreground whitespace-nowrap">
-                        vs
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-semibold text-sm truncate">{match.awayClub?.name ?? "?"}</p>
-                      </div>
+                      {(match.matchDate || match.stadium) && (
+                        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground border-t border-border/40 pt-2">
+                          {match.matchDate && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              {formatMatchDateTime(match.matchDate)}
+                            </span>
+                          )}
+                          {match.stadium && (
+                            <span className="truncate max-w-[45%]">{match.stadium}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}
