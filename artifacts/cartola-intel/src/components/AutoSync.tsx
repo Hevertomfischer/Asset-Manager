@@ -1,49 +1,38 @@
-import { useEffect, useRef } from "react";
-import { useSyncFull } from "@workspace/api-client-react";
-import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
-const AUTO_SYNC_KEY = "cartola_intel_last_auto_sync";
-const AUTO_SYNC_INTERVAL_MS = 60 * 60 * 1000;
+interface SyncStatus {
+  lastSyncAt: string | null;
+  marketStatus: string | null;
+}
 
-export function AutoSync() {
-  const { toast } = useToast();
-  const syncFull = useSyncFull();
-  const didRun = useRef(false);
+export function useSyncStatus() {
+  const [status, setStatus] = useState<SyncStatus>({ lastSyncAt: null, marketStatus: null });
 
   useEffect(() => {
-    if (didRun.current) return;
-    didRun.current = true;
+    let cancelled = false;
 
-    const lastSync = localStorage.getItem(AUTO_SYNC_KEY);
-    const now = Date.now();
-    const elapsed = lastSync ? now - Number(lastSync) : Infinity;
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/sync/status");
+        if (!res.ok) return;
+        const data = await res.json() as SyncStatus;
+        if (!cancelled) setStatus(data);
+      } catch {
+        // non-fatal
+      }
+    }
 
-    if (elapsed < AUTO_SYNC_INTERVAL_MS) return;
-
-    const { id } = toast({
-      title: "Sincronizando dados...",
-      description: "Atualizando jogadores, projeções e mercado em segundo plano.",
-    });
-
-    syncFull.mutate(undefined, {
-      onSuccess: () => {
-        localStorage.setItem(AUTO_SYNC_KEY, String(Date.now()));
-        toast({
-          id,
-          title: "Dados atualizados",
-          description: "Pipeline sincronizado com sucesso.",
-        });
-      },
-      onError: () => {
-        toast({
-          id,
-          title: "Falha na sincronização",
-          description: "Não foi possível sincronizar. Tente pelo Admin.",
-          variant: "destructive",
-        });
-      },
-    });
+    void fetchStatus();
+    const interval = setInterval(() => void fetchStatus(), 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
+  return status;
+}
+
+export function AutoSync() {
   return null;
 }

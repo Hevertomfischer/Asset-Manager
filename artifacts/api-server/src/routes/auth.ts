@@ -3,6 +3,7 @@ import passport from "passport";
 import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { isGoogleOAuthConfigured } from "../auth/passport";
 import { getUserPlan } from "../services/accessService";
+import { triggerFullSyncIfStale } from "../jobs/syncJob";
 import { createLogger } from "../lib/logger";
 import { db } from "@workspace/db";
 import { userPreferencesTable, usersTable, subscriptionsTable } from "@workspace/db/schema";
@@ -100,6 +101,7 @@ router.get(
             return next(loginErr);
           }
           log.info("Login via Google bem-sucedido", { userId: (user as { id: number }).id });
+          triggerFullSyncIfStale();
           res.redirect("/");
         });
       }

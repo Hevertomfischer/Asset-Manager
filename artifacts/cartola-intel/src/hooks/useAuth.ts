@@ -11,6 +11,7 @@ export interface AuthUser {
   name: string | null;
   avatarUrl: string | null;
   provider: string | null;
+  role: string | null;
   plan: "free" | "pro";
   isPro: boolean;
   preferences: UserPreferences;

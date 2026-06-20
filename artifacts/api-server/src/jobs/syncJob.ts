@@ -10,8 +10,11 @@ const log = createLogger("sync-job");
 
 let isSyncing = false;
 
-const FULL_SYNC_CRON = process.env["CARTOLA_FULL_SYNC_CRON"] ?? "0 */6 * * *";
-const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "0 */2 * * *";
+const FULL_SYNC_CRON = process.env["CARTOLA_FULL_SYNC_CRON"] ?? "0 * * * *";
+const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "*/30 * * * *";
+
+const LAST_FULL_SYNC_AT_KEY = "lastFullSyncAt";
+const STALE_THRESHOLD_MS = 55 * 60 * 1000;
 
 const LAST_KNOWN_ROUND_KEY = "lastKnownRound";
 /** adminConfigTable key that stores the last observed market status ("open" | "closed"). */
@@ -185,6 +188,82 @@ async function checkMarketStatus(): Promise<void> {
   }
 }
 
+async function persistLastFullSyncAt(): Promise<void> {
+  try {
+    const now = new Date().toISOString();
+    await db
+      .insert(adminConfigTable)
+      .values({ key: LAST_FULL_SYNC_AT_KEY, value: now })
+      .onConflictDoUpdate({
+        target: adminConfigTable.key,
+        set: { value: now, updatedAt: new Date() },
+      });
+  } catch (e) {
+    log.warn("Failed to persist lastFullSyncAt", { error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+async function getLastFullSyncAt(): Promise<Date | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(adminConfigTable)
+      .where(eq(adminConfigTable.key, LAST_FULL_SYNC_AT_KEY))
+      .limit(1);
+    if (rows.length === 0) return null;
+    const d = new Date(rows[0].value);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Exported for use by the auth route: triggers a full sync in background
+ * if data is stale (last sync > STALE_THRESHOLD_MS ago). Does not block the
+ * caller — fires-and-forgets.
+ */
+export function triggerFullSyncIfStale(): void {
+  if (isSyncing) {
+    log.debug("triggerFullSyncIfStale: sync already in progress, skipping");
+    return;
+  }
+
+  // Run the staleness check and conditional sync in the background
+  void (async () => {
+    try {
+      const lastSync = await getLastFullSyncAt();
+      const ageMs = lastSync ? Date.now() - lastSync.getTime() : Infinity;
+      if (ageMs < STALE_THRESHOLD_MS) {
+        log.debug("triggerFullSyncIfStale: data is fresh, skipping", { ageMinutes: Math.round(ageMs / 60000) });
+        return;
+      }
+      if (isSyncing) return;
+      isSyncing = true;
+      log.info("triggerFullSyncIfStale: data is stale, running background sync", { ageMinutes: Math.round(ageMs / 60000) });
+      try {
+        const result = await runCurrentRoundETL();
+        await persistLastFullSyncAt();
+        log.info("triggerFullSyncIfStale: sync complete", { round: result.round, errors: result.errors.length });
+        await autoSyncClosedRounds(result.round);
+        try {
+          await generateEtlNotifications(result.round);
+        } catch (notifError) {
+          log.warn("triggerFullSyncIfStale: generateEtlNotifications failed (non-fatal)", {
+            error: notifError instanceof Error ? notifError.message : String(notifError),
+          });
+        }
+      } catch (error) {
+        log.error("triggerFullSyncIfStale: sync failed", { error: error instanceof Error ? error.message : String(error) });
+      } finally {
+        isSyncing = false;
+      }
+    } catch (outer) {
+      log.warn("triggerFullSyncIfStale: staleness check failed", { error: outer instanceof Error ? outer.message : String(outer) });
+    }
+  })();
+}
+
 export function startSyncJob(): void {
   log.info(`Scheduling full sync with cron: "${FULL_SYNC_CRON}"`);
   log.info(`Scheduling market check with cron: "${MARKET_CHECK_CRON}"`);
@@ -202,6 +281,7 @@ export function startSyncJob(): void {
     log.info("Running scheduled round sync...");
     try {
       const result = await runCurrentRoundETL();
+      await persistLastFullSyncAt();
       log.info(
         `Sync complete for round ${result.round}. ` +
         `Players: ${result.playersUpserted}, Clubs: ${result.clubsUpserted}, ` +

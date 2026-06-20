@@ -12,6 +12,8 @@ import {
   useUpdateAdminConfig,
   type AdminLog,
 } from "@workspace/api-client-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useSyncStatus } from "@/components/AutoSync";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +26,9 @@ import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, Ale
 
 export default function Admin() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const syncStatus = useSyncStatus();
 
   const { data: logsData, isLoading: logsLoading, isError: logsError } = useGetAdminLogs({ limit: 20 });
   const { data: weightsData, isLoading: weightsLoading, isError: weightsError } = useGetProjectionWeights();
@@ -205,6 +210,17 @@ export default function Admin() {
           Administração
         </h1>
         <p className="text-muted-foreground mt-1">Gerencie pesos, pipelines de dados e logs do sistema.</p>
+        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3 shrink-0" />
+          {syncStatus.lastSyncAt
+            ? <>Última sincronização: <span className="font-medium text-foreground">{new Date(syncStatus.lastSyncAt).toLocaleString("pt-BR")}</span></>
+            : "Aguardando primeira sincronização..."}
+          {syncStatus.marketStatus && (
+            <Badge variant="outline" className={`ml-2 text-[10px] ${syncStatus.marketStatus === "open" ? "border-green-500/50 text-green-400" : "border-muted-foreground/30 text-muted-foreground"}`}>
+              Mercado {syncStatus.marketStatus === "open" ? "aberto" : "fechado"}
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -282,37 +298,39 @@ export default function Admin() {
                 </p>
               </div>
 
-              <div className="flex gap-3 flex-wrap">
-                <Button
-                  onClick={handleSaveWeights}
-                  disabled={updateWeights.isPending || weightsError}
-                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                  Salvar Pesos
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleRecalc}
-                  disabled={recalcProjections.isPending}
-                  className="flex-1 border border-border"
-                >
-                  {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Recalcular Agora
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setWeights(DEFAULT_WEIGHTS);
-                    toast({ title: "Pesos restaurados", description: "Valores voltaram ao padrão do sistema. Clique em Salvar para persistir." });
-                  }}
-                  className="border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/60"
-                  title="Restaurar valores padrão"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Restaurar Default
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-3 flex-wrap">
+                  <Button
+                    onClick={handleSaveWeights}
+                    disabled={updateWeights.isPending || weightsError}
+                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Salvar Pesos
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={handleRecalc}
+                    disabled={recalcProjections.isPending}
+                    className="flex-1 border border-border"
+                  >
+                    {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Recalcular Agora
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setWeights(DEFAULT_WEIGHTS);
+                      toast({ title: "Pesos restaurados", description: "Valores voltaram ao padrão do sistema. Clique em Salvar para persistir." });
+                    }}
+                    className="border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/60"
+                    title="Restaurar valores padrão"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Restaurar Default
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -322,41 +340,47 @@ export default function Admin() {
           <CardHeader className="bg-secondary/20 border-b border-border/50">
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="w-5 h-5 text-primary" />
-              Controles do Pipeline
+              {isAdmin ? "Controles do Pipeline" : "Status do Pipeline"}
             </CardTitle>
-            <CardDescription>Dispare ingestão manual de dados e veja o status dos provedores.</CardDescription>
+            <CardDescription>
+              {isAdmin
+                ? "Dispare ingestão manual de dados e veja o status dos provedores."
+                : "Sincronização automática ativa — dados atualizados a cada hora e no login."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 gap-3">
-              <Button
-                className="h-14 flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all shadow-lg shadow-primary/20"
-                onClick={() => handleSync("current-round")}
-                disabled={syncCurrentRound.isPending}
-              >
-                {syncCurrentRound.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-                <span className="font-bold">Sincronizar Rodada Atual</span>
-              </Button>
-              <div className="grid grid-cols-2 gap-3">
+            {isAdmin && (
+              <div className="grid grid-cols-1 gap-3">
                 <Button
-                  variant="outline"
-                  className="h-12 flex items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
-                  onClick={() => handleSync("full")}
-                  disabled={syncFull.isPending}
+                  className="h-14 flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all shadow-lg shadow-primary/20"
+                  onClick={() => handleSync("current-round")}
+                  disabled={syncCurrentRound.isPending}
                 >
-                  {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
-                  <span className="font-semibold text-sm">Sync Completo</span>
+                  {syncCurrentRound.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+                  <span className="font-bold">Sincronizar Rodada Atual</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-12 flex items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
-                  onClick={() => handleSync("market")}
-                  disabled={syncMarket.isPending}
-                >
-                  {syncMarket.isPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <Play className="w-4 h-4 text-accent" />}
-                  <span className="font-semibold text-sm">Sync Mercado</span>
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className="h-12 flex items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
+                    onClick={() => handleSync("full")}
+                    disabled={syncFull.isPending}
+                  >
+                    {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
+                    <span className="font-semibold text-sm">Sync Completo</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-12 flex items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
+                    onClick={() => handleSync("market")}
+                    disabled={syncMarket.isPending}
+                  >
+                    {syncMarket.isPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <Play className="w-4 h-4 text-accent" />}
+                    <span className="font-semibold text-sm">Sync Mercado</span>
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {lastSyncXgSummary && (
               <div className={`flex items-start gap-2 p-3 rounded-lg border text-sm ${
@@ -455,8 +479,8 @@ export default function Admin() {
         </Card>
       </div>
 
-      {/* xG Sync */}
-      <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
+      {/* xG Sync — admin only */}
+      {isAdmin && <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
         <CardHeader className="bg-secondary/20 border-b border-border/50">
           <CardTitle className="flex items-center gap-2 flex-wrap">
             <Zap className="w-5 h-5 text-yellow-400" />
@@ -516,10 +540,10 @@ export default function Admin() {
             Após sincronizar o xG, recalcule as projeções para atualizar goleiros e zagueiros com probabilidades de SG mais precisas.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
-      {/* Historical Round Sync */}
-      <Card className="bg-card shadow-lg border-border/50">
+      {/* Historical Round Sync — admin only */}
+      {isAdmin && <Card className="bg-card shadow-lg border-border/50">
         <CardHeader className="bg-secondary/20 border-b border-border/50">
           <CardTitle className="flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-blue-400" />
@@ -556,7 +580,7 @@ export default function Admin() {
             Após sincronizar, acesse o Histórico para ver os pontos reais vs. projetados no backtest de escalação.
           </p>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* System Logs */}
       <Card className="bg-card shadow-lg border-border/50">
