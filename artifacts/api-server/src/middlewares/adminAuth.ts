@@ -26,6 +26,15 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
 
   const isReadOnly = req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS";
 
+  // Mutating routes with ADMIN_SECRET: token alone is sufficient (no session required).
+  if (!isReadOnly && ADMIN_SECRET) {
+    const token = req.headers["x-admin-secret"] ?? req.query["adminSecret"];
+    if (token === ADMIN_SECRET) {
+      next();
+      return;
+    }
+  }
+
   // Any route requires at minimum an authenticated session.
   if (!req.isAuthenticated() || !req.user) {
     log.warn("Unauthenticated admin access attempt", { ip: req.ip, path: req.path, method: req.method });
@@ -43,7 +52,7 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
   if (ADMIN_SECRET) {
     const token = req.headers["x-admin-secret"] ?? req.query["adminSecret"];
     if (token !== ADMIN_SECRET) {
-      log.warn("Unauthorized admin mutation attempt (bad secret)", { ip: req.ip, path: req.path, userId: req.user.id });
+      log.warn("Unauthorized admin mutation attempt (bad secret)", { ip: req.ip, path: req.path, userId: req.user?.id });
       res.status(401).json({ error: "Unauthorized — admin secret required" });
       return;
     }
