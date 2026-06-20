@@ -115,9 +115,17 @@ export default function Conta() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Plano atual</p>
-              <p className="text-xs text-muted-foreground">Acesso às funcionalidades básicas</p>
+              <p className="text-xs text-muted-foreground">
+                {user.isPro
+                  ? "Acesso completo às funcionalidades Pro"
+                  : "Acesso às funcionalidades básicas"}
+              </p>
             </div>
-            <Badge variant="secondary">Gratuito</Badge>
+            {user.isPro ? (
+              <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">Pro</Badge>
+            ) : (
+              <Badge variant="secondary">Gratuito</Badge>
+            )}
           </div>
 
           <Separator />
