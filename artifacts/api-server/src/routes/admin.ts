@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable } from "@workspace/db/schema";
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable, usersTable, subscriptionsTable } from "@workspace/db/schema";
+import { desc, eq, gte, sql, and } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { runAvailabilityEngine } from "../engines/availabilityEngine";
@@ -517,6 +517,31 @@ router.get("/admin/funnel", async (req, res) => {
     log.error("Failed to fetch funnel data", { error: msg });
     res.status(500).json({ error: "Failed to fetch funnel data" });
   }
+});
+
+router.post("/users/grant-pro", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email) return res.status(400).json({ error: "email required" });
+
+  const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.userId, user.id));
+
+  const [sub] = await db.insert(subscriptionsTable).values({
+    userId: user.id,
+    plan: "pro",
+    status: "active",
+    provider: "admin",
+    externalId: `admin-${user.id}`,
+    currentPeriodEnd: oneYearFromNow,
+  }).returning();
+
+  log.info("Granted pro manually", { email, userId: user.id, subId: sub.id });
+  return res.json({ ok: true, subscription: sub });
 });
 
 export default router;

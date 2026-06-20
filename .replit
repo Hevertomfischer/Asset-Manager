@@ -27,3 +27,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.production]
+ADMIN_SECRET = "d57e3def972df33af899ec47e3933188ab0cae4ded75084e4dee50739b6f8f76"
