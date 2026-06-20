@@ -199,7 +199,7 @@ const PRICE_VARIATION_CAP = 0.15;    // capped at ±15%
 
 /**
  * Compute matchupScore from home/away advantage, club momentum (form array), and opponent defensive weakness.
- * When xG data (from Gato Mestre article) is provided, it overrides the form/history-based opponent weakness bonus.
+ * When xG data (from footystats) is provided, it overrides the form/history-based opponent weakness bonus.
  * Form array entries: "v"=win, "e"=draw, "d"=loss.
  */
 function computeMatchupScore(
@@ -342,7 +342,7 @@ async function calculateProjection(
   // Bounded to ±15% to avoid overweighting a single signal.
   const priceVariationMultiplier = 1 + clamp(priceVariation * PRICE_VARIATION_FACTOR, -PRICE_VARIATION_CAP, PRICE_VARIATION_CAP);
 
-  // cleanSheetProbability: when opponent xG is available from Gato Mestre article, use it directly.
+  // cleanSheetProbability: when opponent xG is available (from footystats), use it directly.
   // Lower opponent xG = higher clean sheet probability. Normalize: xG 0.5 → 0.7 prob, xG 1.35 → 0.35, xG 2.5 → 0.1
   const cleanSheetProbability = isDefensivePosition(player.position)
     ? opponentAttackXg != null

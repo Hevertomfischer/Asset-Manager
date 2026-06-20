@@ -2,7 +2,6 @@ import { db } from "@workspace/db";
 import { dataCollectionLogTable, playerScoutRoundTable } from "@workspace/db/schema";
 import { fetchMarket, fetchScouts } from "../providers/cartolaApiProvider";
 import { fetchProbables } from "../providers/geProbablesProvider";
-import { fetchPlayerStats } from "../providers/gatoMestreProvider";
 import { fetchHistoricalRound } from "../providers/historicalCartolaProvider";
 import { SCOUT_SCORING } from "../config/projectionWeights";
 import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
@@ -249,14 +248,6 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     const msg = error instanceof Error ? error.message : String(error);
     warnings.push(`Probables fetch degraded: ${msg}`);
     await logETL("etl", "probables", "degraded", msg);
-  }
-
-  // === Step 5: GatoMestre stats (best-effort) ===
-  try {
-    await fetchPlayerStats(round);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    warnings.push(`GatoMestre degraded: ${msg}`);
   }
 
   // === Step 6: Availability engine ===
