@@ -10,7 +10,7 @@ const ADMIN_SECRET = process.env["ADMIN_SECRET"];
  *
  *  Mode A — ADMIN_SECRET configured:
  *    GET requests pass with only session auth (any authenticated user may read).
- *    POST/PUT/PATCH/DELETE requests require the x-admin-secret header or ?adminSecret.
+ *    POST/PUT/PATCH/DELETE requests require the x-admin-secret header.
  *
  *  Mode B — ADMIN_SECRET not configured:
  *    GET requests require only session auth (any authenticated user may read).
@@ -26,9 +26,9 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
 
   const isReadOnly = req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS";
 
-  // Mutating routes with ADMIN_SECRET: token alone is sufficient (no session required).
+  // Mutating routes with ADMIN_SECRET: header token alone is sufficient (no session required).
   if (!isReadOnly && ADMIN_SECRET) {
-    const token = req.headers["x-admin-secret"] ?? req.query["adminSecret"];
+    const token = req.headers["x-admin-secret"];
     if (token === ADMIN_SECRET) {
       next();
       return;
@@ -50,7 +50,7 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
 
   // Mutating routes: require admin authorization.
   if (ADMIN_SECRET) {
-    const token = req.headers["x-admin-secret"] ?? req.query["adminSecret"];
+    const token = req.headers["x-admin-secret"];
     if (token !== ADMIN_SECRET) {
       log.warn("Unauthorized admin mutation attempt (bad secret)", { ip: req.ip, path: req.path, userId: req.user?.id });
       res.status(401).json({ error: "Unauthorized — admin secret required" });
