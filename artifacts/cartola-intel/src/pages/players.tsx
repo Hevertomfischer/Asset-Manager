@@ -145,7 +145,7 @@ export default function Players() {
 
     const getValue = (p: typeof filtered[0], col: SortColumn): number | string => {
       switch (col) {
-        case "name": return p.name ?? "";
+        case "name": return p.nickname ?? p.name ?? "";
         case "position": return p.position ?? "";
         case "price": return p.price ?? 0;
         case "averagePoints": return p.averagePoints ?? 0;

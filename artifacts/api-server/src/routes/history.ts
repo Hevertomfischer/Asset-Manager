@@ -42,6 +42,7 @@ router.get("/history/backtest", requirePro, async (req, res) => {
         expectedPoints: playerProjectionTable.expectedPoints,
         playProbability: playerProjectionTable.playProbability,
         playerName: playersTable.name,
+        playerNickname: playersTable.nickname,
         position: playersTable.position,
       })
       .from(playerProjectionTable)
@@ -93,6 +94,7 @@ router.get("/history/backtest", requirePro, async (req, res) => {
       compared.push({
         playerId: proj.playerId,
         name: proj.playerName ?? "Unknown",
+        nickname: proj.playerNickname ?? null,
         position: proj.position ?? "?",
         round: proj.round,
         projected: Number(projected.toFixed(2)),

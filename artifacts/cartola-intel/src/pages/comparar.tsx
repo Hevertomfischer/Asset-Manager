@@ -545,9 +545,6 @@ export default function Comparar() {
                         <span className="font-medium text-foreground">
                           {p.nickname ?? p.name}
                         </span>
-                        {p.nickname && (
-                          <span className="text-muted-foreground text-xs ml-1.5">{p.name}</span>
-                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getPositionColor(p.position ?? "")}`}>

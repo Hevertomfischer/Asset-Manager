@@ -142,7 +142,7 @@ function CandidateRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-            {player.name ?? "Desconhecido"}
+            {player.nickname ?? player.name ?? "Desconhecido"}
           </p>
           {isLowProb && (
             <AlertTriangle className="w-3 h-3 text-yellow-500 shrink-0" />
@@ -306,7 +306,7 @@ export function SwapSimulator({
                   {outPlayer.position}
                 </Badge>
                 <span className="text-xs text-muted-foreground truncate">
-                  {outPlayer.name}
+                  {outPlayer.nickname ?? outPlayer.name}
                 </span>
               </div>
             </div>
@@ -386,7 +386,7 @@ export function SwapSimulator({
                 <div className="flex-1 min-w-0 text-center">
                   <p className="text-[10px] text-muted-foreground mb-0.5">Saindo</p>
                   <p className="text-sm font-bold text-foreground truncate">
-                    {outPlayer.name}
+                    {outPlayer.nickname ?? outPlayer.name}
                   </p>
                   <p className="text-[10px] font-mono text-muted-foreground">
                     C$ {(outPlayer.price ?? 0).toFixed(2)}
@@ -396,7 +396,7 @@ export function SwapSimulator({
                 <div className="flex-1 min-w-0 text-center">
                   <p className="text-[10px] text-muted-foreground mb-0.5">Entrando</p>
                   <p className="text-sm font-bold text-primary truncate">
-                    {selectedCandidate.name}
+                    {selectedCandidate.nickname ?? selectedCandidate.name}
                   </p>
                   <p className="text-[10px] font-mono text-muted-foreground">
                     C$ {(selectedCandidate.price ?? 0).toFixed(2)}

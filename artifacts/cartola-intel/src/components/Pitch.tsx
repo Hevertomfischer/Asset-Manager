@@ -50,7 +50,7 @@ export const Pitch: FC<PitchProps> = ({ formation, players }) => {
       
       <div className="mt-1 flex flex-col items-center bg-black/60 backdrop-blur-md rounded-md px-1.5 py-0.5 border border-white/10 w-full">
         <span className="text-[10px] font-bold text-white truncate w-full text-center tracking-tight">
-          {player.name.split(' ')[0]}
+          {player.nickname ?? player.name.split(' ')[0]}
         </span>
         <div className="flex gap-1 items-center mt-0.5">
           <span className={`text-[9px] font-mono px-1 rounded-sm ${getPositionColor(player.position)}`}>

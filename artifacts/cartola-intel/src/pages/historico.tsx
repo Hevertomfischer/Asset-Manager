@@ -23,6 +23,7 @@ import {
 interface BacktestPlayer {
   playerId: number;
   name: string;
+  nickname: string | null;
   position: string;
   round: number;
   projected: number;
@@ -143,7 +144,7 @@ function PlayerRow({ player, rank, isGood }: { player: BacktestPlayer; rank: num
     <div className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
       <span className="text-xs text-muted-foreground font-mono w-5">#{rank}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{player.name}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{player.nickname ?? player.name}</p>
         <p className="text-[10px] text-muted-foreground">Rodada {player.round}</p>
       </div>
       <Badge variant="outline" className={`text-[10px] font-mono shrink-0 ${getPositionColor(player.position)}`}>
@@ -273,7 +274,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
                         <div className="flex items-center gap-2">
                           {p.isCaptain && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
                           <div>
-                            <p className="font-semibold text-foreground leading-tight">{p.name}</p>
+                            <p className="font-semibold text-foreground leading-tight">{p.nickname ?? p.name}</p>
                             <p className="text-[10px] text-muted-foreground">
                               {p.clubAbbr ?? p.clubName ?? ""}
                               {p.isCaptain && <span className="ml-1 text-yellow-500 font-bold">× 2</span>}

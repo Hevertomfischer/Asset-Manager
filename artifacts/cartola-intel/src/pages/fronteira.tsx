@@ -188,7 +188,7 @@ function TierCard({
           <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
             <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-yellow-500 truncate">{captain.name}</p>
+              <p className="text-xs font-bold text-yellow-500 truncate">{captain.nickname ?? captain.name}</p>
               <p className="text-[10px] text-muted-foreground">
                 {captain.position} · {captain.expectedPoints.toFixed(1)} pts
               </p>
@@ -207,7 +207,7 @@ function TierCard({
                 >
                   {p.position}
                 </Badge>
-                <span className="text-muted-foreground truncate">{p.name}</span>
+                <span className="text-muted-foreground truncate">{p.nickname ?? p.name}</span>
               </div>
               <span className="font-mono text-primary shrink-0 text-[11px]">
                 {p.expectedPoints.toFixed(1)}
@@ -224,7 +224,7 @@ function TierCard({
                 >
                   TEC
                 </Badge>
-                <span className="text-muted-foreground truncate">{coach.name}</span>
+                <span className="text-muted-foreground truncate">{coach.nickname ?? coach.name}</span>
               </div>
               <span className="font-mono text-primary shrink-0 text-[11px]">
                 {coach.expectedPoints.toFixed(1)}
