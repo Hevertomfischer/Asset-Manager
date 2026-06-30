@@ -33,7 +33,7 @@ import {
   GitFork,
   Zap,
 } from "lucide-react";
-import { getPositionColor } from "@/hooks/use-custom-api";
+import { PlayerCard } from "@/components/PlayerCard";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -199,36 +199,29 @@ function TierCard({
         {/* Players list */}
         <div className="space-y-1.5">
           {visiblePlayers.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Badge
-                  variant="outline"
-                  className={`text-[9px] shrink-0 px-1.5 py-0 font-bold ${getPositionColor(p.position)}`}
-                >
-                  {p.position}
-                </Badge>
-                <span className="text-muted-foreground truncate">{p.nickname ?? p.name}</span>
-              </div>
-              <span className="font-mono text-primary shrink-0 text-[11px]">
-                {p.expectedPoints.toFixed(1)}
-              </span>
-            </div>
+            <PlayerCard
+              key={p.id}
+              variant="compact"
+              player={{
+                name: p.name,
+                nickname: p.nickname,
+                position: p.position,
+                expectedPoints: p.expectedPoints,
+              }}
+            />
           ))}
 
           {isExpanded && coach && (
-            <div className="flex items-center justify-between gap-2 text-xs mt-1 pt-1 border-t border-border/30">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Badge
-                  variant="outline"
-                  className={`text-[9px] shrink-0 px-1.5 py-0 font-bold ${getPositionColor("TEC")}`}
-                >
-                  TEC
-                </Badge>
-                <span className="text-muted-foreground truncate">{coach.nickname ?? coach.name}</span>
-              </div>
-              <span className="font-mono text-primary shrink-0 text-[11px]">
-                {coach.expectedPoints.toFixed(1)}
-              </span>
+            <div className="mt-1 pt-1 border-t border-border/30">
+              <PlayerCard
+                variant="compact"
+                player={{
+                  name: coach.name,
+                  nickname: coach.nickname,
+                  position: coach.position,
+                  expectedPoints: coach.expectedPoints,
+                }}
+              />
             </div>
           )}
         </div>

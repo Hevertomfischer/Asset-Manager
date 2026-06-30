@@ -14,20 +14,14 @@ import { ProGate } from "@/components/ProGate";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useTrack } from "@/hooks/useTrack";
-import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
+import { type ExplanationJson, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
 import { LineupProbabilities } from "@/components/LineupProbabilities";
 import type { Player } from "@workspace/api-client-react";
+import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
 
-const chipClass: Record<InsightKind, string> = {
-  positive: "bg-green-500/10 text-green-500 border-green-500/20",
-  warning:  "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  info:     "bg-blue-400/10 text-blue-400 border-blue-400/20",
-  neutral:  "bg-secondary text-muted-foreground border-border/50",
-};
-
-function PlayerCard({
+function LineupPlayerCard({
   player,
   captainId,
   coachId,
@@ -89,21 +83,7 @@ function PlayerCard({
 
       {!isCoach && (
         <div className="mt-2 pt-2 border-t border-border/30 flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex flex-wrap gap-1">
-            {topBadges.map((badge) =>
-              badge.requiresPro ? (
-                <ProGate key={badge.label} variant="inline">
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
-                    {badge.label}
-                  </span>
-                </ProGate>
-              ) : (
-                <span key={badge.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
-                  {badge.label}
-                </span>
-              )
-            )}
-          </div>
+          <PlayerBadges badges={topBadges} />
           <div className="flex items-center gap-1">
             {onSwapRequest && (
               <button
@@ -128,14 +108,6 @@ function PlayerCard({
 }
 
 function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
-  const posLabel =
-    reserve.position === "GOL" ? "Goleiro"
-    : reserve.position === "ZAG" ? "Zagueiro"
-    : reserve.position === "LAT" ? "Lateral"
-    : reserve.position === "MEI" ? "Meia"
-    : reserve.position === "ATA" ? "Atacante"
-    : reserve.position ?? "?";
-
   return (
     <div
       className={`p-3 rounded-xl border transition-all ${
@@ -144,25 +116,25 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
           : "border-border/40 bg-card/60"
       }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="min-w-0">
-          <p className="font-semibold text-xs text-foreground truncate">{reserve.nickname ?? reserve.name ?? "Desconhecido"}</p>
-          <p className="text-[10px] text-muted-foreground">{reserve.clubAbbr ?? reserve.clubName ?? ""}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <Badge variant="outline" className={`font-mono text-[10px] ${getPositionColor(reserve.position ?? "")}`}>
-            {reserve.position}
-          </Badge>
-          {reserve.isLuxuryReserve && (
-            <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider">Luxo</span>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center justify-between text-[10px]">
+      <PlayerCard
+        variant="compact"
+        player={{
+          name: reserve.name ?? "Desconhecido",
+          nickname: reserve.nickname,
+          position: reserve.position,
+          club: {
+            abbreviation: reserve.clubAbbr ?? reserve.clubName ?? undefined,
+          },
+          expectedPoints: reserve.expectedPoints,
+        }}
+      >
+        {reserve.isLuxuryReserve && (
+          <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider shrink-0">Luxo</span>
+        )}
+      </PlayerCard>
+      <div className="flex items-center justify-between text-[10px] mt-1.5">
         <span className="text-muted-foreground">C$ {(reserve.price ?? 0).toFixed(2)}</span>
-        <span className="font-bold text-primary font-mono">{(reserve.expectedPoints ?? 0).toFixed(1)} pts</span>
       </div>
-      <p className="text-[9px] text-muted-foreground mt-1 opacity-70">{posLabel}</p>
     </div>
   );
 }
@@ -527,7 +499,7 @@ export default function Lineup() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {players.map((p) => (
-                        <PlayerCard
+                        <LineupPlayerCard
                           key={p.playerId}
                           player={p}
                           captainId={currentLineup.captainPlayerId}
@@ -548,7 +520,7 @@ export default function Lineup() {
                     <span className="text-xs text-muted-foreground">Técnico</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    <PlayerCard
+                    <LineupPlayerCard
                       player={coachPlayer}
                       captainId={currentLineup.captainPlayerId}
                       coachId={currentLineup.coachPlayerId}

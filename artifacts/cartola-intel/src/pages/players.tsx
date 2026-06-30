@@ -8,44 +8,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
-import { type ExplanationJson, type InsightKind, getTopBadges } from "@/lib/explainPlayer";
+import { type ExplanationJson, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-
-const chipClass: Record<InsightKind, string> = {
-  positive: "bg-green-500/10 text-green-500 border-green-500/20",
-  warning:  "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  info:     "bg-blue-400/10 text-blue-400 border-blue-400/20",
-  neutral:  "bg-secondary text-muted-foreground border-border/50",
-};
-
-function PlayerBadges({ exp }: { exp: ExplanationJson }) {
-  const badges = getTopBadges(exp);
-  if (badges.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-1 mt-0.5">
-      {badges.map((badge) =>
-        badge.requiresPro ? (
-          <ProGate key={badge.label} variant="inline">
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
-              {badge.label}
-            </span>
-          </ProGate>
-        ) : (
-          <span key={badge.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${chipClass[badge.kind]}`}>
-            {badge.label}
-          </span>
-        )
-      )}
-    </div>
-  );
-}
+import { PlayerCard } from "@/components/PlayerCard";
 
 type SortColumn =
   | "name"
@@ -404,27 +375,24 @@ export default function Players() {
                   return (
                     <TableRow key={player.id} className="hover:bg-secondary/20 transition-colors cursor-pointer group border-b-border/30">
                       <TableCell className="py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-9 h-9 border border-border">
-                            <AvatarImage src={player.club?.badgeUrl ?? undefined} />
-                            <AvatarFallback className="bg-secondary text-xs">{player.club?.abbreviation || '??'}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">{player.nickname ?? player.name}</p>
-                              {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
-                              <PlayerExplanationSheet
-                                exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
-                                playerName={player.nickname ?? player.name ?? ""}
-                                position={player.position ?? undefined}
-                                minimoParaValorizar={player.minimoParaValorizar}
-                                baseAverage={player.baseAverage}
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground">{player.club?.name}</p>
-                            <PlayerBadges exp={(player.projection?.explanationJson ?? {}) as ExplanationJson} />
-                          </div>
-                        </div>
+                        <PlayerCard
+                          variant="full"
+                          player={{
+                            name: player.name ?? "",
+                            nickname: player.nickname,
+                            club: player.club,
+                          }}
+                          badges={getTopBadges((player.projection?.explanationJson ?? {}) as ExplanationJson)}
+                        >
+                          {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                          <PlayerExplanationSheet
+                            exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
+                            playerName={player.nickname ?? player.name ?? ""}
+                            position={player.position ?? undefined}
+                            minimoParaValorizar={player.minimoParaValorizar}
+                            baseAverage={player.baseAverage}
+                          />
+                        </PlayerCard>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`font-mono text-[10px] ${getPositionColor(player.position)} border`}>
