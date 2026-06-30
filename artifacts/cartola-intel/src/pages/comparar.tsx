@@ -297,6 +297,246 @@ function PlayerHeader({
   );
 }
 
+// ── Mobile metric row (label → value, list format) ────────────────────────────
+
+function MobileMetric({
+  label,
+  rawValue,
+  isBest,
+}: {
+  label: string;
+  rawValue: string | null;
+  isBest: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border/15 last:border-0">
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      {rawValue == null ? (
+        <span className="text-muted-foreground/30 text-xs">—</span>
+      ) : (
+        <span
+          className={`font-mono text-sm font-semibold ${
+            isBest ? "text-emerald-400" : "text-foreground/80"
+          }`}
+        >
+          {rawValue}
+          {isBest && <span className="ml-1 text-emerald-400/70 text-[9px]">▲</span>}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Mobile player card ─────────────────────────────────────────────────────────
+
+interface MobileVals {
+  expectedPoints: (number | null)[];
+  ceilingPoints: (number | null)[];
+  floorPoints: (number | null)[];
+  riskScore: (number | null)[];
+  valueScore: (number | null)[];
+  prices: (number | null)[];
+  formScore: (number | null)[];
+  matchupScore: (number | null)[];
+  differentialScore: (number | null)[];
+  recommendationScore: (number | null)[];
+  scouts: Record<string, number[]>;
+}
+
+function MobilePlayerCard({
+  player,
+  idx,
+  seals,
+  onRemove,
+  showScouts,
+  onToggleScouts,
+  vals,
+  visibleScouts,
+}: {
+  player: Player;
+  idx: number;
+  seals: SealKind[];
+  onRemove: () => void;
+  showScouts: boolean;
+  onToggleScouts: () => void;
+  vals: MobileVals;
+  visibleScouts: typeof SCOUT_DISPLAY;
+}) {
+  const posColor = getPositionColor(player.position ?? "");
+
+  function isBest(arr: (number | null | undefined)[], lowerIsBetter = false) {
+    return findBest(arr, lowerIsBetter) === idx;
+  }
+
+  function fmtVal(v: number | null | undefined, fmt: (n: number) => string): string | null {
+    return v == null ? null : fmt(v);
+  }
+
+  const recVal = vals.recommendationScore[idx] ?? null;
+  const recBest = isBest(vals.recommendationScore);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-start gap-3 p-4 pb-3 border-b border-border/30">
+        {player.club?.badgeUrl && (
+          <img
+            src={player.club.badgeUrl}
+            alt={player.club.name ?? ""}
+            className="w-12 h-12 object-contain drop-shadow shrink-0 mt-0.5"
+          />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold text-base text-foreground leading-tight truncate">
+                {player.nickname ?? player.name}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {player.club?.abbreviation ?? player.club?.name ?? "—"}
+              </p>
+            </div>
+            <button
+              onClick={onRemove}
+              className="w-6 h-6 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors shrink-0"
+              title="Remover"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${posColor}`}>
+              {player.position}
+            </span>
+            <span className="text-xs font-mono text-muted-foreground">
+              C$ {(player.price ?? 0).toFixed(1)}
+            </span>
+          </div>
+          {seals.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {seals.map((s) => <Seal key={s} kind={s} />)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sparkline */}
+      <div className="px-4 py-3 border-b border-border/20">
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">
+          Forma recente · últimas 5 projeções
+        </p>
+        <Sparkline playerId={player.id} />
+      </div>
+
+      {/* Core metrics */}
+      <div className="px-4 py-1">
+        <MobileMetric
+          label="Projeção"
+          rawValue={fmtVal(vals.expectedPoints[idx], (v) => v.toFixed(1) + " pts")}
+          isBest={isBest(vals.expectedPoints)}
+        />
+        <MobileMetric
+          label="Teto"
+          rawValue={fmtVal(vals.ceilingPoints[idx], (v) => v.toFixed(1) + " pts")}
+          isBest={isBest(vals.ceilingPoints)}
+        />
+        <MobileMetric
+          label="Piso"
+          rawValue={fmtVal(vals.floorPoints[idx], (v) => v.toFixed(1) + " pts")}
+          isBest={isBest(vals.floorPoints)}
+        />
+        <MobileMetric
+          label="Risco"
+          rawValue={fmtVal(vals.riskScore[idx], (v) => (v * 100).toFixed(0) + "%")}
+          isBest={isBest(vals.riskScore, true)}
+        />
+        <MobileMetric
+          label="Custo-benef."
+          rawValue={fmtVal(vals.valueScore[idx], (v) => v.toFixed(2))}
+          isBest={isBest(vals.valueScore)}
+        />
+        <MobileMetric
+          label="Preço"
+          rawValue={fmtVal(vals.prices[idx], (v) => `C$ ${v.toFixed(1)}`)}
+          isBest={isBest(vals.prices, true)}
+        />
+        <MobileMetric
+          label="Forma (score)"
+          rawValue={fmtVal(vals.formScore[idx], (v) => v.toFixed(1) + " pts")}
+          isBest={isBest(vals.formScore)}
+        />
+      </div>
+
+      {/* Advanced metrics (Pro-gated) */}
+      <div className="px-4">
+        <ProGate message="Indicadores avançados de confronto e potencial diferencial">
+          <div className="border-t border-border/20 pt-1">
+            <MobileMetric
+              label="Confronto"
+              rawValue={fmtVal(vals.matchupScore[idx], (v) => `×${v.toFixed(2)}`)}
+              isBest={isBest(vals.matchupScore)}
+            />
+            <MobileMetric
+              label="Diferencial"
+              rawValue={fmtVal(vals.differentialScore[idx], (v) => v.toFixed(1))}
+              isBest={isBest(vals.differentialScore)}
+            />
+          </div>
+        </ProGate>
+      </div>
+
+      {/* Score geral */}
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 bg-primary/[0.03] mt-1">
+        <span className="text-xs font-semibold text-foreground">Score geral</span>
+        {recVal != null ? (
+          <span
+            className={`font-mono text-base font-bold ${
+              recBest ? "text-emerald-400" : "text-foreground/70"
+            }`}
+          >
+            {recVal.toFixed(1)}
+            {recBest && <span className="ml-1 text-[10px] text-emerald-400/70">▲</span>}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30 text-xs">—</span>
+        )}
+      </div>
+
+      {/* Scouts toggle */}
+      <div className="px-4 pt-3 pb-4 border-t border-border/30">
+        <button
+          onClick={onToggleScouts}
+          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+        >
+          {showScouts ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )}
+          {showScouts ? "Ver menos" : "Ver mais informações"}
+          <span className="text-muted-foreground/60 font-normal">— scouts da temporada</span>
+        </button>
+
+        {showScouts && (
+          <div className="mt-3 pt-2 border-t border-border/20">
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/60 pb-2 border-b border-border/20 mb-1">
+              Scouts acumulados na temporada
+            </p>
+            {visibleScouts.map((s) => (
+              <MobileMetric
+                key={s.key}
+                label={s.label}
+                rawValue={(vals.scouts[s.key]?.[idx] ?? 0).toFixed(0)}
+                isBest={isBest(vals.scouts[s.key] ?? [], s.lowerIsBetter)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Empty comparison prompt ───────────────────────────────────────────────────
 
 function EmptyPrompt() {
@@ -318,7 +558,9 @@ export default function Comparar() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showScouts, setShowScouts] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
   const searchRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
 
@@ -440,6 +682,36 @@ export default function Comparar() {
       }),
     [selectedPositions]
   );
+
+  // ── Pre-computed value arrays for mobile carousel ──────────────────────────
+  const mobileVals = useMemo(() => ({
+    expectedPoints: selectedPlayers.map((p) => p.projection?.expectedPoints ?? null),
+    ceilingPoints:  selectedPlayers.map((p) => p.projection?.ceilingPoints  ?? null),
+    floorPoints:    selectedPlayers.map((p) => p.projection?.floorPoints    ?? null),
+    riskScore:      selectedPlayers.map((p) => p.projection?.riskScore      ?? null),
+    valueScore:     selectedPlayers.map((p) => p.projection?.valueScore     ?? null),
+    prices:         selectedPlayers.map((p) => p.price                       ?? null),
+    formScore:      selectedPlayers.map((p) => (p.projection?.explanationJson as ExpJson)?.formScore ?? null),
+    matchupScore:   selectedPlayers.map((p) => (p.projection?.explanationJson as ExpJson)?.matchupScore ?? null),
+    differentialScore: selectedPlayers.map((p) => (p.projection?.explanationJson as ExpJson)?.differentialScore ?? null),
+    recommendationScore: selectedPlayers.map((p) => p.projection?.recommendationScore ?? null),
+    scouts: Object.fromEntries(
+      SCOUT_DISPLAY.map((s) => [
+        s.key,
+        selectedPlayers.map((p) => {
+          const sc = (p as unknown as { cumulativeScouts?: CumulativeScouts }).cumulativeScouts;
+          const v = sc?.[s.key];
+          return typeof v === "number" ? v : 0;
+        }),
+      ])
+    ) as Record<string, number[]>,
+  }), [selectedPlayers]);
+
+  // Reset carousel position when players are added/removed
+  useEffect(() => {
+    setActiveSlide(0);
+    carouselRef.current?.scrollTo({ left: 0, behavior: "auto" });
+  }, [selectedPlayers.length]);
 
   // ── Dummy blurred rows for ProGate overlay ─────────────────────────────────
   const dummyRows = (
@@ -582,11 +854,72 @@ export default function Comparar() {
         </div>
       </Card>
 
-      {/* ── Comparison table ─────────────────────────────────────────────────── */}
+      {/* ── Comparison ───────────────────────────────────────────────────────── */}
       {selectedPlayers.length < 2 ? (
         <EmptyPrompt />
       ) : (
-        <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
+        <>
+          {/* ── Mobile: scroll-snap carousel (< md) ─────────────────────────── */}
+          <div className="md:hidden space-y-4">
+            {/* Carousel track */}
+            <div
+              ref={carouselRef}
+              onScroll={() => {
+                const el = carouselRef.current;
+                if (!el || el.clientWidth === 0) return;
+                setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
+              }}
+              className="flex overflow-x-auto snap-x snap-mandatory"
+              style={{ scrollbarWidth: "none" } as React.CSSProperties}
+            >
+              {selectedPlayers.map((player, idx) => (
+                <div key={player.id} className="snap-start w-full shrink-0">
+                  <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
+                    <MobilePlayerCard
+                      player={player}
+                      idx={idx}
+                      seals={sealMap.get(player.id) ?? []}
+                      onRemove={() => removePlayer(player.id)}
+                      showScouts={showScouts}
+                      onToggleScouts={() => setShowScouts((v) => !v)}
+                      vals={mobileVals}
+                      visibleScouts={visibleScouts}
+                    />
+                  </Card>
+                </div>
+              ))}
+            </div>
+
+            {/* Dot indicators */}
+            <div className="flex justify-center items-center gap-2">
+              {selectedPlayers.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() =>
+                    carouselRef.current?.scrollTo({
+                      left: i * carouselRef.current.clientWidth,
+                      behavior: "smooth",
+                    })
+                  }
+                  className={`h-2 rounded-full transition-all duration-200 ${
+                    i === activeSlide
+                      ? "w-5 bg-primary"
+                      : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                  }`}
+                  aria-label={`Jogador ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Legend */}
+            <p className="text-center text-[11px] text-muted-foreground/50">
+              <span className="text-emerald-400 font-bold">▲</span>{" "}
+              = melhor valor · Risco e Preço: menor é melhor.
+            </p>
+          </div>
+
+          {/* ── Desktop: full table (≥ md) ───────────────────────────────────── */}
+          <Card className="hidden md:block bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse table-fixed">
 
@@ -772,6 +1105,7 @@ export default function Comparar() {
             <span>Score geral: 0–100, gerado pelo modelo.</span>
           </div>
         </Card>
+        </>
       )}
 
     </div>
