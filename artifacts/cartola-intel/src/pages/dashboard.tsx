@@ -26,6 +26,7 @@ import {
   Bomb,
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
 import { Link } from "react-router-dom";
 
 type PlayerField = string | number | boolean | null | undefined;
@@ -117,24 +118,16 @@ export default function Dashboard() {
     (p.explanationJson ?? {}) as Record<string, unknown>;
 
   const diferenciais = projections
-    .filter((p) => {
-      const exp = getExplanation(p);
-      const ds = (exp.differentialScore as number | undefined) ?? 0;
-      const pp = p.playProbability ?? 0;
-      return ds > 0 && pp >= 0.7;
-    })
+    .filter((p) => isDifferentialPlayer(getExplanation(p) as ExplanationJson))
     .sort((a, b) => {
-      const dsA = (getExplanation(a).differentialScore as number | undefined) ?? 0;
-      const dsB = (getExplanation(b).differentialScore as number | undefined) ?? 0;
-      return dsB - dsA;
+      const popA = (getExplanation(a).popularity as number | undefined) ?? 1;
+      const popB = (getExplanation(b).popularity as number | undefined) ?? 1;
+      return popA - popB; // menor escalação = mais diferencial
     })
     .slice(0, 5);
 
   const armadilhas = projections
-    .filter((p) => {
-      const exp = getExplanation(p);
-      return exp.isTrap === true;
-    })
+    .filter((p) => isTrapPlayer(getExplanation(p) as ExplanationJson))
     .sort((a, b) => {
       const popA = (getExplanation(a).popularity as number | undefined) ?? 0;
       const popB = (getExplanation(b).popularity as number | undefined) ?? 0;
@@ -455,12 +448,12 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {diferenciais.map((p) => {
-                  const exp = getExplanation(p);
-                  const ds = (exp.differentialScore as number | undefined) ?? 0;
-                  const pop = (exp.popularity as number | undefined) ?? 0;
+                  const exp = getExplanation(p) as ExplanationJson;
+                  const pop = exp.popularity ?? 0;
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
+                  const badges = getTopBadges(exp);
                   return (
                     <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-accent/20 bg-accent/5">
                       <div className="flex items-center gap-3">
@@ -472,12 +465,23 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">
                             {clubName ?? "—"} · {position ? <Badge variant="outline" className={`font-mono text-[9px] px-1 py-0 ${getPositionColor(position)} border`}>{position}</Badge> : null}
                           </p>
+                          {badges.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {badges.map((b) => (
+                                <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${
+                                  b.kind === "positive" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" :
+                                  b.kind === "warning"  ? "text-orange-400 bg-orange-400/10 border-orange-400/25" :
+                                  b.kind === "info"     ? "text-blue-400 bg-blue-400/10 border-blue-400/25" :
+                                                          "text-muted-foreground bg-secondary border-border"
+                                }`}>{b.label}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
                         <p className="text-[10px] text-muted-foreground">escal.: {(pop * 100).toFixed(0)}%</p>
-                        <p className="text-[10px] text-muted-foreground">dif.: {ds.toFixed(0)}</p>
                       </div>
                     </div>
                   );
@@ -496,13 +500,12 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {armadilhas.map((p) => {
-                  const exp = getExplanation(p);
-                  const pop = (exp.popularity as number | undefined) ?? 0;
-                  const shortAvg = (exp.shortAvg as number | undefined) ?? 0;
-                  const mediumAvg = (exp.mediumAvg as number | undefined) ?? 0;
+                  const exp = getExplanation(p) as ExplanationJson;
+                  const pop = exp.popularity ?? 0;
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
+                  const badges = getTopBadges(exp);
                   return (
                     <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-destructive/20 bg-destructive/5">
                       <div className="flex items-center gap-3">
@@ -514,13 +517,23 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">
                             {clubName ?? "—"} · {position}
                           </p>
+                          {badges.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {badges.map((b) => (
+                                <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${
+                                  b.kind === "positive" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" :
+                                  b.kind === "warning"  ? "text-orange-400 bg-orange-400/10 border-orange-400/25" :
+                                  b.kind === "info"     ? "text-blue-400 bg-blue-400/10 border-blue-400/25" :
+                                                          "text-muted-foreground bg-secondary border-border"
+                                }`}>{b.label}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-destructive">{(pop * 100).toFixed(0)}% escalado</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          forma: {shortAvg.toFixed(1)} vs {mediumAvg.toFixed(1)}
-                        </p>
+                        <p className="text-[10px] text-muted-foreground">{p.expectedPoints?.toFixed(1)} pts proj.</p>
                       </div>
                     </div>
                   );

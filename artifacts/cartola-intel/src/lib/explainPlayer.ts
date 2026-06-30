@@ -59,6 +59,21 @@ export interface Options {
   isCaptain?: boolean;
 }
 
+/**
+ * True se o jogador qualifica como diferencial — popularidade abaixo do limiar
+ * documentado (< 15%) e não é classificado como armadilha.
+ */
+export function isDifferentialPlayer(exp: ExplanationJson): boolean {
+  return (exp.popularity ?? 1) < 0.15 && !exp.isTrap;
+}
+
+/**
+ * True se o jogador qualifica como armadilha (popular + queda de forma).
+ */
+export function isTrapPlayer(exp: ExplanationJson): boolean {
+  return exp.isTrap === true;
+}
+
 export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Options = {}): Insight[] {
   const insights: Insight[] = [];
 
@@ -68,7 +83,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   }
 
   // --- Armadilha (popular + queda de forma) — PRO-ONLY ---------
-  if (exp.isTrap) {
+  if (isTrapPlayer(exp)) {
     insights.push({
       text: "Popular mas com queda de forma — risco de armadilha",
       kind: "warning",
@@ -154,7 +169,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   }
 
   // --- Diferencial (baixa escalação) — PRO-ONLY ----------------
-  if ((exp.popularity ?? 1) < 0.15 && !exp.isTrap) {
+  if (isDifferentialPlayer(exp)) {
     // Threshold: < 15% de escalação geral — jogador diferencial
     insights.push({
       text: `Diferencial: ${Math.round((exp.popularity ?? 0) * 100)}% de escalação`,
