@@ -35,6 +35,12 @@ function getPlayerField(proj: ProjectionItem, field: string): PlayerField {
   return p ? (p[field] as PlayerField) : null;
 }
 
+function getPlayerName(proj: ProjectionItem): string {
+  const p = proj.player as Record<string, unknown> | null | undefined;
+  if (!p) return "—";
+  return ((p["nickname"] as string | null | undefined) ?? (p["name"] as string | null | undefined)) ?? "—";
+}
+
 function getNestedField(proj: ProjectionItem, parent: string, field: string): PlayerField {
   const p = proj.player as Record<string, unknown> | null | undefined;
   if (!p) return null;
@@ -359,7 +365,7 @@ export default function Dashboard() {
                               <span className="text-xs font-bold text-muted-foreground w-3">{idx + 1}</span>
                               <div className="truncate">
                                 <p className="font-semibold text-sm truncate text-foreground">
-                                  {getPlayerField(p, "name") as string}
+                                  {getPlayerName(p)}
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {getNestedField(p, "club", "name") as string}
@@ -407,7 +413,7 @@ export default function Dashboard() {
                 {riskAlerts.map((alert) => {
                   const numProb = alert.playProbability ?? 0;
                   const riskScore = alert._proj?.riskScore ?? null;
-                  const playerName = (alert._player?.["name"] as string | undefined) ?? "Desconhecido";
+                  const playerName = (alert._player?.["nickname"] as string | undefined) ?? (alert._player?.["name"] as string | undefined) ?? "Desconhecido";
                   const clubName = (alert._player?.["club"] as Record<string, unknown> | undefined)?.["name"] as string | undefined;
                   const position = (alert._player?.["position"] as string | undefined) ?? "";
                   return (
@@ -452,7 +458,7 @@ export default function Dashboard() {
                   const exp = getExplanation(p);
                   const ds = (exp.differentialScore as number | undefined) ?? 0;
                   const pop = (exp.popularity as number | undefined) ?? 0;
-                  const name = getPlayerField(p, "name") as string | undefined;
+                  const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
                   return (
@@ -494,7 +500,7 @@ export default function Dashboard() {
                   const pop = (exp.popularity as number | undefined) ?? 0;
                   const shortAvg = (exp.shortAvg as number | undefined) ?? 0;
                   const mediumAvg = (exp.mediumAvg as number | undefined) ?? 0;
-                  const name = getPlayerField(p, "name") as string | undefined;
+                  const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
                   return (

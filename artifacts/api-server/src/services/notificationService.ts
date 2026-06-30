@@ -81,6 +81,7 @@ export async function generateEtlNotifications(round: number): Promise<void> {
     .select({
       playerId: playerProjectionTable.playerId,
       name: playersTable.name,
+      nickname: playersTable.nickname,
       position: playersTable.position,
       price: playersTable.price,
       priceVariation: playersTable.priceVariation,
@@ -96,7 +97,7 @@ export async function generateEtlNotifications(round: number): Promise<void> {
   let created = 0;
 
   for (const r of rows) {
-    const name = r.name ?? "Jogador";
+    const name = r.nickname ?? r.name ?? "Jogador";
     const pos = r.position ?? "";
     const rec = r.recommendationScore ?? 0;
     const prob = r.playProbability ?? 1;
