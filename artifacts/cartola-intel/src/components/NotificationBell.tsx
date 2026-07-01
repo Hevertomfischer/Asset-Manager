@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,6 +12,7 @@ import {
   Clock,
   Loader2,
   BellOff,
+  User,
 } from "lucide-react";
 import {
   Popover,
@@ -70,6 +71,13 @@ function timeAgo(iso: string): string {
   }
 }
 
+/** Sort priority: personal-unread → global-unread → read (stable within each group). */
+function sortPriority(n: AppNotification): number {
+  if (n.readAt === null && n.userId !== null) return 0;
+  if (n.readAt === null && n.userId === null) return 1;
+  return 2;
+}
+
 // ── NotificationItem ──────────────────────────────────────────────────────────
 
 function NotificationItem({
@@ -80,11 +88,14 @@ function NotificationItem({
   onRead: (id: number) => void;
 }) {
   const isUnread = notification.readAt === null;
+  const isPersonal = notification.userId !== null;
 
   return (
     <button
       onClick={() => isUnread && onRead(notification.id)}
       className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors ${
+        isPersonal ? "border-l-2 border-primary" : "border-l-2 border-transparent"
+      } ${
         isUnread
           ? "bg-primary/5 hover:bg-primary/10"
           : "hover:bg-secondary/40"
@@ -93,13 +104,21 @@ function NotificationItem({
       {typeIcon(notification.type)}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p
-            className={`text-sm leading-snug ${
-              isUnread ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
-            }`}
-          >
-            {notification.title}
-          </p>
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <p
+              className={`text-sm leading-snug ${
+                isUnread ? "font-semibold text-foreground" : "font-medium text-muted-foreground"
+              }`}
+            >
+              {notification.title}
+            </p>
+            {isPersonal && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold border border-primary/20 shrink-0">
+                <User className="w-2.5 h-2.5" />
+                Pessoal
+              </span>
+            )}
+          </div>
           {isUnread && (
             <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
           )}
@@ -112,6 +131,18 @@ function NotificationItem({
         </p>
       </div>
     </button>
+  );
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="sticky top-0 z-10 px-4 py-1.5 bg-secondary/70 backdrop-blur-sm border-b border-border/20">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {label}
+      </p>
+    </div>
   );
 }
 
@@ -165,9 +196,20 @@ export function NotificationBell() {
 
   if (!user) return null;
 
-  const notifications = data?.notifications ?? [];
+  const rawNotifications = data?.notifications ?? [];
+  // unreadCount comes from the server — counts both personal and global, unchanged
   const unreadCount = data?.unreadCount ?? 0;
   const hasUnread = unreadCount > 0;
+
+  // ── Sort client-side: personal-unread → global-unread → read ───────────────
+  // Stable sort: items that share priority keep their original (API) order.
+  const notifications = useMemo(
+    () => [...rawNotifications].sort((a, b) => sortPriority(a) - sortPriority(b)),
+    [rawNotifications],
+  );
+
+  // Whether to show section headers (only useful when personal notifications exist)
+  const hasPersonal = notifications.some((n) => n.userId !== null);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -243,13 +285,32 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="divide-y divide-border/20">
-              {notifications.map((n) => (
-                <NotificationItem
-                  key={n.id}
-                  notification={n}
-                  onRead={(id) => markReadMutation.mutate(id)}
-                />
-              ))}
+              {notifications.map((n, i) => {
+                // ── Optional section header logic ────────────────────────────
+                // Only rendered when there are personal notifications so the
+                // grouping text is meaningful.  We insert the header just before
+                // the first item of each section, not on every item.
+                const prevPriority = i > 0 ? sortPriority(notifications[i - 1]!) : -1;
+                const thisPriority = sortPriority(n);
+                const showHeader = hasPersonal && thisPriority !== prevPriority;
+
+                let headerLabel: string | null = null;
+                if (showHeader) {
+                  if (thisPriority === 0) headerLabel = "Sobre seu time";
+                  else if (thisPriority === 1) headerLabel = "Mercado geral";
+                  else if (thisPriority === 2 && hasPersonal) headerLabel = "Lidas";
+                }
+
+                return (
+                  <div key={n.id}>
+                    {headerLabel && <SectionHeader label={headerLabel} />}
+                    <NotificationItem
+                      notification={n}
+                      onRead={(id) => markReadMutation.mutate(id)}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </ScrollArea>
