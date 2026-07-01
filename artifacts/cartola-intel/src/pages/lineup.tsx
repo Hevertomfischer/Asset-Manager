@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -18,6 +18,7 @@ import { type ExplanationJson, getTopBadges } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
 import { LineupProbabilities } from "@/components/LineupProbabilities";
+import { RegisterRoundDialog } from "@/components/RegisterRoundDialog";
 import type { Player } from "@workspace/api-client-react";
 import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
 
@@ -164,6 +165,7 @@ export default function Lineup() {
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
 
   const autoGenerateRef = useRef(false);
 
@@ -461,15 +463,25 @@ export default function Lineup() {
                   <p className="text-2xl font-mono font-bold text-yellow-500">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                className="rounded-xl border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-md"
-                onClick={handleSave}
-                disabled={saveLineupMutation.isPending}
-              >
-                {saveLineupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                Salvar Escalação
-              </Button>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-md"
+                  onClick={handleSave}
+                  disabled={saveLineupMutation.isPending}
+                >
+                  {saveLineupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Salvar Escalação
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-primary/40 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-md"
+                  onClick={() => setRegisterDialogOpen(true)}
+                >
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Foi esse o meu time
+                </Button>
+              </div>
             </div>
 
             {/* Valorization strategy banner */}
@@ -577,6 +589,16 @@ export default function Lineup() {
           lineup={currentLineup}
           budget={budget}
           onApply={handleApplySwap}
+        />
+      )}
+
+      {/* Register round dialog */}
+      {currentLineup?.id && (
+        <RegisterRoundDialog
+          open={registerDialogOpen}
+          onOpenChange={setRegisterDialogOpen}
+          lineupSuggestionId={currentLineup.id}
+          round={currentLineup.round ?? 0}
         />
       )}
     </div>

@@ -7,8 +7,10 @@ import {
   playersTable,
   playerScoutRoundTable,
   clubsTable,
+  lineupSuggestionTable,
+  lineupSuggestionPlayerTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, count } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 import { computeEfficiency, type HindsightCandidate } from "../lib/hindsightOptimal";
 
@@ -342,6 +344,94 @@ router.post("/user-teams", async (req, res) => {
   } catch (err) {
     log.error("Failed to create user team", { error: err instanceof Error ? err.message : String(err) });
     res.status(500).json({ error: "Falha ao criar time." });
+  }
+});
+
+// ── POST /api/user-teams/:id/rounds/from-suggestion ──────────────────────────
+// Copies a lineup_suggestion into a user_team_round with source = 'from_suggestion'.
+router.post("/user-teams/:id/rounds/from-suggestion", async (req, res) => {
+  try {
+    if (!requireAuth(req as any, res as any)) return;
+    const userId = req.user!.id;
+    const teamId = Number(req.params["id"]);
+    const { lineupSuggestionId } = req.body as { lineupSuggestionId?: number };
+
+    if (!teamId || isNaN(teamId)) {
+      res.status(400).json({ error: "ID de time inválido." });
+      return;
+    }
+    if (!lineupSuggestionId || typeof lineupSuggestionId !== "number") {
+      res.status(400).json({ error: "lineupSuggestionId é obrigatório." });
+      return;
+    }
+
+    // Verify team ownership
+    const [team] = await db
+      .select()
+      .from(userTeamsTable)
+      .where(and(eq(userTeamsTable.id, teamId), eq(userTeamsTable.userId, userId)));
+
+    if (!team) {
+      res.status(404).json({ error: "Time não encontrado." });
+      return;
+    }
+
+    // Load the lineup suggestion
+    const [suggestion] = await db
+      .select()
+      .from(lineupSuggestionTable)
+      .where(eq(lineupSuggestionTable.id, lineupSuggestionId));
+
+    if (!suggestion) {
+      res.status(404).json({ error: "Escalação não encontrada." });
+      return;
+    }
+
+    // Load suggestion players
+    const suggestionPlayers = await db
+      .select()
+      .from(lineupSuggestionPlayerTable)
+      .where(eq(lineupSuggestionPlayerTable.lineupSuggestionId, lineupSuggestionId));
+
+    // Create the round record
+    const [newRound] = await db
+      .insert(userTeamRoundsTable)
+      .values({
+        userTeamId: teamId,
+        round: suggestion.round,
+        budgetUsed: suggestion.totalCost,
+        captainPlayerId: suggestion.captainPlayerId,
+        coachPlayerId: suggestion.coachPlayerId,
+        source: "from_suggestion",
+        lineupSuggestionId: suggestion.id,
+      })
+      .returning();
+
+    // Copy players
+    if (suggestionPlayers.length > 0) {
+      await db.insert(userTeamRoundPlayersTable).values(
+        suggestionPlayers.map((p) => ({
+          userTeamRoundId: newRound!.id,
+          playerId: p.playerId,
+          position: p.position,
+          price: p.price,
+        }))
+      );
+    }
+
+    log.info("Round registered from suggestion", {
+      userId,
+      teamId,
+      roundId: newRound!.id,
+      lineupSuggestionId,
+      round: suggestion.round,
+      players: suggestionPlayers.length,
+    });
+
+    res.status(201).json({ round: { ...newRound, playerCount: suggestionPlayers.length } });
+  } catch (err) {
+    log.error("Failed to register round from suggestion", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Falha ao registrar rodada." });
   }
 });
 
