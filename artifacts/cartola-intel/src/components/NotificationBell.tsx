@@ -194,8 +194,6 @@ export function NotificationBell() {
     onSuccess: invalidate,
   });
 
-  if (!user) return null;
-
   const rawNotifications = data?.notifications ?? [];
   // unreadCount comes from the server — counts both personal and global, unchanged
   const unreadCount = data?.unreadCount ?? 0;
@@ -203,6 +201,7 @@ export function NotificationBell() {
 
   // ── Sort client-side: personal-unread → global-unread → read ───────────────
   // Stable sort: items that share priority keep their original (API) order.
+  // Must be called before any early return to comply with Rules of Hooks.
   const notifications = useMemo(
     () => [...rawNotifications].sort((a, b) => sortPriority(a) - sortPriority(b)),
     [rawNotifications],
@@ -210,6 +209,8 @@ export function NotificationBell() {
 
   // Whether to show section headers (only useful when personal notifications exist)
   const hasPersonal = notifications.some((n) => n.userId !== null);
+
+  if (!user) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
