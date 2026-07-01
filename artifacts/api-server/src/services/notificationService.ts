@@ -3,8 +3,12 @@ import {
   notificationsTable,
   playerProjectionTable,
   playersTable,
+  userTeamRoundsTable,
+  userTeamRoundPlayersTable,
+  userTeamsTable,
+  playerScoutRoundTable,
 } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray, isNotNull } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("notification-service");
@@ -24,7 +28,7 @@ const TRAP_POINTS_MAX = 3.5;
 const TRAP_REC_MAX = 4.5;
 // ─────────────────────────────────────────────────────────────────────────────
 
-type NotificationType = "status_change" | "price" | "trap" | "market_open" | "market_close";
+type NotificationType = "status_change" | "price" | "trap" | "market_open" | "market_close" | "round_result";
 
 interface CreateNotifInput {
   userId?: number | null;
@@ -155,6 +159,107 @@ export async function generateEtlNotifications(round: number): Promise<void> {
     log.info(`Created ${created} new notifications for round ${round}`);
   } else {
     log.debug(`No new notifications for round ${round} (none triggered or all deduplicated)`);
+  }
+}
+
+/**
+ * After a round closes and historical scores are persisted, generate a personal
+ * notification for every registered user_team_round in that round.
+ *
+ * dedupeKey = "round_result:team:{teamId}:round:{round}" ensures exactly one
+ * notification per team per round even if the job runs multiple times.
+ */
+export async function generateRoundResultNotifications(round: number): Promise<void> {
+  log.debug("Generating round result notifications", { round });
+
+  const rounds = await db
+    .select({
+      id: userTeamRoundsTable.id,
+      userTeamId: userTeamRoundsTable.userTeamId,
+      captainPlayerId: userTeamRoundsTable.captainPlayerId,
+    })
+    .from(userTeamRoundsTable)
+    .where(eq(userTeamRoundsTable.round, round));
+
+  if (rounds.length === 0) {
+    log.debug("No user team rounds to notify for round", { round });
+    return;
+  }
+
+  const teamIds = [...new Set(rounds.map((r) => r.userTeamId))];
+  const roundIds = rounds.map((r) => r.id);
+
+  const [teams, roundPlayers, actuals] = await Promise.all([
+    db
+      .select({ id: userTeamsTable.id, userId: userTeamsTable.userId, name: userTeamsTable.name })
+      .from(userTeamsTable)
+      .where(inArray(userTeamsTable.id, teamIds)),
+    db
+      .select({
+        userTeamRoundId: userTeamRoundPlayersTable.userTeamRoundId,
+        playerId: userTeamRoundPlayersTable.playerId,
+      })
+      .from(userTeamRoundPlayersTable)
+      .where(inArray(userTeamRoundPlayersTable.userTeamRoundId, roundIds)),
+    db
+      .select({ playerId: playerScoutRoundTable.playerId, points: playerScoutRoundTable.points, source: playerScoutRoundTable.source })
+      .from(playerScoutRoundTable)
+      .where(
+        and(
+          eq(playerScoutRoundTable.round, round),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"]),
+          isNotNull(playerScoutRoundTable.points)
+        )
+      ),
+  ]);
+
+  const teamMap = new Map(teams.map((t) => [t.id, t]));
+
+  // Build actualMap: historical_cartola overwrites cartola_api
+  const actualMap = new Map<number, number>();
+  const sorted = [...actuals].sort((a, b) => (a.source === "historical_cartola" ? 1 : -1) - (b.source === "historical_cartola" ? 1 : -1));
+  for (const a of sorted) {
+    if (!actualMap.has(a.playerId) || a.source === "historical_cartola") {
+      actualMap.set(a.playerId, a.points ?? 0);
+    }
+  }
+
+  const playersByRoundId = new Map<number, number[]>();
+  for (const rp of roundPlayers) {
+    if (!playersByRoundId.has(rp.userTeamRoundId)) playersByRoundId.set(rp.userTeamRoundId, []);
+    playersByRoundId.get(rp.userTeamRoundId)!.push(rp.playerId);
+  }
+
+  let created = 0;
+  for (const r of rounds) {
+    const team = teamMap.get(r.userTeamId);
+    if (!team) continue;
+
+    const players = playersByRoundId.get(r.id) ?? [];
+    const hasActual = players.some((pid) => actualMap.has(pid));
+    if (!hasActual) continue;
+
+    const total = players.reduce((s, pid) => {
+      const pts = actualMap.get(pid) ?? 0;
+      return s + (pid === r.captainPlayerId ? pts * 2 : pts);
+    }, 0);
+
+    const dedupeKey = `round_result:team:${r.userTeamId}:round:${round}`;
+    const ok = await createNotification({
+      userId: team.userId,
+      type: "round_result",
+      title: `🏆 Rodada ${round} encerrada — ${team.name}`,
+      body: `Seu time "${team.name}" marcou ${total.toFixed(1)} pts na rodada ${round}.`,
+      payload: { round, userTeamId: r.userTeamId, actualTotal: Number(total.toFixed(2)) },
+      dedupeKey,
+    });
+    if (ok) created++;
+  }
+
+  if (created > 0) {
+    log.info(`Created ${created} round result notification(s) for round ${round}`);
+  } else {
+    log.debug(`No new round result notifications for round ${round} (all deduplicated or no data yet)`);
   }
 }
 

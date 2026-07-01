@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
-  Trophy, ArrowLeft, Calendar, TrendingUp, TrendingDown,
+  Trophy, ArrowLeft, Calendar, TrendingUp,
   Loader2, ChevronDown, ChevronUp, PenLine, Shield, Target,
-  Crown, Wrench,
+  Crown, Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { ManualRoundDialog } from "@/components/ManualRoundDialog";
 import { useGetUserTeamRounds, type UserTeamRound, type UserTeamRoundPlayer } from "@workspace/api-client-react";
 
 // ── Efficiency colour helper (same scale as historico.tsx) ────────────────────
@@ -194,6 +195,7 @@ export default function MeusTimesDetalhe() {
   const { id } = useParams<{ id: string }>();
   const teamId = id ? Number(id) : null;
   const { data, isLoading, isError } = useGetUserTeamRounds(teamId);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const team = data?.team;
   const rounds = data?.rounds ?? [];
@@ -253,12 +255,23 @@ export default function MeusTimesDetalhe() {
               </p>
             </div>
           </div>
-          <Link to="/escalacao">
-            <Button variant="outline" size="sm" className="rounded-xl border-primary/30 text-primary hover:bg-primary/10 gap-2">
-              <Shield className="w-3.5 h-3.5" />
-              Registrar nova rodada
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-border/50 text-muted-foreground hover:text-foreground gap-2"
+              onClick={() => setManualOpen(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Manual
             </Button>
-          </Link>
+            <Link to="/escalacao">
+              <Button variant="outline" size="sm" className="rounded-xl border-primary/30 text-primary hover:bg-primary/10 gap-2">
+                <Shield className="w-3.5 h-3.5" />
+                Via Escalação
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -322,6 +335,15 @@ export default function MeusTimesDetalhe() {
               ))}
           </div>
         </div>
+      )}
+
+      {/* ── Manual round dialog ────────────────────────────────────────────── */}
+      {teamId && (
+        <ManualRoundDialog
+          teamId={teamId}
+          open={manualOpen}
+          onOpenChange={setManualOpen}
+        />
       )}
     </div>
   );

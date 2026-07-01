@@ -73,6 +73,38 @@ export const useGetUserTeamRounds = (teamId: number | null) =>
     staleTime: 60_000,
   });
 
+export interface ManualRoundPlayerInput {
+  playerId: number;
+  position: string;
+  price?: number;
+}
+
+export const useRegisterRoundManually = () => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { round: UserTeamRound },
+    Error,
+    {
+      teamId: number;
+      round: number;
+      players: ManualRoundPlayerInput[];
+      captainPlayerId: number;
+      coachPlayerId?: number | null;
+      budgetUsed?: number | null;
+    }
+  >({
+    mutationFn: ({ teamId, ...body }) =>
+      customFetch(`/api/user-teams/${teamId}/rounds`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_data, { teamId }) => {
+      queryClient.invalidateQueries({ queryKey: USER_TEAMS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: userTeamRoundsKey(teamId) });
+    },
+  });
+};
+
 export const useRegisterRoundFromSuggestion = () => {
   const queryClient = useQueryClient();
   return useMutation<

@@ -4,7 +4,7 @@ import { adminConfigTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { createLogger } from "../lib/logger";
-import { generateEtlNotifications, createMarketNotification } from "../services/notificationService";
+import { generateEtlNotifications, createMarketNotification, generateRoundResultNotifications } from "../services/notificationService";
 
 const log = createLogger("sync-job");
 
@@ -135,6 +135,14 @@ async function autoSyncClosedRounds(currentRound: number): Promise<void> {
       log.info(`Auto-sync complete for round ${closedRound}`);
       // Advance pointer only after confirmed success for this round
       await setLastKnownRound(closedRound + 1);
+      // Notify users whose teams have data for this closed round (non-fatal)
+      try {
+        await generateRoundResultNotifications(closedRound);
+      } catch (notifErr) {
+        log.warn(`generateRoundResultNotifications failed for round ${closedRound} (non-fatal)`, {
+          error: notifErr instanceof Error ? notifErr.message : String(notifErr),
+        });
+      }
     } catch (error) {
       log.error(`Auto-sync failed for closed round ${closedRound} — will retry on next cron run`, {
         error: error instanceof Error ? error.message : String(error),

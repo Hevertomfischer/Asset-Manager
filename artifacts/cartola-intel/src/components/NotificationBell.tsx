@@ -13,6 +13,7 @@ import {
   Loader2,
   BellOff,
   User,
+  Trophy,
 } from "lucide-react";
 import {
   Popover,
@@ -58,6 +59,8 @@ function typeIcon(type: string) {
       return <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />;
     case "market_close":
       return <Clock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />;
+    case "round_result":
+      return <Trophy className="w-4 h-4 text-primary shrink-0 mt-0.5" />;
     default:
       return <Bell className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />;
   }

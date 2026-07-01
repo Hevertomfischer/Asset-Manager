@@ -347,6 +347,127 @@ router.post("/user-teams", async (req, res) => {
   }
 });
 
+// ── POST /api/user-teams/:id/rounds ──────────────────────────────────────────
+// Manually registers a round for a user team.
+// Body: { round, players: [{playerId, position, price?}], captainPlayerId, coachPlayerId?, budgetUsed? }
+// Validation: exactly 12 field players (non-TEC), captain must be one of them.
+router.post("/user-teams/:id/rounds", async (req, res) => {
+  try {
+    if (!requireAuth(req as any, res as any)) return;
+    const userId = req.user!.id;
+    const teamId = Number(req.params["id"]);
+    const {
+      round,
+      players,
+      captainPlayerId,
+      coachPlayerId,
+      budgetUsed,
+    } = req.body as {
+      round?: unknown;
+      players?: unknown;
+      captainPlayerId?: unknown;
+      coachPlayerId?: number | null;
+      budgetUsed?: number | null;
+    };
+
+    if (!teamId || isNaN(teamId)) {
+      res.status(400).json({ error: "ID de time inválido." });
+      return;
+    }
+    const roundNum = Number(round);
+    if (!round || !Number.isInteger(roundNum) || roundNum < 1) {
+      res.status(400).json({ error: "Rodada deve ser um inteiro positivo." });
+      return;
+    }
+    if (!Array.isArray(players) || players.length !== 12) {
+      res.status(400).json({ error: "Exatamente 12 jogadores de campo são obrigatórios." });
+      return;
+    }
+    for (const p of players as Array<unknown>) {
+      if (typeof (p as Record<string, unknown>)["playerId"] !== "number" || typeof (p as Record<string, unknown>)["position"] !== "string") {
+        res.status(400).json({ error: "Cada jogador deve ter playerId (number) e position (string)." });
+        return;
+      }
+    }
+    const typedPlayers = players as Array<{ playerId: number; position: string; price?: number }>;
+    const captainId = Number(captainPlayerId);
+    if (!captainPlayerId || isNaN(captainId)) {
+      res.status(400).json({ error: "captainPlayerId é obrigatório." });
+      return;
+    }
+    const fieldIds = typedPlayers.map((p) => p.playerId);
+    if (!fieldIds.includes(captainId)) {
+      res.status(400).json({ error: "O capitão deve estar entre os jogadores escalados." });
+      return;
+    }
+    const allPlayerIds = [...fieldIds, ...(coachPlayerId ? [coachPlayerId] : [])];
+    if (new Set(allPlayerIds).size !== allPlayerIds.length) {
+      res.status(400).json({ error: "IDs de jogadores duplicados." });
+      return;
+    }
+
+    // Verify team ownership
+    const [team] = await db
+      .select()
+      .from(userTeamsTable)
+      .where(and(eq(userTeamsTable.id, teamId), eq(userTeamsTable.userId, userId)));
+    if (!team) {
+      res.status(404).json({ error: "Time não encontrado." });
+      return;
+    }
+
+    // Prevent duplicate round registration
+    const existing = await db
+      .select({ id: userTeamRoundsTable.id })
+      .from(userTeamRoundsTable)
+      .where(and(eq(userTeamRoundsTable.userTeamId, teamId), eq(userTeamRoundsTable.round, roundNum)));
+    if (existing.length > 0) {
+      res.status(409).json({ error: `Rodada ${roundNum} já registrada para este time.` });
+      return;
+    }
+
+    // Insert round record
+    const [newRound] = await db
+      .insert(userTeamRoundsTable)
+      .values({
+        userTeamId: teamId,
+        round: roundNum,
+        budgetUsed: budgetUsed ?? null,
+        captainPlayerId: captainId,
+        coachPlayerId: coachPlayerId ?? null,
+        source: "manual",
+      })
+      .returning();
+
+    // Build full player list including optional TEC
+    const allPlayers: Array<{ playerId: number; position: string; price?: number }> = [...typedPlayers];
+    if (coachPlayerId && !typedPlayers.some((p) => p.playerId === coachPlayerId)) {
+      allPlayers.push({ playerId: coachPlayerId, position: "TEC" });
+    }
+
+    await db.insert(userTeamRoundPlayersTable).values(
+      allPlayers.map((p) => ({
+        userTeamRoundId: newRound!.id,
+        playerId: p.playerId,
+        position: p.position,
+        price: p.price ?? null,
+      }))
+    );
+
+    log.info("Manual round registered", {
+      userId,
+      teamId,
+      roundId: newRound!.id,
+      round: roundNum,
+      players: allPlayers.length,
+    });
+    res.status(201).json({ round: { ...newRound, playerCount: allPlayers.length } });
+  } catch (err) {
+    log.error("Failed to register manual round", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Falha ao registrar rodada." });
+  }
+});
+
 // ── POST /api/user-teams/:id/rounds/from-suggestion ──────────────────────────
 // Copies a lineup_suggestion into a user_team_round with source = 'from_suggestion'.
 router.post("/user-teams/:id/rounds/from-suggestion", async (req, res) => {
