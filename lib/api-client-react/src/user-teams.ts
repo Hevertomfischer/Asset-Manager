@@ -65,6 +65,14 @@ export const useCreateUserTeam = () => {
   });
 };
 
+export const useGetUserTeamRounds = (teamId: number | null) =>
+  useQuery<{ team: { id: number; name: string }; rounds: UserTeamRound[] }>({
+    queryKey: userTeamRoundsKey(teamId ?? 0),
+    queryFn: () => customFetch(`/api/user-teams/${teamId}/rounds`),
+    enabled: teamId !== null && teamId > 0,
+    staleTime: 60_000,
+  });
+
 export const useRegisterRoundFromSuggestion = () => {
   const queryClient = useQueryClient();
   return useMutation<

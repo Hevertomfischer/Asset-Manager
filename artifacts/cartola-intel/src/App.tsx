@@ -21,6 +21,8 @@ import Planos from "@/pages/planos";
 import Fronteira from "@/pages/fronteira";
 import Desempenho from "@/pages/desempenho";
 import Comparar from "@/pages/comparar";
+import MeusTimes from "@/pages/meus-times";
+import MeusTimesDetalhe from "@/pages/meus-times-detalhe";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +99,8 @@ function App() {
                       <Route path="/planos" element={<Planos />} />
                       <Route path="/fronteira" element={<Fronteira />} />
                       <Route path="/comparar" element={<Comparar />} />
+                      <Route path="/meus-times" element={<MeusTimes />} />
+                      <Route path="/meus-times/:id" element={<MeusTimesDetalhe />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppLayout>
