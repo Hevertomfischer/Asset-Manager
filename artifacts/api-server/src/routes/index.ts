@@ -14,6 +14,7 @@ import notificationsRouter from "./notifications";
 import analyticsRouter from "./analytics";
 import statsRouter from "./stats";
 import syncRouter from "./sync";
+import userTeamsRouter from "./userTeams";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
@@ -32,6 +33,7 @@ router.use(matchesRouter);
 router.use(availabilityRouter);
 router.use(lineupRouter);
 router.use(historyRouter);
+router.use(userTeamsRouter);
 router.use(adminAuthMiddleware, adminRouter);
 
 export default router;
