@@ -496,21 +496,48 @@ router.get("/admin/funnel", async (req, res) => {
     const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const rows = await db
-      .select({
-        event: analyticsEventsTable.event,
-        count: sql<number>`count(*)::int`,
-        uniqueUsers: sql<number>`count(distinct ${analyticsEventsTable.userId})::int`,
-      })
-      .from(analyticsEventsTable)
-      .where(gte(analyticsEventsTable.createdAt, since))
-      .groupBy(analyticsEventsTable.event)
-      .orderBy(sql`count(*) desc`);
+    const [eventRows, feedbackRows] = await Promise.all([
+      // ── All events: count + unique users per event name ──────────────────
+      db
+        .select({
+          event: analyticsEventsTable.event,
+          count: sql<number>`count(*)::int`,
+          uniqueUsers: sql<number>`count(distinct ${analyticsEventsTable.userId})::int`,
+        })
+        .from(analyticsEventsTable)
+        .where(gte(analyticsEventsTable.createdAt, since))
+        .groupBy(analyticsEventsTable.event)
+        .orderBy(sql`count(*) desc`),
+
+      // ── feedback_submitted: count by type × day ───────────────────────────
+      db
+        .select({
+          type: sql<string>`${analyticsEventsTable.props}->>'type'`,
+          day:  sql<string>`(${analyticsEventsTable.createdAt}::date)::text`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(analyticsEventsTable)
+        .where(
+          and(
+            eq(analyticsEventsTable.event, "feedback_submitted"),
+            gte(analyticsEventsTable.createdAt, since)
+          )
+        )
+        .groupBy(
+          sql`${analyticsEventsTable.props}->>'type'`,
+          sql`${analyticsEventsTable.createdAt}::date`
+        )
+        .orderBy(
+          sql`${analyticsEventsTable.createdAt}::date desc`,
+          sql`count(*) desc`
+        ),
+    ]);
 
     res.json({
       days,
       since: since.toISOString(),
-      events: rows,
+      events: eventRows,
+      feedbackByTypeAndDay: feedbackRows,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

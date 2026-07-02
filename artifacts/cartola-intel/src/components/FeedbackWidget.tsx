@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useTrack } from "@/hooks/useTrack";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ const MAX_LEN = 2000;
 
 export function FeedbackWidget() {
   const { toast } = useToast();
+  const track = useTrack();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>("ideia");
   const [message, setMessage] = useState("");
@@ -94,6 +96,7 @@ export function FeedbackWidget() {
         throw new Error(data.error ?? "Erro ao enviar feedback.");
       }
 
+      track("feedback_submitted", { type, page: window.location.pathname });
       toast({
         title: "Feedback enviado! 🙏",
         description: "Obrigado pela sua contribuição. Vamos analisar em breve.",
