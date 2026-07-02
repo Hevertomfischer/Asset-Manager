@@ -15,3 +15,4 @@ export * from "./userPreferences";
 export * from "./notifications";
 export * from "./analyticsEvents";
 export * from "./userTeams";
+export * from "./feedback";

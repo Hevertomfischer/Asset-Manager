@@ -16,6 +16,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AutoSync } from "@/components/AutoSync";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -109,6 +110,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 relative">
             <div className="max-w-7xl mx-auto w-full">{children}</div>
           </main>
+          <FeedbackWidget />
         </div>
       </div>
     </SidebarProvider>
