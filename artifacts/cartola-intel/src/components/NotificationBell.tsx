@@ -14,6 +14,7 @@ import {
   BellOff,
   User,
   Trophy,
+  Globe2,
 } from "lucide-react";
 import {
   Popover,
@@ -115,10 +116,15 @@ function NotificationItem({
             >
               {notification.title}
             </p>
-            {isPersonal && (
+            {isPersonal ? (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold border border-primary/20 shrink-0">
                 <User className="w-2.5 h-2.5" />
                 Pessoal
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-secondary/80 text-muted-foreground text-[9px] font-medium border border-border/30 shrink-0">
+                <Globe2 className="w-2.5 h-2.5" />
+                Geral
               </span>
             )}
           </div>
@@ -151,9 +157,12 @@ function SectionHeader({ label }: { label: string }) {
 
 // ── NotificationBell ──────────────────────────────────────────────────────────
 
+type FilterTab = "all" | "personal" | "global";
+
 export function NotificationBell() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<FilterTab>("all");
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<NotificationsResponse>({
@@ -210,8 +219,17 @@ export function NotificationBell() {
     [rawNotifications],
   );
 
-  // Whether to show section headers (only useful when personal notifications exist)
+  // Whether to show section headers + filter toggle (only meaningful when both exist)
   const hasPersonal = notifications.some((n) => n.userId !== null);
+  const hasGlobal = notifications.some((n) => n.userId === null);
+  const showFilter = hasPersonal && hasGlobal;
+
+  // ── Apply filter ────────────────────────────────────────────────────────────
+  const visibleNotifications = useMemo(() => {
+    if (filter === "personal") return notifications.filter((n) => n.userId !== null);
+    if (filter === "global") return notifications.filter((n) => n.userId === null);
+    return notifications;
+  }, [notifications, filter]);
 
   if (!user) return null;
 
@@ -237,33 +255,64 @@ export function NotificationBell() {
         className="w-[340px] sm:w-[380px] p-0 shadow-2xl border-border/60"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">
-              Notificações
-            </span>
-            {hasUnread && (
-              <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
-                {unreadCount} nova{unreadCount !== 1 ? "s" : ""}
+        <div className="border-b border-border/40">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">
+                Notificações
               </span>
+              {hasUnread && (
+                <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                  {unreadCount} nova{unreadCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {hasUnread && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => markAllMutation.mutate()}
+                disabled={markAllMutation.isPending}
+              >
+                {markAllMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCheck className="w-3 h-3 mr-1" />
+                )}
+                Marcar todas
+              </Button>
             )}
           </div>
-          {hasUnread && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => markAllMutation.mutate()}
-              disabled={markAllMutation.isPending}
-            >
-              {markAllMutation.isPending ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <CheckCheck className="w-3 h-3 mr-1" />
-              )}
-              Marcar todas
-            </Button>
+
+          {/* Filter toggle — only shown when both personal and global exist */}
+          {showFilter && (
+            <div className="flex items-center gap-1 px-4 pb-2.5">
+              {(["all", "personal", "global"] as FilterTab[]).map((tab) => {
+                const labels: Record<FilterTab, string> = {
+                  all: "Todas",
+                  personal: "Minhas",
+                  global: "Gerais",
+                };
+                const isActive = filter === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setFilter(tab)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent"
+                    }`}
+                  >
+                    {tab === "personal" && <User className="w-2.5 h-2.5" />}
+                    {tab === "global" && <Globe2 className="w-2.5 h-2.5" />}
+                    {labels[tab]}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -274,29 +323,38 @@ export function NotificationBell() {
               <Loader2 className="w-5 h-5 animate-spin" />
               <p className="text-xs">Carregando...</p>
             </div>
-          ) : notifications.length === 0 ? (
+          ) : visibleNotifications.length === 0 ? (
             /* ── Empty state ── */
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground px-6 text-center">
               <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
                 <BellOff className="w-6 h-6 opacity-40" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">Tudo tranquilo</p>
+                <p className="text-sm font-medium text-foreground">
+                  {filter === "personal"
+                    ? "Sem notificações pessoais"
+                    : filter === "global"
+                    ? "Sem notificações gerais"
+                    : "Tudo tranquilo"}
+                </p>
                 <p className="text-xs mt-0.5 leading-relaxed">
-                  Alertas de mercado, variações de preço e armadilhas aparecerão aqui.
+                  {filter === "all"
+                    ? "Alertas de mercado, variações de preço e armadilhas aparecerão aqui."
+                    : "Nenhuma notificação nesta categoria por enquanto."}
                 </p>
               </div>
             </div>
           ) : (
             <div className="divide-y divide-border/20">
-              {notifications.map((n, i) => {
-                // ── Optional section header logic ────────────────────────────
-                // Only rendered when there are personal notifications so the
-                // grouping text is meaningful.  We insert the header just before
-                // the first item of each section, not on every item.
-                const prevPriority = i > 0 ? sortPriority(notifications[i - 1]!) : -1;
+              {visibleNotifications.map((n, i) => {
+                // ── Section header logic ──────────────────────────────────────
+                // Only shown in "all" view (filter hides one category, so
+                // sections become redundant) and only when both types exist.
+                const prevPriority =
+                  i > 0 ? sortPriority(visibleNotifications[i - 1]!) : -1;
                 const thisPriority = sortPriority(n);
-                const showHeader = hasPersonal && thisPriority !== prevPriority;
+                const showHeader =
+                  filter === "all" && hasPersonal && thisPriority !== prevPriority;
 
                 let headerLabel: string | null = null;
                 if (showHeader) {
@@ -320,12 +378,14 @@ export function NotificationBell() {
         </ScrollArea>
 
         {/* Footer — only when there are notifications */}
-        {notifications.length > 0 && (
+        {visibleNotifications.length > 0 && (
           <>
             <Separator className="opacity-30" />
             <div className="px-4 py-2 text-center">
               <p className="text-[10px] text-muted-foreground/60">
-                Mostrando as últimas {notifications.length} notificações
+                {filter !== "all"
+                  ? `${visibleNotifications.length} de ${notifications.length} notificações`
+                  : `Últimas ${notifications.length} notificações`}
               </p>
             </div>
           </>
