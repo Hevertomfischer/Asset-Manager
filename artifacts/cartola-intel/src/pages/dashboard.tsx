@@ -83,6 +83,13 @@ function ClubBadge({ club }: { club: MatchClub }) {
   );
 }
 
+/**
+ * ProjectionItem augmented with explanationJson.
+ * The generated type omits this field, but the /players/projections/current
+ * endpoint spreads the full DB row, so the field IS present at runtime.
+ */
+type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson };
+
 export default function Dashboard() {
   const { data: roundData, isLoading: roundLoading, isError: roundError } = useGetCurrentRound();
   const { data: providersData, isError: providersError } = useGetProvidersStatus();
@@ -104,7 +111,7 @@ export default function Dashboard() {
     return ageMs > xgStaleDays * 24 * 60 * 60 * 1000;
   })();
 
-  const projections = projectionsData?.projections ?? [];
+  const projections = (projectionsData?.projections ?? []) as RichProjectionItem[];
   const matches = matchesData?.matches ?? [];
   const availabilityList = availabilityData?.availability ?? [];
   const availableCount = availabilityList.filter(
@@ -115,23 +122,23 @@ export default function Dashboard() {
     projections.map((p) => [p.playerId, p])
   );
 
-  const getExplanation = (p: ProjectionItem) =>
-    (p.explanationJson ?? {}) as Record<string, unknown>;
+  const getExplanation = (p: RichProjectionItem): ExplanationJson =>
+    p.explanationJson ?? {};
 
   const diferenciais = projections
-    .filter((p) => isDifferentialPlayer(getExplanation(p) as ExplanationJson))
+    .filter((p) => isDifferentialPlayer(getExplanation(p)))
     .sort((a, b) => {
-      const popA = (getExplanation(a).popularity as number | undefined) ?? 1;
-      const popB = (getExplanation(b).popularity as number | undefined) ?? 1;
+      const popA = getExplanation(a).popularity ?? 1;
+      const popB = getExplanation(b).popularity ?? 1;
       return popA - popB; // menor escalação = mais diferencial
     })
     .slice(0, 5);
 
   const armadilhas = projections
-    .filter((p) => isTrapPlayer(getExplanation(p) as ExplanationJson))
+    .filter((p) => isTrapPlayer(getExplanation(p)))
     .sort((a, b) => {
-      const popA = (getExplanation(a).popularity as number | undefined) ?? 0;
-      const popB = (getExplanation(b).popularity as number | undefined) ?? 0;
+      const popA = getExplanation(a).popularity ?? 0;
+      const popB = getExplanation(b).popularity ?? 0;
       return popB - popA;
     })
     .slice(0, 5);
@@ -449,7 +456,7 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {diferenciais.map((p) => {
-                  const exp = getExplanation(p) as ExplanationJson;
+                  const exp = getExplanation(p);
                   const pop = exp.popularity ?? 0;
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
@@ -490,7 +497,7 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {armadilhas.map((p) => {
-                  const exp = getExplanation(p) as ExplanationJson;
+                  const exp = getExplanation(p);
                   const pop = exp.popularity ?? 0;
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
