@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
+import { PlayerBadges } from "@/components/PlayerCard";
 import { Link } from "react-router-dom";
 
 type PlayerField = string | number | boolean | null | undefined;
@@ -465,18 +466,7 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">
                             {clubName ?? "—"} · {position ? <Badge variant="outline" className={`font-mono text-[9px] px-1 py-0 ${getPositionColor(position)} border`}>{position}</Badge> : null}
                           </p>
-                          {badges.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {badges.map((b) => (
-                                <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${
-                                  b.kind === "positive" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" :
-                                  b.kind === "warning"  ? "text-orange-400 bg-orange-400/10 border-orange-400/25" :
-                                  b.kind === "info"     ? "text-blue-400 bg-blue-400/10 border-blue-400/25" :
-                                                          "text-muted-foreground bg-secondary border-border"
-                                }`}>{b.label}</span>
-                              ))}
-                            </div>
-                          )}
+                          <PlayerBadges badges={badges} />
                         </div>
                       </div>
                       <div className="text-right">
@@ -517,18 +507,7 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">
                             {clubName ?? "—"} · {position}
                           </p>
-                          {badges.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {badges.map((b) => (
-                                <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${
-                                  b.kind === "positive" ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/25" :
-                                  b.kind === "warning"  ? "text-orange-400 bg-orange-400/10 border-orange-400/25" :
-                                  b.kind === "info"     ? "text-blue-400 bg-blue-400/10 border-blue-400/25" :
-                                                          "text-muted-foreground bg-secondary border-border"
-                                }`}>{b.label}</span>
-                              ))}
-                            </div>
-                          )}
+                          <PlayerBadges badges={badges} />
                         </div>
                       </div>
                       <div className="text-right">
