@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable, usersTable, subscriptionsTable } from "@workspace/db/schema";
+import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable, usersTable, subscriptionsTable, feedbackTable } from "@workspace/db/schema";
 import { desc, eq, gte, sql, and } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { runProjectionEngine } from "../engines/projectionEngine";
@@ -542,6 +542,82 @@ router.post("/admin/users/grant-pro", async (req, res) => {
 
   log.info("Granted pro manually", { email, userId: user.id, subId: sub.id });
   return res.json({ ok: true, subscription: sub });
+});
+
+// ── Feedback admin endpoints ─────────────────────────────────────────────────
+
+const FEEDBACK_VALID_STATUSES = ["novo", "em_analise", "resolvido", "arquivado"] as const;
+
+router.get("/admin/feedback", async (req, res) => {
+  try {
+    const { status, type, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;
+    const limit = Math.min(Math.max(Number(limitQ) || 20, 1), 100);
+    const offset = Math.max(Number(offsetQ) || 0, 0);
+
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (status && FEEDBACK_VALID_STATUSES.includes(status as typeof FEEDBACK_VALID_STATUSES[number])) {
+      conditions.push(eq(feedbackTable.status, status));
+    }
+    if (type && ["bug", "ideia", "elogio", "duvida"].includes(type)) {
+      conditions.push(eq(feedbackTable.type, type));
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, countResult] = await Promise.all([
+      db.select().from(feedbackTable)
+        .where(where)
+        .orderBy(desc(feedbackTable.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: sql<number>`count(*)::int` }).from(feedbackTable).where(where),
+    ]);
+
+    res.json({ items: rows, total: countResult[0]?.total ?? 0, limit, offset });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch feedback", { error: msg });
+    res.status(500).json({ error: "Failed to fetch feedback" });
+  }
+});
+
+router.get("/admin/feedback/new-count", async (_req, res) => {
+  try {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(feedbackTable)
+      .where(eq(feedbackTable.status, "novo"));
+    res.json({ count: result?.count ?? 0 });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch feedback new count", { error: msg });
+    res.status(500).json({ error: "Failed to fetch feedback new count" });
+  }
+});
+
+router.patch("/admin/feedback/:id", async (req, res) => {
+  try {
+    const id = Number(req.params["id"]);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "id inválido" });
+
+    const { status } = req.body as { status?: string };
+    if (!status || !FEEDBACK_VALID_STATUSES.includes(status as typeof FEEDBACK_VALID_STATUSES[number])) {
+      return res.status(400).json({ error: `status deve ser um de: ${FEEDBACK_VALID_STATUSES.join(", ")}` });
+    }
+
+    const [updated] = await db
+      .update(feedbackTable)
+      .set({ status })
+      .where(eq(feedbackTable.id, id))
+      .returning();
+
+    if (!updated) return res.status(404).json({ error: "feedback não encontrado" });
+    return res.json(updated);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to patch feedback", { error: msg });
+    return res.status(500).json({ error: "Failed to update feedback" });
+  }
 });
 
 export default router;

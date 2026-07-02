@@ -10,7 +10,11 @@ import {
   useUpdateProjectionWeights,
   useGetAdminConfig,
   useUpdateAdminConfig,
+  useGetAdminFeedback,
+  usePatchFeedbackStatus,
   type AdminLog,
+  type FeedbackStatus,
+  type FeedbackType,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSyncStatus } from "@/components/AutoSync";
@@ -21,8 +25,257 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play, AlertCircle, Zap, Clock, RotateCcw } from "lucide-react";
+import {
+  Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play,
+  AlertCircle, Zap, Clock, RotateCcw, MessageSquare, Bug, Lightbulb, Star, HelpCircle,
+  ChevronLeft, ChevronRight,
+} from "lucide-react";
+
+// ── Feedback helpers ──────────────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<FeedbackStatus, string> = {
+  novo: "Novo",
+  em_analise: "Em análise",
+  resolvido: "Resolvido",
+  arquivado: "Arquivado",
+};
+
+const STATUS_COLORS: Record<FeedbackStatus, string> = {
+  novo: "text-blue-400 border-blue-500/30 bg-blue-500/10",
+  em_analise: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10",
+  resolvido: "text-green-400 border-green-500/30 bg-green-500/10",
+  arquivado: "text-muted-foreground border-border/40 bg-secondary/30",
+};
+
+const TYPE_LABELS: Record<FeedbackType, string> = {
+  bug: "Problema",
+  ideia: "Ideia",
+  elogio: "Elogio",
+  duvida: "Dúvida",
+};
+
+const TYPE_ICONS: Record<FeedbackType, React.ReactNode> = {
+  bug: <Bug className="w-3 h-3" />,
+  ideia: <Lightbulb className="w-3 h-3" />,
+  elogio: <Star className="w-3 h-3" />,
+  duvida: <HelpCircle className="w-3 h-3" />,
+};
+
+const TYPE_COLORS: Record<FeedbackType, string> = {
+  bug: "text-red-400 border-red-500/30 bg-red-500/10",
+  ideia: "text-purple-400 border-purple-500/30 bg-purple-500/10",
+  elogio: "text-green-400 border-green-500/30 bg-green-500/10",
+  duvida: "text-orange-400 border-orange-500/30 bg-orange-500/10",
+};
+
+const FEEDBACK_LIMIT = 15;
+
+// ── FeedbackTab ───────────────────────────────────────────────────────────────
+
+function FeedbackTab() {
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<FeedbackStatus | "">("");
+  const [typeFilter, setTypeFilter] = useState<FeedbackType | "">("");
+  const [page, setPage] = useState(0);
+
+  const offset = page * FEEDBACK_LIMIT;
+
+  const { data, isLoading, isError } = useGetAdminFeedback({
+    status: statusFilter,
+    type: typeFilter,
+    limit: FEEDBACK_LIMIT,
+    offset,
+  });
+
+  const patchStatus = usePatchFeedbackStatus();
+
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / FEEDBACK_LIMIT));
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [statusFilter, typeFilter]);
+
+  const handleStatusChange = (id: number, status: FeedbackStatus) => {
+    patchStatus.mutate(
+      { id, status },
+      {
+        onError: (err) => toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FeedbackStatus | "")}>
+          <SelectTrigger className="h-9 w-44 text-sm">
+            <SelectValue placeholder="Todos os status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos os status</SelectItem>
+            <SelectItem value="novo">Novo</SelectItem>
+            <SelectItem value="em_analise">Em análise</SelectItem>
+            <SelectItem value="resolvido">Resolvido</SelectItem>
+            <SelectItem value="arquivado">Arquivado</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as FeedbackType | "")}>
+          <SelectTrigger className="h-9 w-40 text-sm">
+            <SelectValue placeholder="Todos os tipos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos os tipos</SelectItem>
+            <SelectItem value="bug">Problema</SelectItem>
+            <SelectItem value="ideia">Ideia</SelectItem>
+            <SelectItem value="elogio">Elogio</SelectItem>
+            <SelectItem value="duvida">Dúvida</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(statusFilter || typeFilter) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => { setStatusFilter(""); setTypeFilter(""); }}
+          >
+            <RotateCcw className="w-3 h-3 mr-1" />
+            Limpar filtros
+          </Button>
+        )}
+
+        <span className="ml-auto text-xs text-muted-foreground">
+          {isLoading ? "..." : `${total} resultado${total !== 1 ? "s" : ""}`}
+        </span>
+      </div>
+
+      {/* Table */}
+      <Card className="bg-card shadow-lg border-border/50">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-8">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              Carregando feedbacks...
+            </div>
+          ) : isError ? (
+            <div className="flex items-center gap-2 text-destructive text-sm p-8 bg-destructive/10">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Erro ao carregar feedbacks. Tente novamente.
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <MessageSquare className="w-10 h-10 opacity-20" />
+              <p className="text-sm">Nenhum feedback encontrado</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/50">
+                    <TableHead className="w-10 text-center">#</TableHead>
+                    <TableHead>Página</TableHead>
+                    <TableHead className="w-24">Tipo</TableHead>
+                    <TableHead>Mensagem</TableHead>
+                    <TableHead className="w-36">Data</TableHead>
+                    <TableHead className="w-40">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id} className="border-border/30 hover:bg-secondary/20 transition-colors align-top">
+                      <TableCell className="text-center text-xs text-muted-foreground font-mono">{item.id}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-mono max-w-[160px] truncate" title={item.page}>
+                        {item.page}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] flex items-center gap-1 w-fit ${TYPE_COLORS[item.type as FeedbackType] ?? ""}`}
+                        >
+                          {TYPE_ICONS[item.type as FeedbackType]}
+                          {TYPE_LABELS[item.type as FeedbackType] ?? item.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground max-w-sm">
+                        <p className="line-clamp-3 leading-relaxed" title={item.message}>{item.message}</p>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                        {new Date(item.createdAt).toLocaleString("pt-BR", {
+                          day: "2-digit", month: "2-digit", year: "2-digit",
+                          hour: "2-digit", minute: "2-digit",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={item.status}
+                          onValueChange={(v) => handleStatusChange(item.id, v as FeedbackStatus)}
+                          disabled={patchStatus.isPending}
+                        >
+                          <SelectTrigger className="h-7 text-[11px] w-36">
+                            <SelectValue>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] uppercase ${STATUS_COLORS[item.status as FeedbackStatus] ?? ""}`}
+                              >
+                                {STATUS_LABELS[item.status as FeedbackStatus] ?? item.status}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(STATUS_LABELS) as FeedbackStatus[]).map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs">
+                                {STATUS_LABELS[s]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {page + 1} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Admin page ────────────────────────────────────────────────────────────────
 
 export default function Admin() {
   const { toast } = useToast();
@@ -78,122 +331,93 @@ export default function Admin() {
   const [xgRound, setXgRound] = useState<string>("");
   const [xgSyncing, setXgSyncing] = useState(false);
   const [lastXgResult, setLastXgResult] = useState<{ clubsMapped: number; degraded: boolean } | null>(null);
-  const [lastSyncXgSummary, setLastSyncXgSummary] = useState<{ matchesUpdated: number; clubsMapped: number; degraded: boolean } | null>(null);
-  const [historicalRound, setHistoricalRound] = useState<string>("");
-  const [historicalSyncing, setHistoricalSyncing] = useState(false);
 
   useEffect(() => {
     if (weightsData?.weights) {
-      setWeights(weightsData.weights as Record<string, number>);
+      const incoming: Record<string, number> = {};
+      for (const [k, v] of Object.entries(weightsData.weights)) {
+        if (typeof v === "number" && !Number.isNaN(v)) incoming[k] = v;
+      }
+      if (Object.keys(incoming).length > 0) setWeights((prev) => ({ ...prev, ...incoming }));
     }
   }, [weightsData]);
 
-  useEffect(() => {
-    if (!providersData || lastXgResult !== null) return;
-    const xgProvider = providersData.providers.find((p) => p.source === "footystats_xg");
-    if (xgProvider && xgProvider.clubsMapped != null) {
-      setLastXgResult({
-        clubsMapped: xgProvider.clubsMapped,
-        degraded: xgProvider.status === "degraded",
-      });
-    }
-  }, [providersData]);
-
   const handleSaveWeights = () => {
-    updateWeights.mutate(
-      { data: weights },
-      {
-        onSuccess: () => toast({ title: "Pesos atualizados com sucesso" }),
-        onError: (err) => toast({ title: "Falha ao atualizar pesos", description: err.message, variant: "destructive" }),
-      }
-    );
+    const total = Object.values(weights).reduce((s, v) => s + v, 0);
+    if (Math.abs(total - 1) > 0.01) {
+      toast({ title: "Pesos inválidos", description: `A soma deve ser 1.00 (atual: ${total.toFixed(2)})`, variant: "destructive" });
+      return;
+    }
+    updateWeights.mutate({ data: weights }, {
+      onSuccess: () => toast({ title: "Pesos salvos", description: "Motor de projeção atualizado." }),
+      onError: (err) => toast({ title: "Falha ao salvar pesos", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  const handleSyncFull = () => {
+    syncFull.mutate(undefined, {
+      onSuccess: (data) => toast({ title: "Sync completo iniciado", description: (data as { message?: string })?.message }),
+      onError: (err) => toast({ title: "Erro no sync", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  const handleSyncMarket = () => {
+    syncMarket.mutate(undefined, {
+      onSuccess: () => toast({ title: "Mercado sincronizado" }),
+      onError: (err) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  const handleSyncCurrentRound = () => {
+    syncCurrentRound.mutate(undefined, {
+      onSuccess: () => toast({ title: "Rodada atual sincronizada" }),
+      onError: (err) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    });
   };
 
   const handleRecalc = () => {
     recalcProjections.mutate(undefined, {
-      onSuccess: (data) => toast({ title: "Projeções recalculadas", description: data?.message }),
-      onError: (err) => toast({ title: "Recalculo falhou", description: err.message, variant: "destructive" }),
-    });
-  };
-
-  const handleSync = (type: "full" | "market" | "current-round") => {
-    const mutation = type === "full" ? syncFull : type === "market" ? syncMarket : syncCurrentRound;
-    const labels: Record<string, string> = { full: "Completo", market: "Mercado", "current-round": "Rodada Atual" };
-    mutation.mutate(undefined, {
-      onSuccess: (data) => {
-        const xgMatches = data?.xgMatchesUpdated;
-        const xgClubs = data?.xgClubsMapped;
-        const xgDegraded = data?.xgDegraded;
-
-        if (type !== "market" && xgMatches != null && xgClubs != null) {
-          setLastSyncXgSummary({ matchesUpdated: xgMatches, clubsMapped: xgClubs, degraded: xgDegraded ?? false });
-        }
-
-        toast({ title: `Sincronização ${labels[type]} disparada com sucesso` });
-      },
-      onError: (err) => toast({ title: "Sincronização falhou", description: err.message, variant: "destructive" }),
+      onSuccess: () => toast({ title: "Projeções recalculadas" }),
+      onError: (err) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
     });
   };
 
   const handleSyncXg = async () => {
+    if (!xgRound) return;
     setXgSyncing(true);
+    setLastXgResult(null);
     try {
-      const body: Record<string, unknown> = {};
-      const parsedRound = xgRound.trim() ? parseInt(xgRound.trim(), 10) : null;
-      if (parsedRound && parsedRound > 0) body.round = parsedRound;
-      const res = await fetch("/api/admin/sync/xg", {
+      const res = await fetch(`/api/admin/sync-xg?round=${xgRound}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        credentials: "include",
       });
-      const data = await res.json() as { success?: boolean; matchesUpdated?: number; clubStatsParsed?: number; clubsMapped?: number; degraded?: boolean; warnings?: string[]; error?: string };
-      if (data.success) {
-        const mapped = data.clubsMapped ?? 0;
-        const isDegraded = data.degraded ?? mapped < 15;
-        setLastXgResult({ clubsMapped: mapped, degraded: isDegraded });
-        if (isDegraded) {
-          toast({
-            title: "⚠️ xG sincronizado com degradação",
-            description: `${data.matchesUpdated} partidas atualizadas, mas apenas ${mapped}/20 clubes foram mapeados. Projeções podem estar imprecisas.`,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "xG sincronizado com sucesso",
-            description: `${data.matchesUpdated} partidas atualizadas, ${mapped}/20 clubes mapeados.`,
-          });
-        }
-      } else {
-        toast({ title: "Falha no sync xG", description: data.error ?? "Erro desconhecido", variant: "destructive" });
-      }
+      const json = (await res.json()) as { clubsMapped?: number; degraded?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      setLastXgResult({ clubsMapped: json.clubsMapped ?? 0, degraded: json.degraded ?? false });
+      toast({ title: "xG sincronizado", description: `${json.clubsMapped ?? 0} clubes mapeados.` });
     } catch (err) {
-      toast({ title: "Erro de rede", description: String(err), variant: "destructive" });
+      toast({ title: "Erro no sync xG", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setXgSyncing(false);
     }
   };
 
+  const [historicalRound, setHistoricalRound] = useState<string>("");
+  const [historicalSyncing, setHistoricalSyncing] = useState(false);
+
   const handleSyncHistorical = async () => {
-    const round = parseInt(historicalRound, 10);
-    if (!round || round < 1) {
-      toast({ title: "Rodada inválida", description: "Digite um número de rodada válido.", variant: "destructive" });
-      return;
-    }
+    if (!historicalRound) return;
     setHistoricalSyncing(true);
     try {
-      const res = await fetch("/api/admin/sync/historical-round", {
+      const res = await fetch(`/api/admin/sync/historical/${historicalRound}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ round }),
+        credentials: "include",
       });
-      const data = await res.json() as { success?: boolean; message?: string; error?: string };
-      if (data.success) {
-        toast({ title: `Rodada ${round} sincronizada`, description: data.message });
-      } else {
-        toast({ title: "Falha no sync histórico", description: data.error ?? "Erro desconhecido", variant: "destructive" });
-      }
+      const json = (await res.json()) as { message?: string; error?: string };
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      toast({ title: "Rodada histórica sincronizada", description: json.message ?? "" });
     } catch (err) {
-      toast({ title: "Erro de rede", description: String(err), variant: "destructive" });
+      toast({ title: "Erro", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setHistoricalSyncing(false);
     }
@@ -223,439 +447,353 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Engine Configuration */}
-        <Card className="bg-card shadow-lg border-border/50">
-          <CardHeader className="bg-secondary/20 border-b border-border/50">
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-accent" />
-              Configuração do Motor
-            </CardTitle>
-            <CardDescription>Ajuste os pesos usados pelo algoritmo de projeção.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {weightsLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                Carregando configuração...
-              </div>
-            ) : weightsError ? (
-              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                Erro ao carregar pesos. Tente novamente.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {Object.entries(weights).map(([key, value]) => (
-                  <div key={key} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold text-foreground">
-                        {{ formWeight: "Forma", availabilityWeight: "Disponibilidade", fixtureWeight: "Confronto", valueWeight: "Valor", historyWeight: "Histórico" }[key] ?? key.replace("Weight", "")}
-                      </Label>
-                      <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
-                    </div>
-                    <Slider
-                      value={[value]}
-                      max={1}
-                      min={0}
-                      step={0.05}
-                      onValueChange={(v) => setWeights((prev) => ({ ...prev, [key]: v[0] }))}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+      <Tabs defaultValue="sistema">
+        <TabsList className="mb-6">
+          <TabsTrigger value="sistema">
+            <Settings className="w-4 h-4 mr-2" />
+            Sistema
+          </TabsTrigger>
+          <TabsTrigger value="feedback">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Feedback
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="pt-4 border-t border-border/50 space-y-4">
-              {isAdmin && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-orange-400" />
-                    Alerta de dados xG após X dias
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={xgStaleDaysInput}
-                      onChange={(e) => setXgStaleDaysInput(e.target.value)}
-                      className="h-9 w-24"
-                      placeholder="4"
-                    />
+        {/* ── Aba Sistema ─────────────────────────────────────────────────── */}
+        <TabsContent value="sistema" className="space-y-8">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Engine Configuration */}
+            <Card className="bg-card shadow-lg border-border/50">
+              <CardHeader className="bg-secondary/20 border-b border-border/50">
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-accent" />
+                  Configuração do Motor
+                </CardTitle>
+                <CardDescription>Ajuste os pesos usados pelo algoritmo de projeção.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {weightsLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    Carregando configuração...
+                  </div>
+                ) : weightsError ? (
+                  <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    Erro ao carregar pesos. Tente novamente.
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(weights).map(([key, value]) => (
+                      <div key={key} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold text-foreground">
+                            {{ formWeight: "Forma", availabilityWeight: "Disponibilidade", fixtureWeight: "Confronto", valueWeight: "Valor", historyWeight: "Histórico" }[key] ?? key.replace("Weight", "")}
+                          </Label>
+                          <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[value]}
+                          max={1}
+                          min={0}
+                          step={0.05}
+                          onValueChange={(v) => setWeights((prev) => ({ ...prev, [key]: v[0] }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-border/50 space-y-4">
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-orange-400" />
+                        Alerta de dados xG após X dias
+                      </Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={30}
+                          value={xgStaleDaysInput}
+                          onChange={(e) => setXgStaleDaysInput(e.target.value)}
+                          className="h-9 w-24"
+                          placeholder="4"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleSaveConfig}
+                          disabled={updateConfig.isPending}
+                          variant="outline"
+                          className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+                        >
+                          {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                          Salvar
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
                     <Button
-                      size="sm"
-                      onClick={handleSaveConfig}
-                      disabled={updateConfig.isPending}
+                      onClick={handleSaveWeights}
+                      disabled={updateWeights.isPending}
+                      className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 font-bold"
                       variant="outline"
-                      className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
                     >
-                      {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
-                      Salvar
+                      {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      Salvar Pesos
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
-                  </p>
                 </div>
-              )}
+              </CardContent>
+            </Card>
 
-              {isAdmin && (
-                <div className="flex gap-3 flex-wrap">
-                  <Button
-                    onClick={handleSaveWeights}
-                    disabled={updateWeights.isPending || weightsError}
-                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    {updateWeights.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                    Salvar Pesos
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={handleRecalc}
-                    disabled={recalcProjections.isPending}
-                    className="flex-1 border border-border"
-                  >
-                    {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                    Recalcular Agora
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setWeights(DEFAULT_WEIGHTS);
-                      toast({ title: "Pesos restaurados", description: "Valores voltaram ao padrão do sistema. Clique em Salvar para persistir." });
-                    }}
-                    className="border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/60"
-                    title="Restaurar valores padrão"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Restaurar Default
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Data Pipeline Management */}
-        <Card className="bg-card shadow-lg border-border/50">
-          <CardHeader className="bg-secondary/20 border-b border-border/50">
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-primary" />
-              {isAdmin ? "Controles do Pipeline" : "Status do Pipeline"}
-            </CardTitle>
-            <CardDescription>
-              {isAdmin
-                ? "Dispare ingestão manual de dados e veja o status dos provedores."
-                : "Sincronização automática ativa — dados atualizados a cada hora e no login."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {isAdmin && (
-              <div className="grid grid-cols-1 gap-3">
-                <Button
-                  className="h-14 flex items-center justify-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground transition-all shadow-lg shadow-primary/20"
-                  onClick={() => handleSync("current-round")}
-                  disabled={syncCurrentRound.isPending}
-                >
-                  {syncCurrentRound.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-                  <span className="font-bold">Sincronizar Rodada Atual</span>
-                </Button>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="h-12 flex items-center justify-center gap-2 border-border hover:border-primary hover:bg-primary/5 transition-all"
-                    onClick={() => handleSync("full")}
-                    disabled={syncFull.isPending}
-                  >
-                    {syncFull.isPending ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Play className="w-4 h-4 text-primary" />}
-                    <span className="font-semibold text-sm">Sync Completo</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-12 flex items-center justify-center gap-2 border-border hover:border-accent hover:bg-accent/5 transition-all"
-                    onClick={() => handleSync("market")}
-                    disabled={syncMarket.isPending}
-                  >
-                    {syncMarket.isPending ? <Loader2 className="w-4 h-4 animate-spin text-accent" /> : <Play className="w-4 h-4 text-accent" />}
-                    <span className="font-semibold text-sm">Sync Mercado</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {lastSyncXgSummary && (
-              <div className={`flex items-start gap-2 p-3 rounded-lg border text-sm ${
-                lastSyncXgSummary.degraded
-                  ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
-                  : "bg-green-500/10 border-green-500/30 text-green-400"
-              }`}>
-                <Zap className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  {lastSyncXgSummary.degraded ? <strong>⚠️ xG degradado — </strong> : null}
-                  xG atualizado para <strong>{lastSyncXgSummary.matchesUpdated}</strong> {lastSyncXgSummary.matchesUpdated === 1 ? "partida" : "partidas"},{" "}
-                  <strong>{lastSyncXgSummary.clubsMapped}</strong> clubes mapeados
-                </span>
-              </div>
-            )}
-
-            <div className="space-y-3 pt-4">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Status dos Provedores</Label>
-              {providersLoading ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  Carregando provedores...
-                </div>
-              ) : providersError ? (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  Erro ao carregar status dos provedores.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {providers.map((p) => {
-                    const labelMap: Record<string, string> = {
-                      cartola_api: "Cartola API",
-                      cartola_status: "Cartola Status (Disponibilidade)",
-                      ge_probables: "GE Prováveis",
-                      footystats_xg: "Footystats xG",
-                      historical_cartola: "Histórico Cartola",
-                    };
-                    const label = labelMap[p.source] ?? p.source.replace(/_/g, " ");
-
-                    const xgStaleDays = configData?.xgStaleDays ?? 4;
-                    const isXgStale = p.source === "footystats_xg" && (() => {
-                      if (!p.lastCollectedAt) return true;
-                      const ageMs = Date.now() - new Date(p.lastCollectedAt).getTime();
-                      return ageMs > xgStaleDays * 24 * 60 * 60 * 1000;
-                    })();
-
-                    return (
-                      <div
-                        key={p.source}
-                        className={`flex items-start justify-between p-3 rounded-lg border bg-background gap-2 ${
-                          isXgStale ? "border-orange-500/50" : "border-border"
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <span className="font-medium text-sm">{label}</span>
-                          <p className="text-xs text-muted-foreground">
-                            {p.lastCollectedAt
-                              ? new Date(p.lastCollectedAt).toLocaleString("pt-BR")
-                              : "Nunca sincronizado"}
-                          </p>
-                          {p.lastMessage && (
-                            <p className="text-xs text-muted-foreground/70 truncate max-w-xs" title={p.lastMessage}>
-                              {p.lastMessage}
-                            </p>
-                          )}
-                          {isXgStale && (
-                            <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
-                              <Clock className="w-3 h-3 shrink-0" />
-                              Dados desatualizados — sincronize antes do fechamento da rodada
-                            </p>
-                          )}
+            {/* Pipeline Controls */}
+            <Card className="bg-card shadow-lg border-border/50">
+              <CardHeader className="bg-secondary/20 border-b border-border/50">
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-yellow-400" />
+                  Pipeline de Dados
+                </CardTitle>
+                <CardDescription>
+                  Sincronize dados do Cartola FC e recalcule projeções manualmente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {providersLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    Carregando status...
+                  </div>
+                ) : providersError ? (
+                  <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/30">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    Erro ao carregar provedores.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {providers.map((p) => (
+                      <div key={p.source} className="flex items-center justify-between py-2 border-b border-border/20 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold capitalize">{p.source.replace(/_/g, " ")}</span>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <Badge
-                            variant={p.status === "ok" ? "default" : p.status === "error" ? "destructive" : "secondary"}
-                          >
-                            {p.status === "ok" ? "OK" : p.status === "never_synced" ? "Não sincronizado" : p.status === "degraded" ? "Degradado" : "Erro"}
-                          </Badge>
-                          {isXgStale && (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] border-orange-500/60 bg-orange-500/10 text-orange-400"
-                            >
-                              Desatualizado
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* xG Sync — admin only */}
-      {isAdmin && <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
-        <CardHeader className="bg-secondary/20 border-b border-border/50">
-          <CardTitle className="flex items-center gap-2 flex-wrap">
-            <Zap className="w-5 h-5 text-yellow-400" />
-            Sincronizar xG (Expectativa de Gols)
-            {lastXgResult && (
-              <Badge
-                variant="outline"
-                className={`ml-auto text-xs font-semibold ${
-                  lastXgResult.degraded
-                    ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
-                    : "border-green-500/60 bg-green-500/10 text-green-400"
-                }`}
-              >
-                {lastXgResult.degraded ? "⚠️ " : ""}
-                {lastXgResult.clubsMapped}/20 clubes mapeados
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Busca dados de xG diretamente do footystats.org (overall, casa e fora por clube). Nenhuma URL necessária. Deixe a rodada em branco para usar a rodada atual.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          {lastXgResult?.degraded && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                Apenas <strong>{lastXgResult.clubsMapped}/20</strong> clubes foram mapeados no último sync. Projeções de xG podem estar usando médias da liga para os clubes não encontrados. Verifique os logs para detalhes.
-              </span>
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Rodada (opcional)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={38}
-              value={xgRound}
-              onChange={(e) => setXgRound(e.target.value)}
-              placeholder="Rodada atual (automático)"
-              className="h-10 w-48"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Fonte: footystats.org/pt/brazil/serie-a/xg
-            </p>
-          </div>
-          <Button
-            onClick={handleSyncXg}
-            disabled={xgSyncing}
-            className="w-full h-12 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/40 font-bold"
-            variant="outline"
-          >
-            {xgSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Sincronizar xG via Footystats
-          </Button>
-          <p className="text-[10px] text-muted-foreground text-center">
-            Após sincronizar o xG, recalcule as projeções para atualizar goleiros e zagueiros com probabilidades de SG mais precisas.
-          </p>
-        </CardContent>
-      </Card>}
-
-      {/* Historical Round Sync — admin only */}
-      {isAdmin && <Card className="bg-card shadow-lg border-border/50">
-        <CardHeader className="bg-secondary/20 border-b border-border/50">
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-blue-400" />
-            Sincronizar Pontuação Histórica
-          </CardTitle>
-          <CardDescription>
-            Busca os pontos reais (scouts finais) de uma rodada já encerrada. Use para popular o backtest com dados reais.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-end gap-3">
-            <div className="flex-1 space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
-              <Input
-                type="number"
-                min={1}
-                value={historicalRound}
-                onChange={(e) => setHistoricalRound(e.target.value)}
-                placeholder="Ex: 7"
-                className="h-10 w-32"
-              />
-            </div>
-            <Button
-              onClick={handleSyncHistorical}
-              disabled={historicalSyncing || !historicalRound}
-              className="h-10 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40 font-bold"
-              variant="outline"
-            >
-              {historicalSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              Sincronizar
-            </Button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Após sincronizar, acesse o Histórico para ver os pontos reais vs. projetados no backtest de escalação.
-          </p>
-        </CardContent>
-      </Card>}
-
-      {/* System Logs */}
-      <Card className="bg-card shadow-lg border-border/50">
-        <CardHeader className="bg-secondary/20 border-b border-border/50">
-          <CardTitle className="flex items-center gap-2">
-            <TerminalSquare className="w-5 h-5 text-muted-foreground" />
-            Logs do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {logsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm p-6">
-              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              Carregando logs...
-            </div>
-          ) : logsError ? (
-            <div className="flex items-center gap-2 text-destructive text-sm p-6 bg-destructive/10">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              Erro ao carregar logs. Tente novamente.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/50">
-                    <TableHead className="w-[180px]">Timestamp</TableHead>
-                    <TableHead>Fonte</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Rodada</TableHead>
-                    <TableHead className="w-1/2">Mensagem</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                        Nenhum log disponível
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    logs.map((log, i) => (
-                      <TableRow key={i} className="border-border/30 hover:bg-secondary/20 transition-colors">
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {new Date(log.collectedAt || log.createdAt || "").toLocaleString("pt-BR")}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold capitalize">{log.source?.replace(/_/g, " ")}</TableCell>
-                        <TableCell>
+                        <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
                             className={`text-[10px] uppercase border ${
-                              log.status === "success" || log.status === "ok"
+                              p.status === "ok" || p.status === "success"
                                 ? "text-green-500 border-green-500/30 bg-green-500/10"
-                                : log.status === "error"
+                                : p.status === "error"
                                   ? "text-red-500 border-red-500/30 bg-red-500/10"
-                                  : "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                                  : p.status === "degraded"
+                                    ? "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                                    : "text-muted-foreground border-border/40"
                             }`}
                           >
-                            {{ success: "Sucesso", ok: "OK", error: "Erro", degraded: "Degradado", info: "Info", never_synced: "Nunca sincronizado" }[log.status ?? ""] ?? log.status}
+                            {{ ok: "OK", success: "Sucesso", error: "Erro", degraded: "Degradado", never_synced: "Nunca" }[p.status] ?? p.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs">{log.round ?? "-"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-md truncate" title={log.message ?? ""}>
-                          {log.message}
-                        </TableCell>
+                          {p.lastCollectedAt && (
+                            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                              {new Date(p.lastCollectedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Button onClick={handleSyncFull} disabled={syncFull.isPending} variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 font-bold">
+                    {syncFull.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Sync Completo
+                  </Button>
+                  <Button onClick={handleSyncMarket} disabled={syncMarket.isPending} variant="outline" className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-bold">
+                    {syncMarket.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Mercado
+                  </Button>
+                  <Button onClick={handleSyncCurrentRound} disabled={syncCurrentRound.isPending} variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-bold">
+                    {syncCurrentRound.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    Rodada Atual
+                  </Button>
+                  <Button onClick={handleRecalc} disabled={recalcProjections.isPending} variant="outline" className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 font-bold">
+                    {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+                    Recalcular
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* xG Sync */}
+          {isAdmin && <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
+            <CardHeader className="bg-secondary/20 border-b border-border/50">
+              <CardTitle className="flex items-center gap-2 flex-wrap">
+                <Zap className="w-5 h-5 text-accent" />
+                Sincronizar Dados xG
+                {lastXgResult && (
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ml-auto ${lastXgResult.degraded ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10" : "text-green-400 border-green-500/30 bg-green-500/10"}`}
+                  >
+                    {lastXgResult.degraded ? "Degradado" : "OK"} — {lastXgResult.clubsMapped} clubes
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Importa dados de Expected Goals (xG) do Footystats para a rodada especificada.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={xgRound}
+                    onChange={(e) => setXgRound(e.target.value)}
+                    placeholder="Ex: 19"
+                    className="h-10 w-32"
+                  />
+                </div>
+                <Button
+                  onClick={handleSyncXg}
+                  disabled={xgSyncing || !xgRound}
+                  className="h-10 bg-accent/20 hover:bg-accent/30 text-accent border border-accent/40 font-bold"
+                  variant="outline"
+                >
+                  {xgSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                  Sincronizar xG
+                </Button>
+              </div>
+            </CardContent>
+          </Card>}
+
+          {/* Historical Sync */}
+          {isAdmin && <Card className="bg-card shadow-lg border-border/50">
+            <CardHeader className="bg-secondary/20 border-b border-border/50">
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-blue-400" />
+                Sincronizar Pontuação Histórica
+              </CardTitle>
+              <CardDescription>
+                Busca os pontos reais (scouts finais) de uma rodada já encerrada. Use para popular o backtest com dados reais.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={historicalRound}
+                    onChange={(e) => setHistoricalRound(e.target.value)}
+                    placeholder="Ex: 7"
+                    className="h-10 w-32"
+                  />
+                </div>
+                <Button
+                  onClick={handleSyncHistorical}
+                  disabled={historicalSyncing || !historicalRound}
+                  className="h-10 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40 font-bold"
+                  variant="outline"
+                >
+                  {historicalSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                  Sincronizar
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Após sincronizar, acesse o Histórico para ver os pontos reais vs. projetados no backtest de escalação.
+              </p>
+            </CardContent>
+          </Card>}
+
+          {/* System Logs */}
+          <Card className="bg-card shadow-lg border-border/50">
+            <CardHeader className="bg-secondary/20 border-b border-border/50">
+              <CardTitle className="flex items-center gap-2">
+                <TerminalSquare className="w-5 h-5 text-muted-foreground" />
+                Logs do Sistema
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {logsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm p-6">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  Carregando logs...
+                </div>
+              ) : logsError ? (
+                <div className="flex items-center gap-2 text-destructive text-sm p-6 bg-destructive/10">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Erro ao carregar logs. Tente novamente.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/50">
+                        <TableHead className="w-[180px]">Timestamp</TableHead>
+                        <TableHead>Fonte</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Rodada</TableHead>
+                        <TableHead className="w-1/2">Mensagem</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                            Nenhum log disponível
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        logs.map((log, i) => (
+                          <TableRow key={i} className="border-border/30 hover:bg-secondary/20 transition-colors">
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {new Date(log.collectedAt || log.createdAt || "").toLocaleString("pt-BR")}
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold capitalize">{log.source?.replace(/_/g, " ")}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] uppercase border ${
+                                  log.status === "success" || log.status === "ok"
+                                    ? "text-green-500 border-green-500/30 bg-green-500/10"
+                                    : log.status === "error"
+                                      ? "text-red-500 border-red-500/30 bg-red-500/10"
+                                      : "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                                }`}
+                              >
+                                {{ success: "Sucesso", ok: "OK", error: "Erro", degraded: "Degradado", info: "Info", never_synced: "Nunca sincronizado" }[log.status ?? ""] ?? log.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{log.round ?? "-"}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-md truncate" title={log.message ?? ""}>
+                              {log.message}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Aba Feedback ────────────────────────────────────────────────── */}
+        <TabsContent value="feedback">
+          <FeedbackTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

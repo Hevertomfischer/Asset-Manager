@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/sidebar";
 import { AutoSync } from "@/components/AutoSync";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { useAuth } from "@/hooks/useAuth";
+import { useGetAdminFeedbackNewCount } from "@workspace/api-client-react";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -34,6 +36,11 @@ const navItems = [
 
 export const AppSidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const { data: feedbackCountData } = useGetAdminFeedbackNewCount(isAdmin);
+  const newFeedbackCount = feedbackCountData?.count ?? 0;
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
@@ -55,6 +62,9 @@ export const AppSidebar = () => {
             <SidebarMenu className="px-3">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.url;
+                const isAdminItem = item.url === "/admin";
+                const showBadge = isAdminItem && isAdmin && newFeedbackCount > 0;
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
@@ -69,7 +79,12 @@ export const AppSidebar = () => {
                     >
                       <Link to={item.url} className="flex items-center gap-3">
                         <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "opacity-70"}`} />
-                        <span>{item.title}</span>
+                        <span className="flex-1">{item.title}</span>
+                        {showBadge && (
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center leading-none shrink-0">
+                            {newFeedbackCount > 99 ? "99+" : newFeedbackCount}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
