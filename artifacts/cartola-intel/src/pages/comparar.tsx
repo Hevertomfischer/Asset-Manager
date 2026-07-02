@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, type CarouselApi } from "@/components/ui/carousel";
 import { useGetPlayers, useGetPlayerById, type Player } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks";
 import { usePaywall } from "@/context/PaywallContext";
@@ -559,8 +560,8 @@ export default function Comparar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showScouts, setShowScouts] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const searchRef = useRef<HTMLDivElement>(null);
-  const carouselRef = useRef<HTMLDivElement>(null);
 
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
 
@@ -707,11 +708,19 @@ export default function Comparar() {
     ) as Record<string, number[]>,
   }), [selectedPlayers]);
 
+  // Track active slide via Embla API
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveSlide(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", onSelect);
+    return () => { carouselApi.off("select", onSelect); };
+  }, [carouselApi]);
+
   // Reset carousel position when players are added/removed
   useEffect(() => {
     setActiveSlide(0);
-    carouselRef.current?.scrollTo({ left: 0, behavior: "auto" });
-  }, [selectedPlayers.length]);
+    carouselApi?.scrollTo(0, true);
+  }, [selectedPlayers.length, carouselApi]);
 
   // ── Dummy blurred rows for ProGate overlay ─────────────────────────────────
   const dummyRows = (
@@ -859,60 +868,55 @@ export default function Comparar() {
         <EmptyPrompt />
       ) : (
         <>
-          {/* ── Mobile: scroll-snap carousel (< md) ─────────────────────────── */}
-          <div className="md:hidden space-y-4">
-            {/* Carousel track */}
-            <div
-              ref={carouselRef}
-              onScroll={() => {
-                const el = carouselRef.current;
-                if (!el || el.clientWidth === 0) return;
-                setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
-              }}
-              className="flex overflow-x-auto snap-x snap-mandatory"
-              style={{ scrollbarWidth: "none" } as React.CSSProperties}
+          {/* ── Mobile: Carousel (< md) ──────────────────────────────────────── */}
+          <div className="md:hidden space-y-2">
+            <Carousel
+              setApi={setCarouselApi}
+              opts={{ align: "start", loop: false }}
+              className="w-full"
             >
-              {selectedPlayers.map((player, idx) => (
-                <div key={player.id} className="snap-start w-full shrink-0">
-                  <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
-                    <MobilePlayerCard
-                      player={player}
-                      idx={idx}
-                      seals={sealMap.get(player.id) ?? []}
-                      onRemove={() => removePlayer(player.id)}
-                      showScouts={showScouts}
-                      onToggleScouts={() => setShowScouts((v) => !v)}
-                      vals={mobileVals}
-                      visibleScouts={visibleScouts}
-                    />
-                  </Card>
-                </div>
-              ))}
-            </div>
+              <CarouselContent className="ml-0">
+                {selectedPlayers.map((player, idx) => (
+                  <CarouselItem key={player.id} className="pl-0">
+                    <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
+                      <MobilePlayerCard
+                        player={player}
+                        idx={idx}
+                        seals={sealMap.get(player.id) ?? []}
+                        onRemove={() => removePlayer(player.id)}
+                        showScouts={showScouts}
+                        onToggleScouts={() => setShowScouts((v) => !v)}
+                        vals={mobileVals}
+                        visibleScouts={visibleScouts}
+                      />
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
 
-            {/* Dot indicators */}
-            <div className="flex justify-center items-center gap-2">
-              {selectedPlayers.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() =>
-                    carouselRef.current?.scrollTo({
-                      left: i * carouselRef.current.clientWidth,
-                      behavior: "smooth",
-                    })
-                  }
-                  className={`h-2 rounded-full transition-all duration-200 ${
-                    i === activeSlide
-                      ? "w-5 bg-primary"
-                      : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                  }`}
-                  aria-label={`Jogador ${i + 1}`}
-                />
-              ))}
-            </div>
+              {/* Navigation: prev · dots · next */}
+              <div className="flex justify-center items-center gap-3 mt-3">
+                <CarouselPrevious className="relative inset-auto translate-x-0 translate-y-0 h-7 w-7" />
+                <div className="flex gap-2">
+                  {selectedPlayers.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => carouselApi?.scrollTo(i)}
+                      className={`h-2 rounded-full transition-all duration-200 ${
+                        i === activeSlide
+                          ? "w-5 bg-primary"
+                          : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                      }`}
+                      aria-label={`Jogador ${i + 1}`}
+                    />
+                  ))}
+                </div>
+                <CarouselNext className="relative inset-auto translate-x-0 translate-y-0 h-7 w-7" />
+              </div>
+            </Carousel>
 
             {/* Legend */}
-            <p className="text-center text-[11px] text-muted-foreground/50">
+            <p className="text-center text-[11px] text-muted-foreground/50 mt-1">
               <span className="text-emerald-400 font-bold">▲</span>{" "}
               = melhor valor · Risco e Preço: menor é melhor.
             </p>
