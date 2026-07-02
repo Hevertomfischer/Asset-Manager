@@ -26,8 +26,10 @@ import {
   ChevronDown,
   ChevronUp,
   GitCompare,
+  Loader2,
   Lock,
   Search,
+  Share2,
   Shield,
   Sparkles,
   Trophy,
@@ -562,6 +564,8 @@ export default function Comparar() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const searchRef = useRef<HTMLDivElement>(null);
+  const shareRef = useRef<HTMLDivElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
 
@@ -648,6 +652,26 @@ export default function Comparar() {
 
   function removePlayer(id: number) {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  async function handleShare() {
+    if (!shareRef.current) return;
+    setIsSharing(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(shareRef.current, { pixelRatio: 2, cacheBust: true });
+      const names = selectedPlayers
+        .map((p) => (p.nickname ?? p.name).replace(/\s+/g, "_"))
+        .join("-vs-");
+      const a = document.createElement("a");
+      a.download = `mitometro-${names}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      console.error("[share]", err);
+    } finally {
+      setIsSharing(false);
+    }
   }
 
   // ── Projection values per row ──────────────────────────────────────────────
@@ -868,6 +892,24 @@ export default function Comparar() {
         <EmptyPrompt />
       ) : (
         <>
+          {/* ── Share button ──────────────────────────────────────────────────── */}
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleShare}
+              disabled={isSharing}
+              className="gap-2 text-xs border-border/60 text-muted-foreground hover:text-foreground"
+            >
+              {isSharing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Share2 className="w-3.5 h-3.5" />
+              )}
+              {isSharing ? "Gerando imagem…" : "Compartilhar comparação"}
+            </Button>
+          </div>
+
           {/* ── Mobile: Carousel (< md) ──────────────────────────────────────── */}
           <div className="md:hidden space-y-2">
             <Carousel
@@ -1109,6 +1151,100 @@ export default function Comparar() {
             <span>Score geral: 0–100, gerado pelo modelo.</span>
           </div>
         </Card>
+
+          {/* ── Hidden share card (html-to-image target) ─────────────────────── */}
+          {(() => {
+            const projVals = selectedPlayers.map((x) => x.projection?.expectedPoints ?? null);
+            const ceilVals = selectedPlayers.map((x) => x.projection?.ceilingPoints ?? null);
+            const scoreVals = selectedPlayers.map((x) => x.projection?.recommendationScore ?? null);
+            const bestProj = findBest(projVals);
+            const bestCeil = findBest(ceilVals);
+            const bestScore = findBest(scoreVals);
+            const sealColors: Record<string, string> = {
+              teto: "#eab308", seguro: "#60a5fa", custo: "#34d399", diferencial: "#a855f7",
+            };
+            return (
+              <div
+                ref={shareRef}
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: "-9999px",
+                  top: 0,
+                  width: "560px",
+                  backgroundColor: "#0f172a",
+                  color: "#f1f5f9",
+                  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Header */}
+                <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ background: "#10b981", borderRadius: "8px", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "13px" }}>M</span>
+                    </div>
+                    <span style={{ fontSize: "17px", fontWeight: 700 }}>
+                      Mito<span style={{ color: "#10b981" }}>metro</span>
+                    </span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Comparação de Jogadores
+                    </div>
+                    <div style={{ fontSize: "9px", color: "#6ee7b7", marginTop: "2px" }}>Cartola FC Intelligence</div>
+                  </div>
+                </div>
+
+                {/* Players grid */}
+                <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: `repeat(${selectedPlayers.length}, 1fr)`, gap: "10px" }}>
+                  {selectedPlayers.map((p, idx) => {
+                    const seals = sealMap.get(p.id) ?? [];
+                    const isWinner = idx === bestScore;
+                    return (
+                      <div key={p.id} style={{ background: "#1e293b", borderRadius: "12px", padding: "12px", border: isWinner ? "1.5px solid #10b981" : "1px solid #334155" }}>
+                        <div style={{ fontWeight: 700, fontSize: "14px", color: "#f1f5f9", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.nickname ?? p.name}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "10px" }}>
+                          {p.position} · {p.club?.abbreviation ?? "—"} · C${(p.price ?? 0).toFixed(1)}
+                        </div>
+                        {seals.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginBottom: "9px" }}>
+                            {seals.map((s) => (
+                              <span key={s} style={{ fontSize: "8px", padding: "2px 5px", borderRadius: "999px", backgroundColor: (sealColors[s] ?? "#64748b") + "25", color: sealColors[s] ?? "#64748b", fontWeight: 700 }}>
+                                {SEAL_CONFIG[s as keyof typeof SEAL_CONFIG]?.label ?? s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {[
+                          { label: "Projeção", value: p.projection?.expectedPoints, best: idx === bestProj, suffix: " pts" },
+                          { label: "Teto",     value: p.projection?.ceilingPoints,   best: idx === bestCeil, suffix: " pts" },
+                          { label: "Score",    value: p.projection?.recommendationScore, best: idx === bestScore, suffix: "" },
+                        ].map(({ label, value, best, suffix }) => (
+                          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                            <span style={{ fontSize: "10px", color: "#64748b" }}>{label}</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: best ? "#10b981" : "#94a3b8" }}>
+                              {value != null ? value.toFixed(1) + suffix : "—"}
+                              {best && <span style={{ marginLeft: "2px", fontSize: "8px" }}>▲</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer */}
+                <div style={{ padding: "9px 20px", background: "#080e1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>mitometro.app</span>
+                  <span style={{ fontSize: "9px", color: "#334155" }}>Cartola FC · Temporada 2025</span>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 

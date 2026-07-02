@@ -9,7 +9,7 @@
  * layout sem sidebar (standalone).
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -33,6 +33,7 @@ import {
   Eye,
   Loader2,
   LogIn,
+  Share2,
   Sparkles,
   Target,
   TrendingDown,
@@ -187,13 +188,50 @@ function EmptyState({ message }: { message?: string }) {
 
 export default function Desempenho() {
   const navigate = useNavigate();
+  const shareRef = useRef<HTMLDivElement>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
-  // SEO — set page title while mounted
+  async function handleShare() {
+    if (!shareRef.current) return;
+    setIsSharing(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(shareRef.current, { pixelRatio: 2, cacheBust: true });
+      const a = document.createElement("a");
+      a.download = "mitometro-desempenho.png";
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      console.error("[share]", err);
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  // SEO + OG meta tags — set while mounted, restore on unmount
   useEffect(() => {
-    const prev = document.title;
+    const prevTitle = document.title;
     document.title = "Desempenho do Modelo — Mitometro";
+
+    const updates: Array<{ el: HTMLMetaElement; prev: string }> = [];
+    const patches: Array<{ selector: string; prop: string; value: string }> = [
+      { selector: 'meta[property="og:title"]',       prop: "content", value: "Desempenho do Modelo — Mitometro" },
+      { selector: 'meta[property="og:description"]', prop: "content", value: "Todo modelo erra. Aqui você vê exatamente quanto — erro médio por rodada, calibração e taxa de armadilhas. Transparência total." },
+      { selector: 'meta[property="og:url"]',         prop: "content", value: window.location.href },
+      { selector: 'meta[name="twitter:title"]',      prop: "content", value: "Desempenho do Modelo — Mitometro" },
+      { selector: 'meta[name="twitter:card"]',       prop: "content", value: "summary_large_image" },
+    ];
+    for (const { selector, prop, value } of patches) {
+      const el = document.querySelector<HTMLMetaElement>(selector);
+      if (el) {
+        updates.push({ el, prev: el.getAttribute(prop) ?? "" });
+        el.setAttribute(prop, value);
+      }
+    }
+
     return () => {
-      document.title = prev;
+      document.title = prevTitle;
+      updates.forEach(({ el, prev }) => el.setAttribute("content", prev));
     };
   }, []);
 
@@ -301,6 +339,24 @@ export default function Desempenho() {
 
         {data && !data.empty && (
           <>
+            {/* ── Share button ──────────────────────────────────────────────── */}
+            <div className="flex justify-end -mt-6">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleShare}
+                disabled={isSharing}
+                className="gap-2 text-xs border-border/60 text-muted-foreground hover:text-foreground"
+              >
+                {isSharing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Share2 className="w-3.5 h-3.5" />
+                )}
+                {isSharing ? "Gerando imagem…" : "Compartilhar desempenho"}
+              </Button>
+            </div>
+
             {/* ── Stat cards ─────────────────────────────────────────────────── */}
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <StatCard
@@ -568,6 +624,82 @@ export default function Desempenho() {
             <div className="flex items-start gap-2 text-[11px] text-muted-foreground/60 leading-relaxed max-w-3xl mx-auto">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-yellow-600/50" />
               <span>{data.meta.disclaimer}</span>
+            </div>
+
+            {/* ── Hidden share card (html-to-image target) ─────────────────── */}
+            <div
+              ref={shareRef}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-9999px",
+                top: 0,
+                width: "560px",
+                backgroundColor: "#0f172a",
+                color: "#f1f5f9",
+                fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                borderRadius: "16px",
+                overflow: "hidden",
+              }}
+            >
+              {/* Header */}
+              <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ background: "#10b981", borderRadius: "8px", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "13px" }}>M</span>
+                  </div>
+                  <span style={{ fontSize: "17px", fontWeight: 700 }}>
+                    Mito<span style={{ color: "#10b981" }}>metro</span>
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    Desempenho do Modelo
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#6ee7b7", marginTop: "2px" }}>Transparência total · Cartola FC</div>
+                </div>
+              </div>
+
+              {/* MAE hero */}
+              <div style={{ padding: "20px 20px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: "8px" }}>
+                  Erro Médio da Temporada (MAE)
+                </div>
+                <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: data.season.mae <= 3 ? "#10b981" : data.season.mae <= 5 ? "#eab308" : "#f87171" }}>
+                  {data.season.mae}
+                  <span style={{ fontSize: "18px", marginLeft: "4px", color: "#64748b", fontWeight: 500 }}>pts</span>
+                </div>
+                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>
+                  diferença média entre projeção e pontuação real
+                </div>
+              </div>
+
+              {/* Stat grid */}
+              <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                {[
+                  { label: "Rodadas analisadas",   value: String(data.season.totalRounds),       color: "#60a5fa" },
+                  { label: "Acerto diferencial",    value: `${data.differentials.hitRate}%`,       color: "#10b981" },
+                  { label: "Taxa de armadilha",     value: `${data.traps.rate}%`,                  color: "#f87171" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                    <div style={{ fontSize: "22px", fontWeight: 800, color }}>{value}</div>
+                    <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", lineHeight: 1.3 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quote */}
+              <div style={{ margin: "0 20px 14px", padding: "11px 14px", background: "#1e293b", borderRadius: "10px", borderLeft: "3px solid #10b981" }}>
+                <p style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic", lineHeight: 1.5, margin: 0 }}>
+                  "Todo modelo erra. Aqui você vê exatamente quanto e quando o nosso erra — sem filtros, sem cherry-picking."
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: "9px 20px", background: "#080e1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>mitometro.app/desempenho</span>
+                <span style={{ fontSize: "9px", color: "#334155" }}>Cartola FC · Temporada 2025</span>
+              </div>
             </div>
           </>
         )}
