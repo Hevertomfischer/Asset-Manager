@@ -73,6 +73,53 @@ const TYPE_COLORS: Record<FeedbackType, string> = {
 
 const FEEDBACK_LIMIT = 15;
 
+// ── Configuração dos pesos do motor de projeção ───────────────────────────────
+
+const WEIGHT_CONFIG: Record<string, { label: string; hint: string }> = {
+  // Pesos principais de projeção
+  formWeight: {
+    label: "Forma",
+    hint: "Desempenho do jogador nas últimas rodadas. Peso alto favorece quem está em boa sequência recente.",
+  },
+  availabilityWeight: {
+    label: "Disponibilidade",
+    hint: "Probabilidade de o jogador ser escalado. Penaliza jogadores com risco de ficar no banco ou fora por lesão.",
+  },
+  fixtureWeight: {
+    label: "Confronto",
+    hint: "Dificuldade do adversário na rodada. Confrontos fáceis elevam a projeção; adversários fortes a reduzem.",
+  },
+  valueWeight: {
+    label: "Valor de Mercado",
+    hint: "Custo-benefício em relação ao preço do jogador. Prioriza boas projeções por cartoleta investida.",
+  },
+  historyWeight: {
+    label: "Histórico",
+    hint: "Média histórica de pontos ao longo da temporada. Suaviza picos e vales pontuais do desempenho recente.",
+  },
+  // Pesos de calibração interna da projeção base
+  overallAverage: {
+    label: "Média Geral",
+    hint: "Peso da média histórica do jogador como âncora da projeção. Quanto maior, mais conservador o modelo.",
+  },
+  recentForm: {
+    label: "Forma Recente",
+    hint: "Peso das últimas rodadas para capturar tendência de alta ou queda de desempenho no curto prazo.",
+  },
+  matchup: {
+    label: "Qualidade do Confronto (xG)",
+    hint: "Peso da dificuldade do adversário com base em Expected Goals (xG). Depende da disponibilidade dos dados do Footystats.",
+  },
+  playProbability: {
+    label: "Probabilidade de Jogar",
+    hint: "Peso da chance do jogador entrar em campo segundo o status no Cartola (Provável, Dúvida, etc.).",
+  },
+  homeAdvantage: {
+    label: "Vantagem em Casa",
+    hint: "Bônus por jogar em casa — times mandantes tendem a pontuar mais. Peso zero anula esse fator.",
+  },
+};
+
 // ── FeedbackTab ───────────────────────────────────────────────────────────────
 
 function FeedbackTab() {
@@ -483,24 +530,32 @@ export default function Admin() {
                     Erro ao carregar pesos. Tente novamente.
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {Object.entries(weights).map(([key, value]) => (
-                      <div key={key} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-semibold text-foreground">
-                            {{ formWeight: "Forma", availabilityWeight: "Disponibilidade", fixtureWeight: "Confronto", valueWeight: "Valor", historyWeight: "Histórico" }[key] ?? key.replace("Weight", "")}
-                          </Label>
-                          <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+                  <div className="space-y-5">
+                    {Object.entries(weights).map(([key, value]) => {
+                      const cfg = WEIGHT_CONFIG[key];
+                      return (
+                        <div key={key} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-foreground">
+                              {cfg?.label ?? key}
+                            </Label>
+                            <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+                          </div>
+                          {cfg?.hint && (
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              {cfg.hint}
+                            </p>
+                          )}
+                          <Slider
+                            value={[value]}
+                            max={1}
+                            min={0}
+                            step={0.05}
+                            onValueChange={(v) => setWeights((prev) => ({ ...prev, [key]: v[0] }))}
+                          />
                         </div>
-                        <Slider
-                          value={[value]}
-                          max={1}
-                          min={0}
-                          step={0.05}
-                          onValueChange={(v) => setWeights((prev) => ({ ...prev, [key]: v[0] }))}
-                        />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
