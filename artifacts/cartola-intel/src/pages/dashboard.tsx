@@ -29,6 +29,7 @@ import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
 import { PlayerBadges } from "@/components/PlayerCard";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -91,6 +92,9 @@ function ClubBadge({ club }: { club: MatchClub }) {
 type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson };
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const { data: roundData, isLoading: roundLoading, isError: roundError } = useGetCurrentRound();
   const { data: providersData, isError: providersError } = useGetProvidersStatus();
   const { data: projectionsData, isLoading: projLoading, isError: projError } = useGetCurrentProjections({
@@ -318,10 +322,28 @@ export default function Dashboard() {
           </div>
 
           {projError ? (
-            <div className="flex items-center gap-2 text-destructive text-sm p-4 rounded-2xl bg-destructive/10 border border-destructive/30">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              Erro ao carregar projeções. Verifique se o sistema de dados está funcionando.
-            </div>
+            user ? (
+              <div className="flex items-center gap-2 text-destructive text-sm p-4 rounded-2xl bg-destructive/10 border border-destructive/30">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                Erro ao carregar projeções. Verifique se o sistema de dados está funcionando.
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-card border border-border/50 text-center">
+                <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                  <Trophy className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Projeções disponíveis para membros</p>
+                  <p className="text-sm text-muted-foreground mt-1">Faça login para ver as melhores projeções e otimizar seu time no Cartola FC.</p>
+                </div>
+                <a
+                  href="/api/auth/google"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 text-sm font-bold transition-colors"
+                >
+                  Entrar com Google
+                </a>
+              </div>
+            )
           ) : projLoading ? (
             <div className="h-64 flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">
               <div className="flex flex-col items-center gap-2">
@@ -531,63 +553,65 @@ export default function Dashboard() {
 
         {/* Right sidebar */}
         <div className="space-y-6">
-          {/* Data Pipeline Status */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-6 h-6 text-accent" />
-              <h2 className="text-2xl font-display font-bold">Pipeline</h2>
-            </div>
-
-            {providersError ? (
-              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                Erro ao carregar status dos provedores
+          {/* Data Pipeline Status — admin only */}
+          {isAdmin && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Activity className="w-6 h-6 text-accent" />
+                <h2 className="text-2xl font-display font-bold">Pipeline</h2>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {providers.map((provider) => (
-                  <Card key={provider.source} className="bg-card border-border/50 overflow-hidden">
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full ${
-                            provider.status === "ok"
-                              ? "bg-primary shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                              : provider.status === "error"
-                                ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-                                : "bg-yellow-500"
-                          }`}
-                        />
-                        <div>
-                          <h4 className="font-semibold text-sm capitalize">{provider.source.replace(/_/g, " ")}</h4>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {provider.lastCollectedAt
-                              ? new Date(provider.lastCollectedAt).toLocaleTimeString("pt-BR")
-                              : "Nunca sincronizado"}
-                          </p>
+
+              {providersError ? (
+                <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Erro ao carregar status dos provedores
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {providers.map((provider) => (
+                    <Card key={provider.source} className="bg-card border-border/50 overflow-hidden">
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ${
+                              provider.status === "ok"
+                                ? "bg-primary shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                : provider.status === "error"
+                                  ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                                  : "bg-yellow-500"
+                            }`}
+                          />
+                          <div>
+                            <h4 className="font-semibold text-sm capitalize">{provider.source.replace(/_/g, " ")}</h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {provider.lastCollectedAt
+                                ? new Date(provider.lastCollectedAt).toLocaleTimeString("pt-BR")
+                                : "Nunca sincronizado"}
+                            </p>
+                          </div>
                         </div>
+                        <Badge
+                          variant={
+                            provider.status === "ok" ? "default" : provider.status === "error" ? "destructive" : "secondary"
+                          }
+                          className="text-[10px]"
+                        >
+                          {provider.status === "ok" ? "ok" : provider.status === "error" ? "erro" : "degradado"}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant={
-                          provider.status === "ok" ? "default" : provider.status === "error" ? "destructive" : "secondary"
-                        }
-                        className="text-[10px]"
-                      >
-                        {provider.status === "ok" ? "ok" : provider.status === "error" ? "erro" : "degradado"}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  ))}
 
-                <Button variant="outline" className="w-full bg-secondary/30 hover:bg-secondary font-semibold" asChild>
-                  <Link to="/admin">
-                    <Zap className="w-4 h-4 ml-2 text-accent mr-2" />
-                    Gerenciar Pipeline
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </div>
+                  <Button variant="outline" className="w-full bg-secondary/30 hover:bg-secondary font-semibold" asChild>
+                    <Link to="/admin">
+                      <Zap className="w-4 h-4 ml-2 text-accent mr-2" />
+                      Gerenciar Pipeline
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Matches/Fixtures */}
           <div className="space-y-4">
