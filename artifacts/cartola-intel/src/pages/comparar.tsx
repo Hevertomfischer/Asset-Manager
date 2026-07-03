@@ -6,7 +6,6 @@
  */
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, type CarouselApi } from "@/components/ui/carousel";
 import { useGetPlayers, useGetPlayerById, type Player } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks";
 import { usePaywall } from "@/context/PaywallContext";
@@ -246,13 +245,15 @@ function PlayerHeader({
   player,
   seals,
   onRemove,
+  minWidth = false,
 }: {
   player: Player;
   seals: SealKind[];
   onRemove: () => void;
+  minWidth?: boolean;
 }) {
   return (
-    <th className="px-4 py-3 text-center relative">
+    <th className={`px-4 py-3 text-center relative${minWidth ? " min-w-[200px]" : ""}`}>
       {/* Remove button */}
       <button
         onClick={onRemove}
@@ -338,8 +339,6 @@ function MobilePlayerCard({
   vals: MobileVals;
   visibleScouts: typeof SCOUT_DISPLAY;
 }) {
-  const posColor = getPositionColor(player.position ?? "");
-
   function isBest(arr: (number | null | undefined)[], lowerIsBetter = false) {
     return findBest(arr, lowerIsBetter) === idx;
   }
@@ -353,45 +352,22 @@ function MobilePlayerCard({
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-start gap-3 p-4 pb-3 border-b border-border/30">
-        <ClubBadge
-          url={player.club?.badgeUrl}
-          abbr={player.club?.abbreviation}
-          className="w-12 h-12 mt-0.5 drop-shadow"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="font-semibold text-base text-foreground leading-tight truncate">
-                {player.nickname ?? player.name}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {player.club?.abbreviation ?? player.club?.name ?? "—"}
-              </p>
-            </div>
-            <button
-              onClick={onRemove}
-              className="w-6 h-6 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors shrink-0"
-              title="Remover"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${posColor}`}>
-              {player.position}
-            </span>
-            <span className="text-xs font-mono text-muted-foreground">
-              C$ {(player.price ?? 0).toFixed(1)}
-            </span>
-          </div>
+      {/* Header — usa PlayerCard variant="compare" como identidade centralizada */}
+      <div className="relative p-4 border-b border-border/30">
+        <button
+          onClick={onRemove}
+          className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors"
+          title="Remover"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+        <PlayerCard variant="compare" player={player}>
           {seals.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap justify-center gap-1 mt-2">
               {seals.map((s) => <Seal key={s} kind={s} />)}
             </div>
           )}
-        </div>
+        </PlayerCard>
       </div>
 
       {/* Sparkline */}
@@ -532,8 +508,6 @@ export default function Comparar() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showScouts, setShowScouts] = useState(false);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const searchRef = useRef<HTMLDivElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -703,20 +677,6 @@ export default function Comparar() {
     ) as Record<string, number[]>,
   }), [selectedPlayers]);
 
-  // Track active slide via Embla API
-  useEffect(() => {
-    if (!carouselApi) return;
-    const onSelect = () => setActiveSlide(carouselApi.selectedScrollSnap());
-    carouselApi.on("select", onSelect);
-    return () => { carouselApi.off("select", onSelect); };
-  }, [carouselApi]);
-
-  // Reset carousel position when players are added/removed
-  useEffect(() => {
-    setActiveSlide(0);
-    carouselApi?.scrollTo(0, true);
-  }, [selectedPlayers.length, carouselApi]);
-
   // ── Dummy blurred rows for ProGate overlay ─────────────────────────────────
   const dummyRows = (
     <>
@@ -881,55 +841,28 @@ export default function Comparar() {
             </Button>
           </div>
 
-          {/* ── Mobile: Carousel (< md) ──────────────────────────────────────── */}
-          <div className="md:hidden space-y-2">
-            <Carousel
-              setApi={setCarouselApi}
-              opts={{ align: "start", loop: false }}
-              className="w-full"
-            >
-              <CarouselContent className="ml-0">
-                {selectedPlayers.map((player, idx) => (
-                  <CarouselItem key={player.id} className="pl-0">
-                    <Card className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
-                      <MobilePlayerCard
-                        player={player}
-                        idx={idx}
-                        seals={sealMap.get(player.id) ?? []}
-                        onRemove={() => removePlayer(player.id)}
-                        showScouts={showScouts}
-                        onToggleScouts={() => setShowScouts((v) => !v)}
-                        vals={mobileVals}
-                        visibleScouts={visibleScouts}
-                      />
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-
-              {/* Navigation: prev · dots · next */}
-              <div className="flex justify-center items-center gap-3 mt-3">
-                <CarouselPrevious className="relative inset-auto translate-x-0 translate-y-0 h-7 w-7" />
-                <div className="flex gap-2">
-                  {selectedPlayers.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => carouselApi?.scrollTo(i)}
-                      className={`h-2 rounded-full transition-all duration-200 ${
-                        i === activeSlide
-                          ? "w-5 bg-primary"
-                          : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                      }`}
-                      aria-label={`Jogador ${i + 1}`}
-                    />
-                  ))}
-                </div>
-                <CarouselNext className="relative inset-auto translate-x-0 translate-y-0 h-7 w-7" />
-              </div>
-            </Carousel>
+          {/* ── Mobile: cards empilhados (< md) ─────────────────────────────── */}
+          <div className="md:hidden space-y-4">
+            {selectedPlayers.map((player, idx) => (
+              <Card
+                key={player.id}
+                className="bg-card border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden w-full"
+              >
+                <MobilePlayerCard
+                  player={player}
+                  idx={idx}
+                  seals={sealMap.get(player.id) ?? []}
+                  onRemove={() => removePlayer(player.id)}
+                  showScouts={showScouts}
+                  onToggleScouts={() => setShowScouts((v) => !v)}
+                  vals={mobileVals}
+                  visibleScouts={visibleScouts}
+                />
+              </Card>
+            ))}
 
             {/* Legend */}
-            <p className="text-center text-[11px] text-muted-foreground/50 mt-1">
+            <p className="text-center text-[11px] text-muted-foreground/50">
               <span className="text-emerald-400 font-bold">▲</span>{" "}
               = melhor valor · Risco e Preço: menor é melhor.
             </p>
@@ -955,6 +888,7 @@ export default function Comparar() {
                       player={p}
                       seals={sealMap.get(p.id) ?? []}
                       onRemove={() => removePlayer(p.id)}
+                      minWidth
                     />
                   ))}
                 </tr>
