@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface AppNotification {
+export interface AppNotification {
   id: number;
   userId: number | null;
   type: "status_change" | "price" | "trap" | "market_open" | "market_close" | string;
@@ -84,7 +84,7 @@ function sortPriority(n: AppNotification): number {
 
 // ── NotificationItem ──────────────────────────────────────────────────────────
 
-function NotificationItem({
+export function NotificationItem({
   notification,
   onRead,
 }: {
@@ -116,15 +116,10 @@ function NotificationItem({
             >
               {notification.title}
             </p>
-            {isPersonal ? (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold border border-primary/20 shrink-0">
+            {isPersonal && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[9px] font-bold border border-accent/20 shrink-0">
                 <User className="w-2.5 h-2.5" />
-                Pessoal
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-secondary/80 text-muted-foreground text-[9px] font-medium border border-border/30 shrink-0">
-                <Globe2 className="w-2.5 h-2.5" />
-                Geral
+                Para você
               </span>
             )}
           </div>
