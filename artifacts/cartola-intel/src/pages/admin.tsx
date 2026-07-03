@@ -266,12 +266,11 @@ function FeedbackTab() {
                         >
                           <SelectTrigger className="h-7 text-[11px] w-36">
                             <SelectValue>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] uppercase ${STATUS_COLORS[item.status as FeedbackStatus] ?? ""}`}
+                              <span
+                                className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${STATUS_COLORS[item.status as FeedbackStatus] ?? ""}`}
                               >
                                 {STATUS_LABELS[item.status as FeedbackStatus] ?? item.status}
-                              </Badge>
+                              </span>
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
