@@ -1,7 +1,21 @@
 /**
- * explainPlayer — traduz o explanationJson de uma projeção em frases curtas em português.
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║  explainPlayer — ÚNICA FONTE DE VERDADE para classificação de jogadores     ║
+ * ║                                                                              ║
+ * ║  Qualquer tela ou componente que precise classificar um jogador como         ║
+ * ║  Diferencial, Armadilha ou gerar badges/insights DEVE importar as funções   ║
+ * ║  deste arquivo. NUNCA recalcule esses critérios inline em outros módulos.   ║
+ * ║                                                                              ║
+ * ║  REGRA DE MUDANÇA DE LIMIAR                                                  ║
+ * ║  Antes de alterar qualquer threshold numérico abaixo, registre a mudança    ║
+ * ║  neste bloco de documentação (data, limiar anterior → novo, motivo).        ║
+ * ║  Isso evita re-divergência silenciosa entre telas.                          ║
+ * ║                                                                              ║
+ * ║  Histórico de mudanças de limiar:                                            ║
+ * ║  (nenhuma alteração registrada — valores originais de produção)              ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
- * Limiares (thresholds):
+ * Limiares ativos (thresholds) — não altere sem registrar acima:
  *  - Em alta:         shortAvg >= 1.2 × mediumAvg  E  shortAvg > 2 pts
  *  - Queda de forma:  shortAvg <  0.7 × mediumAvg  E  mediumAvg > 2 pts
  *  - Conf. favorável: matchupScore >= 1.10  (time ou condição adversária fraca)
@@ -9,8 +23,8 @@
  *  - Joga em casa:    isHome = true  (só se confronto for neutro)
  *  - Saldo possível:  cleanSheetProbability > 0.50 para GOL/ZAG/LAT
  *  - Custo-benefício: valueScore > 0.70 (pts esperados / preço)
- *  - Diferencial:     popularity < 0.15 (menos de 15% de escalação) — PRO-ONLY
- *  - Armadilha:       isTrap = true (popular + queda de forma)        — PRO-ONLY
+ *  - Diferencial:     popularity < 0.15 (menos de 15% de escalação) E !isTrap — PRO-ONLY
+ *  - Armadilha:       isTrap = true (popular + queda de forma)                  — PRO-ONLY
  *  - Valorizando:     priceVariation > 1.50 C$
  *  - Desvalorizando:  priceVariation < -1.00 C$
  *  - Boa forma:       formScore > 3.0 (fallback quando sem outros insights)
