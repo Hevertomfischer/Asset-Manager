@@ -242,21 +242,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* xG Staleness Warning */}
-      {isXgStale && (
+      {/* xG Staleness Warning — admin only (xG sync is automatic; 403 from Footystats is an infra issue) */}
+      {isAdmin && isXgStale && (
         <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-orange-500/40 bg-orange-500/10 text-sm">
           <div className="flex items-center gap-2 text-orange-300 min-w-0">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
-              Os dados de xG (gols esperados) estão desatualizados há mais de {xgStaleDays} dias.
-              Projeções de goleiros e zagueiros podem estar menos precisas.
+              [Admin] Dados de xG desatualizados há mais de {xgStaleDays} dias — Footystats pode estar com erro 403.
             </span>
           </div>
           <Link
             to="/admin"
             className="shrink-0 text-orange-300 underline underline-offset-2 hover:text-orange-200 font-semibold whitespace-nowrap"
           >
-            Atualizar agora →
+            Ver admin →
           </Link>
         </div>
       )}
