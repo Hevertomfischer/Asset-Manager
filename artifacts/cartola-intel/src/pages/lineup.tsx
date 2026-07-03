@@ -48,28 +48,19 @@ function LineupPlayerCard({
             : "border-border/50 bg-card"
       }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {isCaptain && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
-          {isCoach && !isCaptain && <Star className="w-4 h-4 text-primary shrink-0" />}
-          <div className="min-w-0">
-            <p className="font-bold text-sm text-foreground truncate">{player.nickname ?? player.name}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {player.clubAbbr ?? player.clubName ?? ""}
-            </p>
-          </div>
-        </div>
-        <Badge variant="outline" className={`font-mono text-[10px] shrink-0 ${getPositionColor(player.position ?? "")}`}>
-          {player.position}
-        </Badge>
-      </div>
-
-      <div className="flex items-center justify-between text-xs mb-2">
-        <span className="text-muted-foreground">C$ {player.price?.toFixed(2) ?? "-"}</span>
-        <span className="font-bold text-primary font-mono">
-          {player.expectedPoints?.toFixed(1) ?? "-"} pts
-        </span>
-      </div>
+      <PlayerCard
+        variant="lineup"
+        player={{
+          name: player.name ?? "Desconhecido",
+          nickname: player.nickname,
+          position: player.position,
+          club: { abbreviation: player.clubAbbr ?? player.clubName ?? undefined },
+          price: player.price,
+          expectedPoints: player.expectedPoints,
+        }}
+        isCaptain={isCaptain}
+        isCoach={isCoach}
+      />
 
       {isCaptain && (
         <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-500 text-[10px] font-bold uppercase tracking-wider text-center">

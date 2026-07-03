@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks";
 import { usePaywall } from "@/context/PaywallContext";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { PlayerCard, ClubBadge } from "@/components/PlayerCard";
 import {
   AreaChart,
   Area,
@@ -250,8 +251,6 @@ function PlayerHeader({
   seals: SealKind[];
   onRemove: () => void;
 }) {
-  const posColor = getPositionColor(player.position ?? "");
-
   return (
     <th className="px-4 py-3 text-center relative">
       {/* Remove button */}
@@ -263,39 +262,13 @@ function PlayerHeader({
         <X className="w-3 h-3" />
       </button>
 
-      {/* Club badge */}
-      {player.club?.badgeUrl && (
-        <img
-          src={player.club.badgeUrl}
-          alt={player.club.name ?? ""}
-          className="w-8 h-8 object-contain mx-auto mb-2 drop-shadow"
-        />
-      )}
-
-      {/* Name */}
-      <p className="font-semibold text-sm text-foreground leading-tight">
-        {player.nickname ?? player.name}
-      </p>
-      <p className="text-[10px] text-muted-foreground mt-0.5">
-        {player.club?.abbreviation ?? player.club?.name ?? "—"}
-      </p>
-
-      {/* Position + Price */}
-      <div className="flex items-center justify-center gap-2 mt-1.5">
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${posColor}`}>
-          {player.position}
-        </span>
-        <span className="text-xs font-mono text-muted-foreground">
-          C$ {(player.price ?? 0).toFixed(1)}
-        </span>
-      </div>
-
-      {/* Seals */}
-      {seals.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-1 mt-2">
-          {seals.map((s) => <Seal key={s} kind={s} />)}
-        </div>
-      )}
+      <PlayerCard variant="compare" player={player}>
+        {seals.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-1 mt-2">
+            {seals.map((s) => <Seal key={s} kind={s} />)}
+          </div>
+        )}
+      </PlayerCard>
     </th>
   );
 }
@@ -382,13 +355,11 @@ function MobilePlayerCard({
     <div>
       {/* Header */}
       <div className="flex items-start gap-3 p-4 pb-3 border-b border-border/30">
-        {player.club?.badgeUrl && (
-          <img
-            src={player.club.badgeUrl}
-            alt={player.club.name ?? ""}
-            className="w-12 h-12 object-contain drop-shadow shrink-0 mt-0.5"
-          />
-        )}
+        <ClubBadge
+          url={player.club?.badgeUrl}
+          abbr={player.club?.abbreviation}
+          className="w-12 h-12 mt-0.5 drop-shadow"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">

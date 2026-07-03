@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus, Star, CheckCircle2, XCircle } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { ClubBadge } from "@/components/PlayerCard";
 import {
   LineChart,
   Line,
@@ -944,9 +945,7 @@ function PerfectTeamTab() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                {p.clubBadgeUrl && (
-                                  <img src={p.clubBadgeUrl} alt="" className="w-5 h-5 object-contain shrink-0" />
-                                )}
+                                <ClubBadge url={p.clubBadgeUrl} className="w-5 h-5" />
                                 <div>
                                   <p className="font-semibold text-foreground leading-tight">
                                     {p.nickname ?? p.name}
@@ -1154,7 +1153,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
                         <td className="px-3 py-2.5">
                           {ours ? (
                             <div className="flex items-center gap-1.5">
-                              {ours.clubBadgeUrl && <img src={ours.clubBadgeUrl} alt="" className="w-4 h-4 object-contain shrink-0" />}
+                              <ClubBadge url={ours.clubBadgeUrl} className="w-4 h-4" />
                               <span className={`font-medium leading-tight ${same ? "text-muted-foreground" : ""}`}>
                                 {ours.nickname ?? ours.name}
                               </span>
@@ -1173,7 +1172,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
                         <td className="px-3 py-2.5 pl-5 border-l border-border/30">
                           {opt && !same ? (
                             <div className="flex items-center gap-1.5">
-                              {opt.clubBadgeUrl && <img src={opt.clubBadgeUrl} alt="" className="w-4 h-4 object-contain shrink-0" />}
+                              <ClubBadge url={opt.clubBadgeUrl} className="w-4 h-4" />
                               <span className="font-medium text-yellow-300 leading-tight">{opt.nickname ?? opt.name}</span>
                               <span className="text-[10px] text-muted-foreground font-mono">C${opt.price.toFixed(1)}</span>
                             </div>

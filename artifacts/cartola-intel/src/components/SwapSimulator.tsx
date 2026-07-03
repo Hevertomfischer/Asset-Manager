@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PlayerCard } from "@/components/PlayerCard";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2,
@@ -126,41 +126,24 @@ function CandidateRow({
   onClick: () => void;
 }) {
   const prob = player.availability?.playProbability ?? null;
-  const isLowProb = prob !== null && prob < 0.5;
   return (
     <button
       onClick={onClick}
       disabled={isLoading}
       className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-border/40 bg-card hover:bg-secondary/40 hover:border-primary/40 transition-all text-left group disabled:opacity-50"
     >
-      <Avatar className="w-8 h-8 border border-border shrink-0">
-        <AvatarImage src={player.club?.badgeUrl ?? undefined} />
-        <AvatarFallback className="bg-secondary text-[10px]">
-          {player.club?.abbreviation?.slice(0, 2) ?? "??"}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-            {player.nickname ?? player.name ?? "Desconhecido"}
-          </p>
-          {isLowProb && (
-            <AlertTriangle className="w-3 h-3 text-yellow-500 shrink-0" />
-          )}
-        </div>
-        <p className="text-[10px] text-muted-foreground">
-          {player.club?.name ?? ""}{" "}
-          {prob !== null && `· ${(prob * 100).toFixed(0)}% jogo`}
-        </p>
-      </div>
-      <div className="text-right shrink-0">
-        <p className="text-sm font-bold text-primary font-mono">
-          {(player.projection?.expectedPoints ?? 0).toFixed(1)} pts
-        </p>
-        <p className="text-[10px] text-muted-foreground font-mono">
-          C$ {(player.price ?? 0).toFixed(2)}
-        </p>
-      </div>
+      <PlayerCard
+        variant="swap"
+        player={{
+          name: player.name ?? "Desconhecido",
+          nickname: player.nickname,
+          position: player.position,
+          club: player.club,
+          price: player.price,
+          expectedPoints: player.projection?.expectedPoints,
+        }}
+        playProbability={prob}
+      />
       {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
     </button>
   );
