@@ -321,6 +321,23 @@ function FeedbackTab() {
   );
 }
 
+// ── Defaults do motor de projeção (espelham projectionWeights.ts no servidor) ─
+
+const DEFAULT_WEIGHTS: Record<string, number> = {
+  // Pesos de projeção principal
+  formWeight: 0.3,
+  availabilityWeight: 0.3,
+  fixtureWeight: 0.2,
+  valueWeight: 0.1,
+  historyWeight: 0.1,
+  // Pesos de calibração interna
+  overallAverage: 0.3,
+  recentForm: 0.35,
+  matchup: 0.15,
+  playProbability: 0.15,
+  homeAdvantage: 0.05,
+};
+
 // ── Admin page ────────────────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -340,14 +357,6 @@ export default function Admin() {
   const syncMarket = useSyncMarket();
   const syncCurrentRound = useSyncCurrentRound();
   const recalcProjections = useRecalculateProjections();
-
-  const DEFAULT_WEIGHTS: Record<string, number> = {
-    formWeight: 0.3,
-    availabilityWeight: 0.3,
-    fixtureWeight: 0.2,
-    valueWeight: 0.1,
-    historyWeight: 0.1,
-  };
 
   const [weights, setWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
 
@@ -592,7 +601,19 @@ export default function Admin() {
                     </div>
                   )}
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between gap-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                      onClick={() => {
+                        setWeights(DEFAULT_WEIGHTS);
+                        toast({ title: "Pesos restaurados", description: "Valores padrão do sistema carregados. Clique em Salvar para confirmar." });
+                      }}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Restaurar padrão
+                    </Button>
                     <Button
                       onClick={handleSaveWeights}
                       disabled={updateWeights.isPending}
