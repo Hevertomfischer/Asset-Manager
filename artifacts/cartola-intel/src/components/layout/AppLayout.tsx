@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AutoSync } from "@/components/AutoSync";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { FounderCampaignBanner } from "@/components/FounderCampaignBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useGetAdminFeedbackNewCount } from "@workspace/api-client-react";
 
@@ -122,6 +123,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
               <UserMenu />
             </div>
           </header>
+          <FounderCampaignBanner />
           <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 relative">
             <div className="max-w-7xl mx-auto w-full">{children}</div>
           </main>

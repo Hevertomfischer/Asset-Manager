@@ -14,6 +14,8 @@ export interface AuthUser {
   role: string | null;
   plan: "free" | "pro";
   isPro: boolean;
+  /** ISO string da data de corte da campanha Founder Access. null quando a campanha já encerrou. */
+  founderCutoff: string | null;
   preferences: UserPreferences;
 }
 

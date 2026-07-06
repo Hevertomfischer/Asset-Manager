@@ -15,6 +15,7 @@ import {
   History,
   Bell,
   Target,
+  CalendarClock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +111,7 @@ function BillingBanner({ status }: { status: string }) {
 }
 
 export default function Planos() {
-  const { isAuthenticated, isPro } = useAuth();
+  const { isAuthenticated, isPro, plan, user } = useAuth();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const track = useTrack();
@@ -119,6 +120,8 @@ export default function Planos() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const paywallTrackedRef = useRef(false);
 
+  const founderCutoff = user?.founderCutoff ?? null;
+
   const { data: subscription } = useQuery({
     queryKey: ["billing", "subscription"],
     queryFn: fetchSubscription,
@@ -126,14 +129,17 @@ export default function Planos() {
     staleTime: 30_000,
   });
 
-  const isActivePro = isPro || subscription?.status === "active";
+  // isRealPro: tem assinatura ativa — não conta acesso de campanha
+  const isRealPro = plan === "pro" || subscription?.status === "active";
+  // isFounderAccess: campanha ativa, recebendo Pro gratuitamente
+  const isFounderAccess = isPro && plan === "free" && founderCutoff !== null;
 
-  // Track paywall_viewed once per mount when the user is not yet Pro.
+  // Track paywall_viewed once per mount when the user não tem assinatura real.
   useEffect(() => {
-    if (isActivePro || paywallTrackedRef.current) return;
+    if (isRealPro || paywallTrackedRef.current) return;
     paywallTrackedRef.current = true;
     track("paywall_viewed", { source: "page" });
-  }, [isActivePro, track]);
+  }, [isRealPro, track]);
 
   useEffect(() => {
     if (billingStatus === "success") {
@@ -159,6 +165,41 @@ export default function Planos() {
   return (
     <div className="max-w-4xl mx-auto px-2 py-4">
       {billingStatus && <BillingBanner status={billingStatus} />}
+
+      {isFounderAccess && founderCutoff && (
+        <div className="mb-8 border border-primary/30 bg-primary/5 rounded-2xl p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 mt-0.5">
+              <CalendarClock className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <p className="text-sm font-semibold text-foreground">
+                  Você está usando o Founder Access
+                </p>
+                <Badge className="bg-primary/20 text-primary border border-primary/30 text-[11px] font-semibold">
+                  Campanha ativa
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Todos os recursos Pro — simulador de escalação, probabilidades de jogo, fronteira de eficiência
+                e comparador ilimitado — estão liberados gratuitamente para você até{" "}
+                <span className="font-medium text-foreground">
+                  {new Date(founderCutoff).toLocaleDateString("pt-BR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+                Após essa data, esses recursos voltam a ser exclusivos do plano Pro.
+                Assine agora para garantir acesso contínuo sem interrupção.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-4">
@@ -199,7 +240,7 @@ export default function Planos() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {PLANS.map((plan) => {
           const isLoading = loadingPlan === plan.id;
-          const isCurrentPlan = isActivePro;
+          const isCurrentPlan = isRealPro;
 
           return (
             <Card

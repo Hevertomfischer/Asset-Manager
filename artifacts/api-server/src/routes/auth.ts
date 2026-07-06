@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import passport from "passport";
 import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { isGoogleOAuthConfigured } from "../auth/passport";
-import { getUserPlan, isPro as checkIsPro } from "../services/accessService";
+import { getUserPlan, isPro as checkIsPro, FOUNDER_ACCESS_CUTOFF } from "../services/accessService";
 import { triggerFullSyncIfStale } from "../jobs/syncJob";
 import { createLogger } from "../lib/logger";
 import { db } from "@workspace/db";
@@ -131,7 +131,11 @@ router.get("/auth/me", async (req, res) => {
   };
   // plan = plano real da assinatura (free|pro) — para exibir "seu plano atual"
   // isPro = flag de acesso efetivo — inclui Founder Access se campanha ativa
-  res.json({ id, email, name, avatarUrl, role, plan, isPro: isProFlag, preferences });
+  // founderCutoff = ISO string da data de encerramento da campanha (null após a data)
+  const founderCutoff = new Date() < FOUNDER_ACCESS_CUTOFF
+    ? FOUNDER_ACCESS_CUTOFF.toISOString()
+    : null;
+  res.json({ id, email, name, avatarUrl, role, plan, isPro: isProFlag, founderCutoff, preferences });
 });
 
 const devLoginSchema = z.object({
