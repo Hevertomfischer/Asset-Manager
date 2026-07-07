@@ -660,7 +660,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground p-3">Nenhuma partida disponível para esta rodada.</p>
             ) : (
               <div className="space-y-2">
-                {matches.slice(0, 6).map((match) => (
+                {matches.map((match) => (
                   <Card key={match.id} className="bg-card border-border/50">
                     <div className="p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
