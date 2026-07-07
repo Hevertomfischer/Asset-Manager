@@ -647,4 +647,68 @@ router.patch("/admin/feedback/:id", async (req, res) => {
   }
 });
 
+// ── Users admin endpoints ─────────────────────────────────────────────────────
+
+router.get("/admin/users", async (req, res) => {
+  try {
+    const { search, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;
+    const limit = Math.min(Math.max(Number(limitQ) || 20, 1), 100);
+    const offset = Math.max(Number(offsetQ) || 0, 0);
+
+    const now = new Date();
+
+    // Subquery: latest active subscription per user
+    const activeSub = db
+      .select({
+        userId: subscriptionsTable.userId,
+        plan: subscriptionsTable.plan,
+        status: subscriptionsTable.status,
+        currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+      })
+      .from(subscriptionsTable)
+      .where(
+        and(
+          eq(subscriptionsTable.status, "active"),
+          sql`${subscriptionsTable.currentPeriodEnd} > ${now}`
+        )
+      )
+      .as("active_sub");
+
+    const searchCondition = search?.trim()
+      ? sql`(${usersTable.email} ilike ${"%" + search.trim() + "%"} or ${usersTable.name} ilike ${"%" + search.trim() + "%"})`
+      : undefined;
+
+    const [rows, countResult] = await Promise.all([
+      db
+        .select({
+          id: usersTable.id,
+          email: usersTable.email,
+          name: usersTable.name,
+          provider: usersTable.provider,
+          role: usersTable.role,
+          createdAt: usersTable.createdAt,
+          plan: activeSub.plan,
+          subscriptionEnd: activeSub.currentPeriodEnd,
+        })
+        .from(usersTable)
+        .leftJoin(activeSub, eq(usersTable.id, activeSub.userId))
+        .where(searchCondition)
+        .orderBy(desc(usersTable.createdAt))
+        .limit(limit)
+        .offset(offset),
+
+      db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(usersTable)
+        .where(searchCondition),
+    ]);
+
+    res.json({ items: rows, total: countResult[0]?.total ?? 0, limit, offset });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("Failed to fetch admin users", { error: msg });
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
 export default router;

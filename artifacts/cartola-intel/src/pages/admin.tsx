@@ -12,6 +12,7 @@ import {
   useUpdateAdminConfig,
   useGetAdminFeedback,
   usePatchFeedbackStatus,
+  useGetAdminUsers,
   type AdminLog,
   type FeedbackStatus,
   type FeedbackType,
@@ -31,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play,
   AlertCircle, Zap, Clock, RotateCcw, MessageSquare, Bug, Lightbulb, Star, HelpCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Users, Search, Crown, UserCircle,
 } from "lucide-react";
 
 // ── Feedback helpers ──────────────────────────────────────────────────────────
@@ -119,6 +120,178 @@ const WEIGHT_CONFIG: Record<string, { label: string; hint: string }> = {
     hint: "Bônus por jogar em casa — times mandantes tendem a pontuar mais. Peso zero anula esse fator.",
   },
 };
+
+// ── UsersTab ──────────────────────────────────────────────────────────────────
+
+const USERS_LIMIT = 15;
+
+const PROVIDER_LABELS: Record<string, string> = {
+  google: "Google",
+  dev: "Dev",
+  github: "GitHub",
+};
+
+function UsersTab() {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
+
+  const offset = page * USERS_LIMIT;
+
+  const { data, isLoading, isError } = useGetAdminUsers({
+    search: debouncedSearch || undefined,
+    limit: USERS_LIMIT,
+    offset,
+  });
+
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / USERS_LIMIT));
+
+  return (
+    <div className="space-y-4">
+      {/* Search + count */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar por e-mail ou nome..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-64 rounded-md border border-input bg-background px-3 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          />
+        </div>
+        {search && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setSearch("")}
+          >
+            <RotateCcw className="w-3 h-3 mr-1" />
+            Limpar
+          </Button>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {isLoading ? "..." : `${total} usuário${total !== 1 ? "s" : ""}`}
+        </span>
+      </div>
+
+      {/* Table */}
+      <Card className="bg-card shadow-lg border-border/50">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-8">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              Carregando usuários...
+            </div>
+          ) : isError ? (
+            <div className="flex items-center gap-2 text-destructive text-sm p-8 bg-destructive/10">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Erro ao carregar usuários. Tente novamente.
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <UserCircle className="w-10 h-10 opacity-20" />
+              <p className="text-sm">Nenhum usuário encontrado</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/50">
+                    <TableHead className="w-10 text-center">#</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead className="w-24">Provedor</TableHead>
+                    <TableHead className="w-28">Plano</TableHead>
+                    <TableHead className="w-36">Cadastro</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((user) => {
+                    const isPro = !!user.plan && user.plan !== "free";
+                    return (
+                      <TableRow key={user.id} className="border-border/30 hover:bg-secondary/20 transition-colors">
+                        <TableCell className="text-center text-xs text-muted-foreground font-mono">{user.id}</TableCell>
+                        <TableCell className="text-sm font-medium text-foreground max-w-[160px] truncate" title={user.name ?? ""}>
+                          {user.name || <span className="text-muted-foreground italic text-xs">—</span>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono max-w-[200px] truncate" title={user.email}>
+                          {user.email}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/50">
+                            {PROVIDER_LABELS[user.provider ?? ""] ?? user.provider ?? "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {isPro ? (
+                            <Badge variant="outline" className="text-[10px] flex items-center gap-1 w-fit text-yellow-400 border-yellow-500/30 bg-yellow-500/10">
+                              <Crown className="w-3 h-3" />
+                              Pro
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/40 bg-secondary/30">
+                              Free
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                          {new Date(user.createdAt).toLocaleString("pt-BR", {
+                            day: "2-digit", month: "2-digit", year: "2-digit",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            Anterior
+          </Button>
+          <span>
+            Página {page + 1} de {totalPages}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── FeedbackTab ───────────────────────────────────────────────────────────────
 
@@ -508,6 +681,10 @@ export default function Admin() {
             <Settings className="w-4 h-4 mr-2" />
             Sistema
           </TabsTrigger>
+          <TabsTrigger value="usuarios">
+            <Users className="w-4 h-4 mr-2" />
+            Usuários
+          </TabsTrigger>
           <TabsTrigger value="feedback">
             <MessageSquare className="w-4 h-4 mr-2" />
             Feedback
@@ -862,6 +1039,11 @@ export default function Admin() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Aba Usuários ─────────────────────────────────────────────── */}
+        <TabsContent value="usuarios">
+          <UsersTab />
         </TabsContent>
 
         {/* ── Aba Feedback ────────────────────────────────────────────────── */}
