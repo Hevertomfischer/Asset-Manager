@@ -377,7 +377,7 @@ export default function Dashboard() {
                       <Badge variant="outline" className={`font-mono text-xs ${getPositionColor(pos)} border`}>
                         {pos}
                       </Badge>
-                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Top 3</span>
+                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Top 5</span>
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="divide-y divide-border/50">
