@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePaywall } from "@/context/PaywallContext";
 import { useGetPlayers } from "@workspace/api-client-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
@@ -8,9 +8,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
+import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Share2, Loader2, Zap } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
-import { type ExplanationJson, getTopBadges } from "@/lib/explainPlayer";
+import { type ExplanationJson, getTopBadges, isDifferentialPlayer, isTrapPlayer } from "@/lib/explainPlayer";
+import { useShareCard } from "@/hooks/useShareCard";
+import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -74,6 +76,27 @@ export default function Players() {
   const { data: allPlayersData } = useGetPlayers({ probableOnly: "false" });
 
   const players = data?.players || [];
+  const allPlayersList = allPlayersData?.players ?? [];
+
+  const topDiferencial = useMemo(() => {
+    return allPlayersList
+      .filter((p) => isDifferentialPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
+      .sort((a, b) => {
+        const da = ((a.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
+        const db = ((b.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
+        return db - da;
+      })[0] ?? null;
+  }, [allPlayersList]);
+
+  const topArmadilha = useMemo(() => {
+    return allPlayersList
+      .filter((p) => isTrapPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
+      .sort((a, b) => {
+        const pa = ((a.projection?.explanationJson as ExplanationJson)?.popularity ?? 0);
+        const pb = ((b.projection?.explanationJson as ExplanationJson)?.popularity ?? 0);
+        return pb - pa;
+      })[0] ?? null;
+  }, [allPlayersList]);
 
   const clubs = useMemo(() => {
     const source = allPlayersData?.players ?? players;
@@ -152,6 +175,19 @@ export default function Players() {
 
   const handlePositionChange = (val: string) => { setPosition(val); setPage(0); };
   const handleClubChange = (val: string) => { setClubFilter(val); setPage(0); };
+
+  const difRef = useRef<HTMLDivElement>(null);
+  const armRef = useRef<HTMLDivElement>(null);
+  const { share: shareDif, isSharing: isSharingDif, errorMsg: difError } = useShareCard(
+    difRef,
+    () => `mitometro-diferencial-${(topDiferencial?.nickname ?? topDiferencial?.name ?? "player").replace(/\s+/g, "_")}.png`,
+    "diferencial_rodada"
+  );
+  const { share: shareArm, isSharing: isSharingArm, errorMsg: armError } = useShareCard(
+    armRef,
+    () => `mitometro-armadilha-${(topArmadilha?.nickname ?? topArmadilha?.name ?? "player").replace(/\s+/g, "_")}.png`,
+    "armadilha_rodada"
+  );
 
   const SortableHead = ({ col, children, className }: { col: SortColumn; children: React.ReactNode; className?: string }) => (
     <TableHead
@@ -319,6 +355,172 @@ export default function Players() {
           <span className="text-xs text-muted-foreground">{filteredPlayers.length} jogadores encontrados</span>
         </div>
       </div>
+
+      {/* ── Destaques da rodada ───────────────────────────────────────────────── */}
+      {(topDiferencial || topArmadilha) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Diferencial da rodada */}
+          {topDiferencial && (
+            <div className="bg-card border border-emerald-500/20 rounded-2xl p-4 shadow-lg shadow-black/5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Diferencial da rodada</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={shareDif}
+                  disabled={isSharingDif}
+                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2"
+                >
+                  {isSharingDif ? <Loader2 className="w-3 h-3 animate-spin" /> : <Share2 className="w-3 h-3" />}
+                  {isSharingDif ? "Gerando…" : "Compartilhar"}
+                </Button>
+              </div>
+              <div className="flex items-center gap-3">
+                {topDiferencial.club?.badgeUrl && (
+                  <img src={topDiferencial.club.badgeUrl} alt="" className="w-10 h-10 object-contain shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-foreground truncate">{topDiferencial.nickname ?? topDiferencial.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {topDiferencial.position} · {topDiferencial.club?.abbreviation} · C$ {(topDiferencial.price ?? 0).toFixed(1)}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-lg font-bold text-primary font-mono">
+                    {(topDiferencial.projection?.expectedPoints ?? 0).toFixed(1)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">pts proj.</p>
+                </div>
+              </div>
+              {difError && <p className="text-[11px] text-destructive mt-2">{difError}</p>}
+            </div>
+          )}
+
+          {/* Armadilha da rodada */}
+          {topArmadilha && (
+            <div className="bg-card border border-yellow-500/20 rounded-2xl p-4 shadow-lg shadow-black/5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Armadilha da rodada</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={shareArm}
+                  disabled={isSharingArm}
+                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2"
+                >
+                  {isSharingArm ? <Loader2 className="w-3 h-3 animate-spin" /> : <Share2 className="w-3 h-3" />}
+                  {isSharingArm ? "Gerando…" : "Compartilhar"}
+                </Button>
+              </div>
+              <div className="flex items-center gap-3">
+                {topArmadilha.club?.badgeUrl && (
+                  <img src={topArmadilha.club.badgeUrl} alt="" className="w-10 h-10 object-contain shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-foreground truncate">{topArmadilha.nickname ?? topArmadilha.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {topArmadilha.position} · {topArmadilha.club?.abbreviation} · C$ {(topArmadilha.price ?? 0).toFixed(1)}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-lg font-bold text-yellow-400 font-mono">
+                    {(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">escalação</p>
+                </div>
+              </div>
+              {armError && <p className="text-[11px] text-destructive mt-2">{armError}</p>}
+            </div>
+          )}
+
+          {/* Hidden share cards (html-to-image targets) */}
+          {topDiferencial && (
+            <ShareCardFrame ref={difRef} subtitle="Diferencial da Rodada">
+              <div style={{ padding: "14px 20px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                  {topDiferencial.club?.badgeUrl && (
+                    <img src={topDiferencial.club.badgeUrl} alt="" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
+                  )}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
+                      {topDiferencial.nickname ?? topDiferencial.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                      {topDiferencial.position} · {topDiferencial.club?.abbreviation ?? "—"} · C$ {(topDiferencial.price ?? 0).toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid #10b981" }}>
+                  <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                    Baixa escalação · Alto potencial
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.5 }}>
+                    Jogador com alta probabilidade de superar a média com pouca exposição nas escalações.
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                  {[
+                    { label: "Projeção", value: `${(topDiferencial.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "#10b981" },
+                    { label: "Teto",     value: `${(topDiferencial.projection?.ceilingPoints ?? 0).toFixed(1)} pts`,  color: "#60a5fa" },
+                    { label: "Score",    value: `${(topDiferencial.projection?.recommendationScore ?? 0).toFixed(0)}`,  color: "#a855f7" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ background: "#1e293b", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                      <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
+                      <div style={{ fontSize: "9px", color: "#64748b", marginTop: "3px" }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ShareCardFrame>
+          )}
+
+          {topArmadilha && (
+            <ShareCardFrame ref={armRef} subtitle="Armadilha da Rodada">
+              <div style={{ padding: "14px 20px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                  {topArmadilha.club?.badgeUrl && (
+                    <img src={topArmadilha.club.badgeUrl} alt="" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
+                  )}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
+                      {topArmadilha.nickname ?? topArmadilha.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                      {topArmadilha.position} · {topArmadilha.club?.abbreviation ?? "—"} · C$ {(topArmadilha.price ?? 0).toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid #eab308" }}>
+                  <div style={{ fontSize: "10px", color: "#fbbf24", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                    Alta escalação · Alto risco
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.5 }}>
+                    Jogador amplamente escalado com risco elevado de decepcionar na rodada.
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                  {[
+                    { label: "Escalação", value: `${(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%`, color: "#eab308" },
+                    { label: "Projeção",  value: `${(topArmadilha.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "#f87171" },
+                    { label: "Risco",     value: `${((topArmadilha.projection?.riskScore ?? 0) * 100).toFixed(0)}%`,     color: "#f87171" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ background: "#1e293b", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                      <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
+                      <div style={{ fontSize: "9px", color: "#64748b", marginTop: "3px" }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </ShareCardFrame>
+          )}
+        </div>
+      )}
 
       {/* Table Section */}
       <div className="bg-card border border-border/50 rounded-2xl shadow-lg shadow-black/5 overflow-hidden">

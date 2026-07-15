@@ -21,6 +21,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useShareCard } from "@/hooks/useShareCard";
+import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { Input } from "@/components/ui/input";
 import {
   ChevronDown,
@@ -510,7 +512,14 @@ export default function Comparar() {
   const [showScouts, setShowScouts] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
-  const [isSharing, setIsSharing] = useState(false);
+  const { share: handleShare, isSharing, errorMsg: shareError } = useShareCard(
+    shareRef,
+    () => {
+      const names = selectedPlayers.map((p) => (p.nickname ?? p.name).replace(/\s+/g, "_")).join("-vs-");
+      return `mitometro-${names || "comparacao"}.png`;
+    },
+    "comparacao"
+  );
 
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
 
@@ -597,26 +606,6 @@ export default function Comparar() {
 
   function removePlayer(id: number) {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
-  }
-
-  async function handleShare() {
-    if (!shareRef.current) return;
-    setIsSharing(true);
-    try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(shareRef.current, { pixelRatio: 2, cacheBust: true });
-      const names = selectedPlayers
-        .map((p) => (p.nickname ?? p.name).replace(/\s+/g, "_"))
-        .join("-vs-");
-      const a = document.createElement("a");
-      a.download = `mitometro-${names}.png`;
-      a.href = dataUrl;
-      a.click();
-    } catch (err) {
-      console.error("[share]", err);
-    } finally {
-      setIsSharing(false);
-    }
   }
 
   // ── Projection values per row ──────────────────────────────────────────────
@@ -824,7 +813,7 @@ export default function Comparar() {
       ) : (
         <>
           {/* ── Share button ──────────────────────────────────────────────────── */}
-          <div className="flex justify-end">
+          <div className="flex flex-col items-end gap-1">
             <Button
               size="sm"
               variant="outline"
@@ -839,6 +828,9 @@ export default function Comparar() {
               )}
               {isSharing ? "Gerando imagem…" : "Compartilhar comparação"}
             </Button>
+            {shareError && (
+              <p className="text-[11px] text-destructive">{shareError}</p>
+            )}
           </div>
 
           {/* ── Mobile: cards empilhados (< md) ─────────────────────────────── */}
@@ -1069,38 +1061,7 @@ export default function Comparar() {
               teto: "#eab308", seguro: "#60a5fa", custo: "#34d399", diferencial: "#a855f7",
             };
             return (
-              <div
-                ref={shareRef}
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  left: "-9999px",
-                  top: 0,
-                  width: "560px",
-                  backgroundColor: "#0f172a",
-                  color: "#f1f5f9",
-                  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Header */}
-                <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ background: "#10b981", borderRadius: "8px", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "13px" }}>M</span>
-                    </div>
-                    <span style={{ fontSize: "17px", fontWeight: 700 }}>
-                      Mito<span style={{ color: "#10b981" }}>metro</span>
-                    </span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      Comparação de Jogadores
-                    </div>
-                    <div style={{ fontSize: "9px", color: "#6ee7b7", marginTop: "2px" }}>Cartola FC Intelligence</div>
-                  </div>
-                </div>
+              <ShareCardFrame ref={shareRef} subtitle="Comparação de Jogadores">
 
                 {/* Players grid */}
                 <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: `repeat(${selectedPlayers.length}, 1fr)`, gap: "10px" }}>
@@ -1142,12 +1103,7 @@ export default function Comparar() {
                   })}
                 </div>
 
-                {/* Footer */}
-                <div style={{ padding: "9px 20px", background: "#080e1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>mitometro.app</span>
-                  <span style={{ fontSize: "9px", color: "#334155" }}>Cartola FC · Temporada 2025</span>
-                </div>
-              </div>
+              </ShareCardFrame>
             );
           })()}
         </>

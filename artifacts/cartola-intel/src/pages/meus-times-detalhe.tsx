@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Trophy, ArrowLeft, Calendar, TrendingUp,
   Loader2, ChevronDown, ChevronUp, PenLine, Shield, Target,
-  Crown, Plus,
+  Crown, Plus, Share2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProGate } from "@/components/ProGate";
+import { useShareCard } from "@/hooks/useShareCard";
+import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ManualRoundDialog } from "@/components/ManualRoundDialog";
 import { useGetUserTeamRounds, type UserTeamRound, type UserTeamRoundPlayer } from "@workspace/api-client-react";
@@ -207,6 +209,14 @@ export default function MeusTimesDetalhe() {
 
   const totalPoints = rounds.reduce((s, r) => s + (r.actualTotal ?? 0), 0);
 
+  // Share card — hooks must be called before early returns
+  const shareRef = useRef<HTMLDivElement>(null);
+  const { share: handleShareCard, isSharing: isSharingCard, errorMsg: shareError } = useShareCard(
+    shareRef,
+    () => `mitometro-time-${(team?.name ?? "time").replace(/\s+/g, "_")}-r${latestRound?.round ?? 0}.png`,
+    "meu_time"
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -255,7 +265,7 @@ export default function MeusTimesDetalhe() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -271,6 +281,25 @@ export default function MeusTimesDetalhe() {
                 Via Escalação
               </Button>
             </Link>
+            {latestRound && latestRound.actualTotal !== null && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShareCard}
+                disabled={isSharingCard}
+                className="rounded-xl border-border/50 text-muted-foreground hover:text-foreground gap-2"
+              >
+                {isSharingCard ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Share2 className="w-3.5 h-3.5" />
+                )}
+                {isSharingCard ? "Gerando…" : "Compartilhar rodada"}
+              </Button>
+            )}
+            {shareError && (
+              <p className="text-[11px] text-destructive w-full mt-1">{shareError}</p>
+            )}
           </div>
         </div>
 
@@ -345,6 +374,80 @@ export default function MeusTimesDetalhe() {
           onOpenChange={setManualOpen}
         />
       )}
+
+      {/* ── Hidden share card (html-to-image target) ──────────────────────── */}
+      <ShareCardFrame ref={shareRef} subtitle="Meu Time · Cartola FC">
+        {latestRound && (
+          <>
+            {/* Team + round */}
+            <div style={{ padding: "16px 20px 10px" }}>
+              <div style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9", marginBottom: "2px" }}>
+                {team?.name ?? ""}
+              </div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>Rodada {latestRound.round}</div>
+            </div>
+
+            {/* Points hero */}
+            <div style={{ padding: "0 20px 12px", display: "grid", gridTemplateColumns: latestRound.optimalActualPoints != null ? "1fr 1fr" : "1fr", gap: "10px" }}>
+              <div style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Minha pontuação</div>
+                <div style={{ fontSize: "32px", fontWeight: 900, color: "#10b981", lineHeight: 1 }}>
+                  {latestRound.actualTotal?.toFixed(1) ?? "—"}
+                </div>
+                <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>pts reais</div>
+              </div>
+              {latestRound.optimalActualPoints != null && (
+                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                  <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Time ótimo</div>
+                  <div style={{ fontSize: "32px", fontWeight: 900, color: "#eab308", lineHeight: 1 }}>
+                    {latestRound.optimalActualPoints.toFixed(1)}
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>pts possíveis</div>
+                </div>
+              )}
+            </div>
+
+            {/* Efficiency bar */}
+            {latestRound.efficiencyPct != null && (
+              <div style={{ margin: "0 20px 12px", background: "#1e293b", borderRadius: "10px", padding: "10px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "10px", color: "#94a3b8" }}>Eficiência vs time ótimo</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: latestRound.efficiencyPct >= 80 ? "#10b981" : latestRound.efficiencyPct >= 60 ? "#eab308" : "#f87171" }}>
+                    {latestRound.efficiencyPct}%
+                  </span>
+                </div>
+                <div style={{ background: "#334155", borderRadius: "999px", height: "6px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: "999px", width: `${Math.min(latestRound.efficiencyPct, 100)}%`, background: latestRound.efficiencyPct >= 80 ? "#10b981" : latestRound.efficiencyPct >= 60 ? "#eab308" : "#f87171" }} />
+                </div>
+              </div>
+            )}
+
+            {/* Top players */}
+            {latestRound.players.filter((p) => p.actualPoints != null).length > 0 && (
+              <div style={{ margin: "0 20px 14px" }}>
+                <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "6px" }}>
+                  Escalação
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" }}>
+                  {[...latestRound.players]
+                    .sort((a, b) => (b.actualPoints ?? 0) - (a.actualPoints ?? 0))
+                    .slice(0, 8)
+                    .map((p) => (
+                      <div key={p.playerId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", background: "#1e293b", borderRadius: "6px" }}>
+                        <span style={{ fontSize: "11px", color: p.isCaptain ? "#eab308" : "#94a3b8", fontWeight: p.isCaptain ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "90px" }}>
+                          {p.nickname ?? p.name}
+                        </span>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: (p.actualPoints ?? 0) >= 0 ? "#10b981" : "#f87171" }}>
+                          {p.actualPoints != null ? ((p.actualPoints > 0 ? "+" : "") + p.actualPoints.toFixed(1)) : "—"}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </ShareCardFrame>
     </div>
   );
 }

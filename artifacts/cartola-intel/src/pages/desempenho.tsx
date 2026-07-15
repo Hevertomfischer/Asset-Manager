@@ -9,7 +9,7 @@
  * layout sem sidebar (standalone).
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -43,6 +43,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useShareCard } from "@/hooks/useShareCard";
+import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -189,24 +191,9 @@ function EmptyState({ message }: { message?: string }) {
 export default function Desempenho() {
   const navigate = useNavigate();
   const shareRef = useRef<HTMLDivElement>(null);
-  const [isSharing, setIsSharing] = useState(false);
-
-  async function handleShare() {
-    if (!shareRef.current) return;
-    setIsSharing(true);
-    try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(shareRef.current, { pixelRatio: 2, cacheBust: true });
-      const a = document.createElement("a");
-      a.download = "mitometro-desempenho.png";
-      a.href = dataUrl;
-      a.click();
-    } catch (err) {
-      console.error("[share]", err);
-    } finally {
-      setIsSharing(false);
-    }
-  }
+  const { share: handleShare, isSharing, errorMsg: shareError } = useShareCard(
+    shareRef, "mitometro-desempenho.png", "desempenho"
+  );
 
   // SEO + OG meta tags — set while mounted, restore on unmount
   useEffect(() => {
@@ -340,7 +327,7 @@ export default function Desempenho() {
         {data && !data.empty && (
           <>
             {/* ── Share button ──────────────────────────────────────────────── */}
-            <div className="flex justify-end -mt-6">
+            <div className="flex flex-col items-end -mt-6 gap-1">
               <Button
                 size="sm"
                 variant="outline"
@@ -355,6 +342,9 @@ export default function Desempenho() {
                 )}
                 {isSharing ? "Gerando imagem…" : "Compartilhar desempenho"}
               </Button>
+              {shareError && (
+                <p className="text-[11px] text-destructive">{shareError}</p>
+              )}
             </div>
 
             {/* ── Stat cards ─────────────────────────────────────────────────── */}
@@ -627,38 +617,7 @@ export default function Desempenho() {
             </div>
 
             {/* ── Hidden share card (html-to-image target) ─────────────────── */}
-            <div
-              ref={shareRef}
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                left: "-9999px",
-                top: 0,
-                width: "560px",
-                backgroundColor: "#0f172a",
-                color: "#f1f5f9",
-                fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                borderRadius: "16px",
-                overflow: "hidden",
-              }}
-            >
-              {/* Header */}
-              <div style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <div style={{ background: "#10b981", borderRadius: "8px", width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "13px" }}>M</span>
-                  </div>
-                  <span style={{ fontSize: "17px", fontWeight: 700 }}>
-                    Mito<span style={{ color: "#10b981" }}>metro</span>
-                  </span>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Desempenho do Modelo
-                  </div>
-                  <div style={{ fontSize: "9px", color: "#6ee7b7", marginTop: "2px" }}>Transparência total · Cartola FC</div>
-                </div>
-              </div>
+            <ShareCardFrame ref={shareRef} subtitle="Desempenho do Modelo">
 
               {/* MAE hero */}
               <div style={{ padding: "20px 20px 12px", textAlign: "center" }}>
@@ -695,12 +654,7 @@ export default function Desempenho() {
                 </p>
               </div>
 
-              {/* Footer */}
-              <div style={{ padding: "9px 20px", background: "#080e1a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>mitometro.app/desempenho</span>
-                <span style={{ fontSize: "9px", color: "#334155" }}>Cartola FC · Temporada 2025</span>
-              </div>
-            </div>
+            </ShareCardFrame>
           </>
         )}
 
