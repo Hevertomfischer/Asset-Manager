@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "@/pages/dashboard";
+import Landing from "@/pages/landing";
 import Players from "@/pages/players";
 import Lineup from "@/pages/lineup";
 import Admin from "@/pages/admin";
@@ -71,6 +72,27 @@ function OnboardingGate() {
   return <OnboardingDialog onClose={() => setDismissed(true)} />;
 }
 
+/**
+ * Rota raiz condicional:
+ *  - visitante (sem sessão) → <Landing /> sem AppLayout
+ *  - usuário logado          → <Dashboard /> dentro do AppLayout
+ * Mostra tela em branco durante o carregamento para evitar flash.
+ */
+function RootRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background" />
+    );
+  }
+  if (!isAuthenticated) return <Landing />;
+  return (
+    <AppLayout>
+      <Dashboard />
+    </AppLayout>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -80,8 +102,11 @@ function App() {
             <SessionTracker />
             <OnboardingGate />
             <Routes>
-              {/* Public standalone page — rendered without AppLayout (no sidebar) */}
+              {/* Public standalone pages — rendered without AppLayout */}
               <Route path="/desempenho" element={<Desempenho />} />
+
+              {/* Root: Landing para visitante, Dashboard para logado */}
+              <Route path="/" element={<RootRoute />} />
 
               {/* All other routes — wrapped in AppLayout (sidebar + header) */}
               <Route
@@ -89,7 +114,6 @@ function App() {
                 element={
                   <AppLayout>
                     <Routes>
-                      <Route path="/" element={<Dashboard />} />
                       <Route path="/jogadores" element={<Players />} />
                       <Route path="/escalacao" element={<Lineup />} />
                       <Route path="/admin" element={<Admin />} />

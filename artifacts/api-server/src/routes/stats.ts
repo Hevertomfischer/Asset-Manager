@@ -14,8 +14,9 @@ import {
   playerProjectionTable,
   playerScoutRoundTable,
   playersTable,
+  clubsTable,
 } from "@workspace/db/schema";
-import { and, inArray, isNotNull, eq } from "drizzle-orm";
+import { and, inArray, isNotNull, eq, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("stats");
@@ -253,6 +254,90 @@ router.get("/stats/performance", async (_req, res) => {
       error: err instanceof Error ? err.message : String(err),
     });
     res.status(500).json({ error: "Falha ao computar estatísticas de desempenho." });
+  }
+});
+
+// ── Top projections (public) ──────────────────────────────────────────────────
+// GET /stats/top-projections — top 5 da rodada atual sem auth. Cache 10 min.
+
+let topProjectionsCache: CacheEntry | null = null;
+const TOP_PROJ_CACHE_TTL_MS = 10 * 60 * 1000;
+
+router.get("/stats/top-projections", async (_req, res) => {
+  if (topProjectionsCache && Date.now() < topProjectionsCache.expiry) {
+    res.json(topProjectionsCache.data);
+    return;
+  }
+
+  try {
+    // Latest round with projections
+    const latestRoundResult = await db
+      .select({ round: playerProjectionTable.round })
+      .from(playerProjectionTable)
+      .where(isNotNull(playerProjectionTable.expectedPoints))
+      .orderBy(desc(playerProjectionTable.round))
+      .limit(1);
+
+    if (latestRoundResult.length === 0) {
+      res.json({ round: null, players: [], generatedAt: new Date().toISOString() });
+      return;
+    }
+
+    const currentRound = latestRoundResult[0]!.round;
+
+    const rows = await db
+      .select({
+        playerId: playerProjectionTable.playerId,
+        expectedPoints: playerProjectionTable.expectedPoints,
+        playProbability: playerProjectionTable.playProbability,
+        name: playersTable.name,
+        nickname: playersTable.nickname,
+        position: playersTable.position,
+        price: playersTable.price,
+        popularity: playersTable.popularity,
+        clubAbbreviation: clubsTable.abbreviation,
+        clubBadgeUrl: clubsTable.badgeUrl,
+        clubName: clubsTable.name,
+      })
+      .from(playerProjectionTable)
+      .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
+      .leftJoin(clubsTable, eq(playersTable.clubId, clubsTable.id))
+      .where(
+        and(
+          eq(playerProjectionTable.round, currentRound),
+          isNotNull(playerProjectionTable.expectedPoints),
+        )
+      )
+      .orderBy(desc(playerProjectionTable.expectedPoints))
+      .limit(5);
+
+    const players = rows.map((r) => ({
+      playerId: r.playerId,
+      name: r.name,
+      nickname: r.nickname,
+      position: r.position,
+      price: r.price,
+      popularity: r.popularity,
+      expectedPoints: r.expectedPoints,
+      playProbability: r.playProbability,
+      isDifferencial: (r.popularity ?? 1) < 0.15,
+      club: {
+        abbreviation: r.clubAbbreviation,
+        badgeUrl: r.clubBadgeUrl,
+        name: r.clubName,
+      },
+    }));
+
+    const responseData = { round: currentRound, players, generatedAt: new Date().toISOString() };
+    topProjectionsCache = { data: responseData, expiry: Date.now() + TOP_PROJ_CACHE_TTL_MS };
+
+    log.info("Top projections served", { round: currentRound, count: players.length });
+    res.json(responseData);
+  } catch (err) {
+    log.error("Stats top-projections failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    res.status(500).json({ error: "Falha ao buscar projeções." });
   }
 });
 
