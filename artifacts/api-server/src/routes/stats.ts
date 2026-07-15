@@ -341,4 +341,335 @@ router.get("/stats/top-projections", async (_req, res) => {
   }
 });
 
+// ── Slug helper ───────────────────────────────────────────────────────────────
+
+export function playerSlug(name: string, nickname: string | null, id: number): string {
+  const display = nickname ?? name;
+  const slug = display
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${slug}-${id}`;
+}
+
+// ── Round public stats ─────────────────────────────────────────────────────────
+// GET /stats/rodada/:numero — projections + (if closed) actuals. Cache 15 min.
+
+const roundCaches = new Map<number, CacheEntry>();
+const ROUND_CACHE_TTL_MS = 15 * 60 * 1000;
+
+router.get("/stats/rodada/:numero", async (req, res) => {
+  const roundNum = parseInt(req.params["numero"] ?? "", 10);
+  if (isNaN(roundNum) || roundNum < 1 || roundNum > 200) {
+    res.status(400).json({ error: "Número de rodada inválido." });
+    return;
+  }
+
+  const cached = roundCaches.get(roundNum);
+  if (cached && Date.now() < cached.expiry) {
+    res.json(cached.data);
+    return;
+  }
+
+  try {
+    const projections = await db
+      .select({
+        playerId: playerProjectionTable.playerId,
+        expectedPoints: playerProjectionTable.expectedPoints,
+        floorPoints: playerProjectionTable.floorPoints,
+        ceilingPoints: playerProjectionTable.ceilingPoints,
+        riskScore: playerProjectionTable.riskScore,
+        recommendationScore: playerProjectionTable.recommendationScore,
+        playProbability: playerProjectionTable.playProbability,
+        formScore: playerProjectionTable.formScore,
+        name: playersTable.name,
+        nickname: playersTable.nickname,
+        position: playersTable.position,
+        price: playersTable.price,
+        popularity: playersTable.popularity,
+        clubAbbreviation: clubsTable.abbreviation,
+        clubBadgeUrl: clubsTable.badgeUrl,
+        clubName: clubsTable.name,
+      })
+      .from(playerProjectionTable)
+      .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
+      .leftJoin(clubsTable, eq(playersTable.clubId, clubsTable.id))
+      .where(
+        and(eq(playerProjectionTable.round, roundNum), isNotNull(playerProjectionTable.expectedPoints))
+      )
+      .orderBy(desc(playerProjectionTable.expectedPoints));
+
+    if (projections.length === 0) {
+      res.json({ round: roundNum, isClosed: false, empty: true, players: [], topDiferencial: null, topArmadilha: null });
+      return;
+    }
+
+    const actuals = await db
+      .select({
+        playerId: playerScoutRoundTable.playerId,
+        points: playerScoutRoundTable.points,
+        source: playerScoutRoundTable.source,
+      })
+      .from(playerScoutRoundTable)
+      .where(
+        and(
+          eq(playerScoutRoundTable.round, roundNum),
+          isNotNull(playerScoutRoundTable.points),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+        )
+      );
+
+    const actualMap = new Map<number, number>();
+    const sortedActuals = [...actuals].sort((a, b) =>
+      a.source === "historical_cartola" ? 1 : b.source === "historical_cartola" ? -1 : 0
+    );
+    for (const a of sortedActuals) {
+      if (!actualMap.has(a.playerId) || a.source === "historical_cartola") {
+        actualMap.set(a.playerId, a.points ?? 0);
+      }
+    }
+
+    const isClosed = actualMap.size > 0;
+
+    const players = projections.map((p) => {
+      const actual = actualMap.get(p.playerId);
+      const expectedPoints = p.expectedPoints ?? 0;
+      const popularity = p.popularity ?? 0.5;
+      const riskScore = p.riskScore ?? 0;
+      return {
+        playerId: p.playerId,
+        slug: playerSlug(p.name, p.nickname, p.playerId),
+        name: p.name,
+        nickname: p.nickname,
+        position: p.position,
+        price: p.price,
+        popularity,
+        expectedPoints,
+        floorPoints: p.floorPoints,
+        ceilingPoints: p.ceilingPoints,
+        riskScore,
+        recommendationScore: p.recommendationScore,
+        playProbability: p.playProbability,
+        isDifferencial: popularity < 0.15 && expectedPoints > 0,
+        isTrap: popularity >= 0.35 && riskScore >= 0.55,
+        ...(isClosed && {
+          actualPoints: actual ?? null,
+          beatProjection: actual != null ? actual >= expectedPoints * 0.9 : null,
+        }),
+        club: { abbreviation: p.clubAbbreviation, badgeUrl: p.clubBadgeUrl, name: p.clubName },
+      };
+    });
+
+    const topDiferencial = players
+      .filter((p) => p.isDifferencial)
+      .sort((a, b) => b.expectedPoints - a.expectedPoints)[0] ?? null;
+
+    const topArmadilha = players
+      .filter((p) => p.isTrap)
+      .sort((a, b) => b.popularity - a.popularity)[0] ?? null;
+
+    let summary = null;
+    if (isClosed) {
+      const paired = players.filter((p) => "actualPoints" in p && p.actualPoints != null);
+      const mae = paired.length > 0
+        ? paired.reduce((s, p) => s + Math.abs(p.expectedPoints - ((p as { actualPoints: number }).actualPoints ?? 0)), 0) / paired.length
+        : null;
+      const trapCount = paired.filter((p) => ((p as { actualPoints: number }).actualPoints ?? 0) < p.expectedPoints * 0.5 && p.popularity >= 0.35).length;
+      const differentialHits = paired.filter((p) => p.popularity < 0.15 && ((p as { actualPoints: number }).actualPoints ?? 0) > 0).length;
+      summary = { mae: mae != null ? Number(mae.toFixed(2)) : null, trapCount, differentialHits, pairedCount: paired.length };
+    }
+
+    const responseData = {
+      round: roundNum, isClosed, players, topDiferencial, topArmadilha, summary,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const ttl = isClosed ? ROUND_CACHE_TTL_MS : 5 * 60 * 1000;
+    roundCaches.set(roundNum, { data: responseData, expiry: Date.now() + ttl });
+    log.info("Round stats served", { round: roundNum, isClosed, playerCount: players.length });
+    res.json(responseData);
+  } catch (err) {
+    log.error("Stats rodada failed", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Falha ao buscar dados da rodada." });
+  }
+});
+
+// ── Player public stats ────────────────────────────────────────────────────────
+// GET /stats/jogador/:slug — projection history per player. Cache 20 min.
+
+const playerStatsCaches = new Map<number, CacheEntry>();
+const PLAYER_CACHE_TTL_MS = 20 * 60 * 1000;
+
+router.get("/stats/jogador/:slug", async (req, res) => {
+  const slug = req.params["slug"] ?? "";
+  const match = slug.match(/-(\d+)$/);
+  if (!match) {
+    res.status(400).json({ error: "Slug de jogador inválido. Use o formato nome-id." });
+    return;
+  }
+  const playerId = parseInt(match[1]!, 10);
+
+  const cached = playerStatsCaches.get(playerId);
+  if (cached && Date.now() < cached.expiry) {
+    res.json(cached.data);
+    return;
+  }
+
+  try {
+    const playerRows = await db
+      .select({
+        id: playersTable.id,
+        name: playersTable.name,
+        nickname: playersTable.nickname,
+        position: playersTable.position,
+        price: playersTable.price,
+        popularity: playersTable.popularity,
+        averagePoints: playersTable.averagePoints,
+        gamesPlayed: playersTable.gamesPlayed,
+        clubAbbreviation: clubsTable.abbreviation,
+        clubBadgeUrl: clubsTable.badgeUrl,
+        clubName: clubsTable.name,
+      })
+      .from(playersTable)
+      .leftJoin(clubsTable, eq(playersTable.clubId, clubsTable.id))
+      .where(eq(playersTable.id, playerId));
+
+    if (playerRows.length === 0) {
+      res.status(404).json({ error: "Jogador não encontrado." });
+      return;
+    }
+
+    const p = playerRows[0]!;
+
+    const projections = await db
+      .select({
+        round: playerProjectionTable.round,
+        expectedPoints: playerProjectionTable.expectedPoints,
+        floorPoints: playerProjectionTable.floorPoints,
+        ceilingPoints: playerProjectionTable.ceilingPoints,
+        riskScore: playerProjectionTable.riskScore,
+        playProbability: playerProjectionTable.playProbability,
+        formScore: playerProjectionTable.formScore,
+        explanationJson: playerProjectionTable.explanationJson,
+      })
+      .from(playerProjectionTable)
+      .where(
+        and(eq(playerProjectionTable.playerId, playerId), isNotNull(playerProjectionTable.expectedPoints))
+      )
+      .orderBy(desc(playerProjectionTable.round));
+
+    const actuals = await db
+      .select({
+        round: playerScoutRoundTable.round,
+        points: playerScoutRoundTable.points,
+        source: playerScoutRoundTable.source,
+        goals: playerScoutRoundTable.goals,
+        assists: playerScoutRoundTable.assists,
+      })
+      .from(playerScoutRoundTable)
+      .where(
+        and(
+          eq(playerScoutRoundTable.playerId, playerId),
+          isNotNull(playerScoutRoundTable.points),
+          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+        )
+      );
+
+    const actualMap = new Map<number, { points: number; goals: number; assists: number }>();
+    const sortedActuals2 = [...actuals].sort((a, b) =>
+      a.source === "historical_cartola" ? 1 : b.source === "historical_cartola" ? -1 : 0
+    );
+    for (const a of sortedActuals2) {
+      if (!actualMap.has(a.round) || a.source === "historical_cartola") {
+        actualMap.set(a.round, { points: a.points ?? 0, goals: a.goals ?? 0, assists: a.assists ?? 0 });
+      }
+    }
+
+    const history = projections.map((proj) => {
+      const actual = actualMap.get(proj.round);
+      const exp = proj.expectedPoints ?? 0;
+      const expJson = proj.explanationJson as { popularity?: number } | null;
+      const pop = expJson?.popularity ?? null;
+      const riskScore = proj.riskScore ?? 0;
+      return {
+        round: proj.round,
+        expectedPoints: exp,
+        floorPoints: proj.floorPoints,
+        ceilingPoints: proj.ceilingPoints,
+        riskScore,
+        playProbability: proj.playProbability,
+        formScore: proj.formScore,
+        isDifferencial: (pop ?? 1) < 0.15,
+        isTrap: (pop ?? 0) >= 0.35 && riskScore >= 0.55,
+        actual: actual?.points ?? null,
+        actualGoals: actual?.goals ?? null,
+        actualAssists: actual?.assists ?? null,
+        error: actual != null ? Number((exp - actual.points).toFixed(2)) : null,
+        absError: actual != null ? Number(Math.abs(exp - actual.points).toFixed(2)) : null,
+      };
+    });
+
+    const responseData = {
+      player: {
+        id: p.id, name: p.name, nickname: p.nickname, position: p.position,
+        price: p.price, popularity: p.popularity, averagePoints: p.averagePoints,
+        gamesPlayed: p.gamesPlayed,
+        slug: playerSlug(p.name, p.nickname, p.id),
+        club: { abbreviation: p.clubAbbreviation, badgeUrl: p.clubBadgeUrl, name: p.clubName },
+      },
+      history,
+      generatedAt: new Date().toISOString(),
+    };
+
+    playerStatsCaches.set(playerId, { data: responseData, expiry: Date.now() + PLAYER_CACHE_TTL_MS });
+    log.info("Player stats served", { playerId, rounds: history.length });
+    res.json(responseData);
+  } catch (err) {
+    log.error("Stats jogador failed", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Falha ao buscar dados do jogador." });
+  }
+});
+
+// ── Sitemap data (closed rounds + players with history) ───────────────────────
+// GET /stats/sitemap-data — used by app.ts to build dynamic sitemap.xml
+
+let sitemapDataCache: CacheEntry | null = null;
+const SITEMAP_CACHE_TTL_MS = 60 * 60 * 1000; // 1 h
+
+export async function getSitemapData(): Promise<{ closedRounds: number[]; players: { id: number; name: string; nickname: string | null }[] }> {
+  if (sitemapDataCache && Date.now() < sitemapDataCache.expiry) {
+    return sitemapDataCache.data as { closedRounds: number[]; players: { id: number; name: string; nickname: string | null }[] };
+  }
+
+  const [roundRows, playerRows] = await Promise.all([
+    db
+      .selectDistinct({ round: playerScoutRoundTable.round })
+      .from(playerScoutRoundTable)
+      .where(inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])),
+    db
+      .selectDistinct({
+        id: playersTable.id,
+        name: playersTable.name,
+        nickname: playersTable.nickname,
+      })
+      .from(playerProjectionTable)
+      .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
+      .innerJoin(playerScoutRoundTable, eq(playerProjectionTable.playerId, playerScoutRoundTable.playerId)),
+  ]);
+
+  const closedRounds = roundRows.map((r) => r.round).sort((a, b) => a - b);
+  const seenIds = new Set<number>();
+  const players = playerRows.filter((r) => {
+    if (seenIds.has(r.id)) return false;
+    seenIds.add(r.id);
+    return true;
+  });
+
+  const data = { closedRounds, players };
+  sitemapDataCache = { data, expiry: Date.now() + SITEMAP_CACHE_TTL_MS };
+  return data;
+}
+
 export default router;

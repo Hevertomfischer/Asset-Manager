@@ -22,6 +22,8 @@ import Planos from "@/pages/planos";
 import Fronteira from "@/pages/fronteira";
 import Desempenho from "@/pages/desempenho";
 import Comparar from "@/pages/comparar";
+import RodadaPage from "@/pages/rodada";
+import JogadorPage from "@/pages/jogador";
 import MeusTimes from "@/pages/meus-times";
 import MeusTimesDetalhe from "@/pages/meus-times-detalhe";
 
@@ -104,6 +106,8 @@ function App() {
             <Routes>
               {/* Public standalone pages — rendered without AppLayout */}
               <Route path="/desempenho" element={<Desempenho />} />
+              <Route path="/rodada/:numero" element={<RodadaPage />} />
+              <Route path="/jogador/:slug" element={<JogadorPage />} />
 
               {/* Root: Landing para visitante, Dashboard para logado */}
               <Route path="/" element={<RootRoute />} />

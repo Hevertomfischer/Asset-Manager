@@ -11,7 +11,8 @@ import { configurePassport } from "./auth/passport";
 import { attachUser } from "./middlewares/attachUser";
 import { startSyncJob } from "./jobs/syncJob";
 import { rootLogger } from "./lib/logger";
-import { createOgMiddleware } from "./middlewares/ogInjector";
+import { createOgMiddleware, createDynamicOgMiddleware } from "./middlewares/ogInjector";
+import { getSitemapData, playerSlug } from "./routes/stats";
 
 const log = rootLogger;
 
@@ -102,35 +103,62 @@ if (hasFrontendBuild) {
       );
   });
 
-  // ── /sitemap.xml ─────────────────────────────────────────────────────────────
-  app.get("/sitemap.xml", (_req: Request, res: Response) => {
+  // ── /sitemap.xml (dinâmico) ───────────────────────────────────────────────────
+  app.get("/sitemap.xml", async (_req: Request, res: Response) => {
     const appUrl = buildAppUrl();
     const today = new Date().toISOString().slice(0, 10);
+
+    let closedRounds: number[] = [];
+    let players: { id: number; name: string; nickname: string | null }[] = [];
+    try {
+      const sitemapData = await getSitemapData();
+      closedRounds = sitemapData.closedRounds;
+      players = sitemapData.players;
+    } catch {
+      log.warn("Sitemap: falha ao carregar dados dinâmicos — usando entradas estáticas");
+    }
+
+    const staticUrls = [
+      { loc: `${appUrl}/`, changefreq: "daily", priority: "1.0" },
+      { loc: `${appUrl}/desempenho`, changefreq: "weekly", priority: "0.8" },
+    ];
+
+    const roundUrls = closedRounds.map((r) => ({
+      loc: `${appUrl}/rodada/${r}`,
+      lastmod: today,
+      changefreq: "monthly",
+      priority: "0.7",
+    }));
+
+    const playerUrls = players.map((p) => ({
+      loc: `${appUrl}/jogador/${playerSlug(p.name, p.nickname, p.id)}`,
+      lastmod: today,
+      changefreq: "weekly",
+      priority: "0.6",
+    }));
+
+    const allUrls = [...staticUrls, ...roundUrls, ...playerUrls];
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls.map((u) => `  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join("\n")}
+</urlset>`;
+
     res
       .set("Content-Type", "application/xml; charset=utf-8")
-      .set("Cache-Control", "public, max-age=86400")
-      .send(
-        `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${appUrl}/</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>${appUrl}/desempenho</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-</urlset>`,
-      );
+      .set("Cache-Control", "public, max-age=3600")
+      .send(xml);
   });
 
   // ── OG injection para rotas públicas ────────────────────────────────────────
   const ogMiddleware = createOgMiddleware(["/", "/desempenho"]);
   app.use(ogMiddleware);
+  app.use(createDynamicOgMiddleware());
 
   // ── SPA fallback — todas as demais rotas servem index.html ──────────────────
   // Express 5 + path-to-regexp@8 não aceita "*" puro; usar "/{*path}"

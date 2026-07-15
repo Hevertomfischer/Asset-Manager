@@ -17,6 +17,9 @@ import { readFile } from "fs/promises";
 import type { Request, Response } from "express";
 import { getOgStats } from "../services/ogStats";
 import { createLogger } from "../lib/logger";
+import { db } from "@workspace/db";
+import { playersTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 const log = createLogger("og-injector");
 
@@ -128,7 +131,7 @@ function injectMeta(html: string, meta: MetaSet): string {
   return out;
 }
 
-// ── Middleware factory ────────────────────────────────────────────────────────
+// ── Middleware factory (exact routes) ────────────────────────────────────────
 
 type OgRoute = "/" | "/desempenho";
 
@@ -140,7 +143,6 @@ export function createOgMiddleware(routes: OgRoute[]) {
     res: Response,
     next: () => void,
   ): Promise<void> {
-    // Só intercepta os métodos e rotas declaradas
     if (req.method !== "GET" || !routeSet.has(req.path as OgRoute)) {
       next();
       return;
@@ -158,9 +160,7 @@ export function createOgMiddleware(routes: OgRoute[]) {
       return;
     }
 
-    // Busca stats (nunca lança — retorna EMPTY em caso de erro)
     const stats = await getOgStats();
-
     let meta: MetaSet;
     if (req.path === "/desempenho") {
       meta = buildMetaForDesempenho(stats);
@@ -179,10 +179,104 @@ export function createOgMiddleware(routes: OgRoute[]) {
     }
 
     log.debug("OG injected", { path: req.path, title: meta.title });
-
     res
       .set("Content-Type", "text/html; charset=utf-8")
       .set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
       .send(injected);
+  };
+}
+
+// ── Dynamic OG middleware (prefix-pattern routes) ────────────────────────────
+// Handles /rodada/:n and /jogador/:slug with per-key caching.
+
+interface DynCacheEntry { meta: MetaSet; expiry: number }
+const dynOgCache = new Map<string, DynCacheEntry>();
+const DYN_OG_TTL_MS = 15 * 60 * 1000;
+
+function buildMetaForRodada(roundNum: number, isClosed: boolean): MetaSet {
+  const status = isClosed ? "resultado confirmado" : "projeções do modelo";
+  const title = `Rodada ${roundNum} Cartola FC: Projeções e Análise | Mitometro`;
+  const description = isClosed
+    ? `Rodada ${roundNum} encerrada — veja projeção vs resultado real de cada jogador. Acerto do modelo, diferencial e armadilha. Mitometro.`
+    : `Projeções, diferencial e armadilha da rodada ${roundNum} do Cartola FC. ${status}. Analytics sem achismos — Mitometro.`;
+  return { title, description, imageUrl: DEFAULT_IMAGE };
+}
+
+async function buildMetaForJogador(playerId: number): Promise<MetaSet> {
+  try {
+    const rows = await db
+      .select({ name: playersTable.name, nickname: playersTable.nickname, position: playersTable.position })
+      .from(playersTable)
+      .where(eq(playersTable.id, playerId));
+    if (rows.length > 0) {
+      const p = rows[0]!;
+      const displayName = p.nickname ?? p.name;
+      const title = `${displayName}: histórico de projeção e análise | Mitometro`;
+      const description = `Veja o histórico de projeção vs pontuação real de ${displayName} (${p.position}) no Cartola FC. Análise de risco, forma e diferencial — Mitometro.`;
+      return { title, description, imageUrl: DEFAULT_IMAGE };
+    }
+  } catch { /* fallback */ }
+  return {
+    title: "Análise de jogador | Mitometro",
+    description: "Histórico de projeção vs pontuação real no Cartola FC. Analytics Mitometro.",
+    imageUrl: DEFAULT_IMAGE,
+  };
+}
+
+export function createDynamicOgMiddleware() {
+  return async function dynamicOgMiddleware(
+    req: Request,
+    res: Response,
+    next: () => void,
+  ): Promise<void> {
+    if (req.method !== "GET") { next(); return; }
+
+    const rodadaMatch = req.path.match(/^\/rodada\/(\d+)$/);
+    const jogadorMatch = req.path.match(/^\/jogador\/[^/]+-(\d+)$/);
+
+    if (!rodadaMatch && !jogadorMatch) { next(); return; }
+
+    const cacheKey = req.path;
+    const cached = dynOgCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      let rawHtml: string;
+      try { rawHtml = await readFile(INDEX_HTML_PATH, "utf-8"); } catch { next(); return; }
+      res
+        .set("Content-Type", "text/html; charset=utf-8")
+        .set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+        .send(injectMeta(rawHtml, cached.meta));
+      return;
+    }
+
+    let rawHtml: string;
+    try {
+      rawHtml = await readFile(INDEX_HTML_PATH, "utf-8");
+    } catch (err) {
+      log.warn("index.html não encontrado — dynamic OG fallback", { error: String(err) });
+      next();
+      return;
+    }
+
+    let meta: MetaSet;
+    try {
+      if (rodadaMatch) {
+        const roundNum = parseInt(rodadaMatch[1]!, 10);
+        meta = buildMetaForRodada(roundNum, false);
+      } else {
+        const playerId = parseInt(jogadorMatch![1]!, 10);
+        meta = await buildMetaForJogador(playerId);
+      }
+    } catch (err) {
+      log.warn("Dynamic OG meta build failed — using default", { error: String(err) });
+      meta = buildMetaForRoot(await getOgStats());
+    }
+
+    dynOgCache.set(cacheKey, { meta, expiry: Date.now() + DYN_OG_TTL_MS });
+    log.debug("Dynamic OG injected", { path: req.path, title: meta.title });
+
+    res
+      .set("Content-Type", "text/html; charset=utf-8")
+      .set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+      .send(injectMeta(rawHtml, meta));
   };
 }
