@@ -66,6 +66,48 @@ function SessionTracker() {
   return null;
 }
 
+// ── ReferralTracker ───────────────────────────────────────────────────────────
+// Fires referral_visit once per browser session when the user arrives via a
+// UTM-tagged link or from an external referrer. Runs for all routes (auth or
+// public) since this component lives outside the route tree.
+function ReferralTracker() {
+  const track = useTrack();
+
+  useEffect(() => {
+    const sessionKey = "ci_referral_tracked";
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const utmSource   = params.get("utm_source");
+    const utmMedium   = params.get("utm_medium");
+    const utmCampaign = params.get("utm_campaign");
+
+    const referrerHost = (() => {
+      try {
+        const ref = document.referrer;
+        if (!ref) return null;
+        const url = new URL(ref);
+        if (url.hostname === window.location.hostname) return null;
+        return url.hostname;
+      } catch {
+        return null;
+      }
+    })();
+
+    const source = utmSource ?? referrerHost;
+    if (!source && !utmMedium && !utmCampaign) return;
+
+    sessionStorage.setItem(sessionKey, "1");
+    track("referral_visit", {
+      source:   source   ?? "direct",
+      medium:   utmMedium   ?? null,
+      campaign: utmCampaign ?? null,
+    });
+  }, [track]);
+
+  return null;
+}
+
 function OnboardingGate() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const [dismissed, setDismissed] = useState(false);
@@ -102,6 +144,7 @@ function App() {
         <BrowserRouter basename={BASE}>
           <PaywallProvider>
             <SessionTracker />
+            <ReferralTracker />
             <OnboardingGate />
             <Routes>
               {/* Public standalone pages — rendered without AppLayout */}

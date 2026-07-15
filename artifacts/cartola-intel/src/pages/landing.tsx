@@ -171,11 +171,22 @@ export default function Landing() {
   const track = useTrack();
 
   useEffect(() => {
-    track("landing_viewed");
+    const referrer = (() => {
+      try {
+        const ref = document.referrer;
+        if (!ref) return null;
+        const url = new URL(ref);
+        if (url.hostname === window.location.hostname) return null;
+        return url.hostname;
+      } catch {
+        return null;
+      }
+    })();
+    track("landing_viewed", { referrer });
   }, [track]);
 
-  function handleCta(location: string) {
-    track("signup_cta_clicked", { location });
+  function handleCta(placement: string) {
+    track("signup_cta_clicked", { placement });
     navigate("/");
   }
 

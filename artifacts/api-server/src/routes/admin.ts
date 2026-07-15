@@ -496,7 +496,7 @@ router.get("/admin/funnel", async (req, res) => {
     const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const [eventRows, feedbackRows] = await Promise.all([
+    const [eventRows, feedbackRows, activeUsersRows] = await Promise.all([
       // ── All events: count + unique users per event name ──────────────────
       db
         .select({
@@ -531,13 +531,54 @@ router.get("/admin/funnel", async (req, res) => {
           sql`${analyticsEventsTable.createdAt}::date desc`,
           sql`count(*) desc`
         ),
+
+      // ── Active users: distinct authenticated users in the period ──────────
+      db
+        .select({
+          activeUsers: sql<number>`count(distinct ${analyticsEventsTable.userId}) filter (where ${analyticsEventsTable.userId} is not null)::int`,
+        })
+        .from(analyticsEventsTable)
+        .where(gte(analyticsEventsTable.createdAt, since)),
     ]);
+
+    // ── Computed conversion metrics ───────────────────────────────────────────
+    const eventMap = new Map(eventRows.map((r) => [r.event, r]));
+    const landingViewed    = eventMap.get("landing_viewed")?.count    ?? 0;
+    const signups          = eventMap.get("signup")?.count            ?? 0;
+    const shareCompleted   = eventMap.get("share_completed")?.count   ?? 0;
+    const activeUsers      = activeUsersRows[0]?.activeUsers          ?? 0;
+
+    // landing_viewed → signup conversion rate (%)
+    const conversionRate =
+      landingViewed > 0
+        ? Number(((signups / landingViewed) * 100).toFixed(1))
+        : null;
+
+    // share_completed per active authenticated user (virality coefficient)
+    const shareCoeff =
+      activeUsers > 0
+        ? Number((shareCompleted / activeUsers).toFixed(3))
+        : null;
+
+    log.info(
+      `funnel days=${days} landing=${landingViewed} signups=${signups} ` +
+      `conversionRate=${conversionRate}% shareCompleted=${shareCompleted} ` +
+      `activeUsers=${activeUsers} shareCoeff=${shareCoeff}`
+    );
 
     res.json({
       days,
       since: since.toISOString(),
       events: eventRows,
       feedbackByTypeAndDay: feedbackRows,
+      metrics: {
+        landingViewed,
+        signups,
+        conversionRate,
+        shareCompleted,
+        activeUsers,
+        shareCoeff,
+      },
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
