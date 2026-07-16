@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { roundSnapshotTable, dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
+import { fetchPopularityMap } from "./gatoMestreProvider";
 
 const BASE_URL = "https://api.cartola.globo.com";
 
@@ -162,6 +163,11 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
   if (!marketParsed.success) return null;
 
   const market = marketParsed.data;
+  const roundNumber = roundParsed.success ? roundParsed.data.rodada_atual : snapshot.round;
+
+  // Fetch popularity from Gato Mestre (2-hour cache in DB)
+  const popularityMap = await fetchPopularityMap(roundNumber).catch(() => new Map<string, number>());
+
   const clubs: CartolaClub[] = Object.entries(market.clubes).map(([, clube]) => ({
     externalSource: "cartola_api",
     externalId: String(clube.id),
@@ -181,7 +187,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     status: atleta.status_id != null ? (STATUS_MAP[atleta.status_id] ?? null) : null,
     price: atleta.preco_num ?? null,
     averagePoints: atleta.media_num ?? null,
-    popularity: null,
+    popularity: popularityMap.get(String(atleta.atleta_id)) ?? null,
     priceVariation: atleta.variacao_num ?? null,
     playedLastRound: atleta.entrou_em_campo ?? null,
     gamesPlayed: atleta.jogos_num ?? null,
@@ -193,7 +199,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     clubs,
     players,
     round: {
-      roundNumber: roundParsed.success ? roundParsed.data.rodada_atual : snapshot.round,
+      roundNumber,
       marketStatus: roundParsed.success ? (roundParsed.data.status_mercado ?? roundParsed.data.mercado_status ?? 0) : 0,
       closingTimestamp: roundParsed.success ? (roundParsed.data.fechamento?.seconds ?? roundParsed.data.fechamento?.timestamp ?? null) : null,
     },
@@ -221,6 +227,9 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
 
     const market = marketParsed.data;
 
+    // Fetch popularity from Gato Mestre (2-hour DB cache, non-blocking on failure)
+    const popularityMap = await fetchPopularityMap(roundNumber).catch(() => new Map<string, number>());
+
     const clubs: CartolaClub[] = Object.entries(market.clubes).map(([, clube]) => ({
       externalSource: source,
       externalId: String(clube.id),
@@ -240,7 +249,7 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
       status: atleta.status_id != null ? (STATUS_MAP[atleta.status_id] ?? null) : null,
       price: atleta.preco_num ?? null,
       averagePoints: atleta.media_num ?? null,
-      popularity: null,
+      popularity: popularityMap.get(String(atleta.atleta_id)) ?? null,
       priceVariation: atleta.variacao_num ?? null,
       playedLastRound: atleta.entrou_em_campo ?? null,
       gamesPlayed: atleta.jogos_num ?? null,
