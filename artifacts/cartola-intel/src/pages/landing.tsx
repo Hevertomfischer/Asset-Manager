@@ -7,7 +7,7 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -167,7 +167,6 @@ function StatBubble({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Landing() {
-  const navigate = useNavigate();
   const track = useTrack();
 
   useEffect(() => {
@@ -187,7 +186,7 @@ export default function Landing() {
 
   function handleCta(placement: string) {
     track("signup_cta_clicked", { placement });
-    navigate("/");
+    window.location.href = "/api/auth/google";
   }
 
   const { data: perfData } = useQuery<PerformanceSummary>({
@@ -238,7 +237,7 @@ export default function Landing() {
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-foreground text-sm"
-              onClick={() => navigate("/")}
+              onClick={() => { window.location.href = "/api/auth/google"; }}
             >
               Entrar
             </Button>
@@ -477,9 +476,9 @@ export default function Landing() {
             <Link to="/desempenho" className="hover:text-foreground transition-colors">
               Transparência
             </Link>
-            <Link to="/" className="hover:text-foreground transition-colors">
+            <a href="/api/auth/google" className="hover:text-foreground transition-colors">
               Entrar
-            </Link>
+            </a>
           </div>
         </div>
       </footer>

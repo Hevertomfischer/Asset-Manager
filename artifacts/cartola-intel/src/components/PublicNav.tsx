@@ -17,10 +17,10 @@ export function PublicNav() {
         </Link>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground hidden sm:flex">
-            <Link to="/">Entrar</Link>
+            <a href="/api/auth/google">Entrar</a>
           </Button>
           <Button size="sm" asChild className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 text-xs">
-            <Link to="/">Criar conta grátis</Link>
+            <a href="/api/auth/google">Criar conta grátis</a>
           </Button>
         </div>
       </div>
