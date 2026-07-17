@@ -1,16 +1,17 @@
 /**
  * Gato Mestre / Cartola popularity provider
  *
- * Fetches per-player "times_escalados" data using a Globo session cookie (GLBID).
- * Results are cached in the round_snapshot table for 2 hours to protect API limits.
+ * Primary source: public Gato Mestre API — no authentication required.
+ * URL: https://api.gatomestre.globo.com/api/v2/mais-escalados/temporada/{year}/rodadas/{round}
+ * Returns the "mais escalados" selection (12 starters + reserves) with per-player
+ * `escalacoes` counts. Grows as the round progresses; returns all positions for
+ * completed rounds.
  *
- * Setup: set the GLOBO_GLBID environment variable to a valid GLBID cookie value.
- * How to obtain it:
- *   1. Log in to cartola.globo.com in your browser.
- *   2. Open DevTools → Application → Cookies → cartola.globo.com
- *   3. Copy the value of the "GLBID" cookie.
- *   4. Add it as the GLOBO_GLBID secret in the Replit project.
- * The cookie is typically valid for weeks; renew when requests start returning 401/403.
+ * Fallback sources (require GLOBO_GLBID cookie):
+ *   - Gato Mestre API (v2 authenticated)
+ *   - Cartola /mercado/selecao
+ *
+ * Results are cached in the round_snapshot table for 2 hours.
  */
 
 import axios from "axios";
@@ -48,9 +49,68 @@ function buildAuthHeaders(): Record<string, string> {
   };
 }
 
+type GatoMestrePlayer = {
+  Atleta?: { atleta_id?: number };
+  escalacoes?: number;
+};
+
+type GatoMestreResponse = {
+  selecao?: GatoMestrePlayer[];
+  reservas?: GatoMestrePlayer[];
+  capitaes?: GatoMestrePlayer[];
+  banco_de_reservas?: GatoMestrePlayer[];
+};
+
 /**
- * Tries the Gato Mestre mais-escalados API.
- * Returns a map of atleta_id → times_escalados on success.
+ * PRIMARY SOURCE — no authentication required.
+ * Calls the public Gato Mestre mais-escalados API directly.
+ * Returns the optimal "mais escalados" lineup for the round with escalation counts.
+ * For ongoing rounds, returns players added so far (grows throughout the week).
+ * For completed rounds, returns the full 12-player selection + reserves.
+ */
+async function fetchFromPublicPage(round: number): Promise<Record<string, number>> {
+  const year = new Date().getFullYear();
+  const url = `${GATO_MESTRE_BASE}/api/v2/mais-escalados/temporada/${year}/rodadas/${round}`;
+
+  const res = await axios.get<GatoMestreResponse>(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "application/json",
+      "Accept-Encoding": "gzip",
+      "Origin": "https://gatomestre.ge.globo.com",
+      "Referer": "https://gatomestre.ge.globo.com/mais-escalados-do-cartola/",
+    },
+    timeout: 12000,
+    validateStatus: (s) => s < 500,
+  });
+
+  if (res.status !== 200) {
+    throw new Error(`Public mais-escalados API returned HTTP ${res.status} for round ${round}`);
+  }
+
+  const data = res.data;
+  const allPlayers: GatoMestrePlayer[] = [
+    ...(data.selecao ?? []),
+    ...(data.reservas ?? []),
+    ...(data.capitaes ?? []),
+    ...(data.banco_de_reservas ?? []),
+  ];
+
+  const popularity: Record<string, number> = {};
+  for (const player of allPlayers) {
+    const id = player.Atleta?.atleta_id;
+    const count = player.escalacoes;
+    if (id != null && count != null) {
+      popularity[String(id)] = count;
+    }
+  }
+
+  return popularity;
+}
+
+/**
+ * FALLBACK — requires GLOBO_GLBID cookie.
+ * Tries the Gato Mestre authenticated API endpoint.
  */
 async function fetchFromGatoMestre(round: number): Promise<Record<string, number>> {
   const year = new Date().getFullYear();
@@ -67,28 +127,20 @@ async function fetchFromGatoMestre(round: number): Promise<Record<string, number
     throw new Error(`GLBID cookie rejected (HTTP ${res.status}) — please renew GLOBO_GLBID`);
   }
   if (res.status !== 200) {
-    throw new Error(`Gato Mestre API returned HTTP ${res.status}`);
+    throw new Error(`Gato Mestre auth API returned HTTP ${res.status}`);
   }
 
-  const data = res.data;
-  await log(
-    "info",
-    `GM raw keys=${JSON.stringify(Object.keys(data ?? {})).slice(0, 120)}, preview=${JSON.stringify(data).slice(0, 300)}`
-  );
-
-  return parsePopularityResponse(data);
+  await log("info", `GM auth raw keys=${JSON.stringify(Object.keys(res.data ?? {})).slice(0, 120)}`);
+  return parsePopularityResponse(res.data);
 }
 
 /**
- * Tries the Cartola /mercado/selecao API (also requires GLBID for full data).
- * This endpoint returns the "selecao do mercado" — the most-picked lineup.
+ * FALLBACK — requires GLOBO_GLBID cookie.
+ * Tries the Cartola /mercado/selecao endpoint.
  */
 async function fetchFromCartolaSelecao(): Promise<Record<string, number>> {
   const res = await axios.get(`${CARTOLA_BASE}/mercado/selecao`, {
-    headers: {
-      ...buildAuthHeaders(),
-      "User-Agent": "application/postscript",
-    },
+    headers: { ...buildAuthHeaders(), "User-Agent": "application/postscript" },
     timeout: 12000,
     validateStatus: (s) => s < 500,
   });
@@ -97,46 +149,41 @@ async function fetchFromCartolaSelecao(): Promise<Record<string, number>> {
     throw new Error(`Cartola /mercado/selecao returned HTTP ${res.status}`);
   }
 
-  const data = res.data;
-  await log(
-    "info",
-    `Cartola selecao raw: ${JSON.stringify(data).slice(0, 400)}`
-  );
-
-  return parsePopularityResponse(data);
+  await log("info", `Cartola selecao raw: ${JSON.stringify(res.data).slice(0, 200)}`);
+  return parsePopularityResponse(res.data);
 }
 
 /**
- * Parses various response shapes into atleta_id → times_escalados map.
+ * Generic parser for various API response shapes → atleta_id → times_escalados map.
  */
 function parsePopularityResponse(data: unknown): Record<string, number> {
   const popularity: Record<string, number> = {};
-
   if (!data || typeof data !== "object") return popularity;
+
+  const obj = data as Record<string, unknown>;
 
   // Shape A: array of atleta objects
   const candidates: Array<Record<string, unknown>> = Array.isArray(data)
     ? (data as Array<Record<string, unknown>>)
-    : Array.isArray((data as Record<string, unknown>).atletas)
-      ? ((data as Record<string, unknown>).atletas as Array<Record<string, unknown>>)
-      : Array.isArray((data as Record<string, unknown>).jogadores)
-        ? ((data as Record<string, unknown>).jogadores as Array<Record<string, unknown>>)
-        : Array.isArray((data as Record<string, unknown>).players)
-          ? ((data as Record<string, unknown>).players as Array<Record<string, unknown>>)
+    : Array.isArray(obj.atletas)
+      ? (obj.atletas as Array<Record<string, unknown>>)
+      : Array.isArray(obj.jogadores)
+        ? (obj.jogadores as Array<Record<string, unknown>>)
+        : Array.isArray(obj.players)
+          ? (obj.players as Array<Record<string, unknown>>)
           : [];
 
   for (const a of candidates) {
     const id = a.atleta_id ?? a.id ?? a.atletaId;
-    const count =
-      a.times_escalados ?? a.escalacoes ?? a.count ?? a.total ?? a.timesEscalados;
+    const count = a.times_escalados ?? a.escalacoes ?? a.count ?? a.total ?? a.timesEscalados;
     if (id != null && count != null) {
       popularity[String(id)] = Number(count);
     }
   }
 
-  // Shape B: keyed object { "atleta_id": N } or { "atleta_id": { times_escalados: N } }
+  // Shape B: keyed object { "atleta_id": N }
   if (Object.keys(popularity).length === 0) {
-    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(obj)) {
       if (!/^\d+$/.test(key)) continue;
       if (typeof value === "number") {
         popularity[key] = value;
@@ -190,27 +237,15 @@ async function saveToCache(round: number, popularity: Record<string, number>) {
 
 /**
  * Returns a Map<atleta_id_string, times_escalados> for the given round.
- * Uses a 2-hour DB cache. Falls back to stale cache on error.
- * Requires GLOBO_GLBID env var to be set with a valid Globo session cookie.
+ *
+ * Source priority:
+ *   1. DB cache (2-hour TTL)
+ *   2. Public mais-escalados API (no auth needed) — primary
+ *   3. Gato Mestre auth API (requires GLOBO_GLBID) — fallback
+ *   4. Cartola /mercado/selecao (requires GLOBO_GLBID) — fallback
+ *   5. Stale DB cache
  */
 export async function fetchPopularityMap(round: number): Promise<Map<string, number>> {
-  const glbId = process.env.GLOBO_GLBID;
-
-  if (!glbId) {
-    // No GLBID configured — check for stale cache before giving up
-    const stale = await loadStaleCache(round);
-    if (stale && Object.keys(stale).length > 0) {
-      await log("degraded", `No GLOBO_GLBID set — using stale cache for round ${round}`);
-      return new Map(Object.entries(stale));
-    }
-    await log(
-      "degraded",
-      "GLOBO_GLBID env var not set. Set it to enable per-player popularity. " +
-        "Get it from: cartola.globo.com → DevTools → Application → Cookies → GLBID"
-    );
-    return new Map();
-  }
-
   // 1. Try fresh cache
   const cached = await loadFromCache(round);
   if (cached && Object.keys(cached).length > 0) {
@@ -218,10 +253,17 @@ export async function fetchPopularityMap(round: number): Promise<Map<string, num
     return new Map(Object.entries(cached));
   }
 
-  // 2. Fetch from APIs (try Gato Mestre first, then Cartola selecao)
+  // 2. Try sources in priority order
+  const glbId = process.env.GLOBO_GLBID;
+
   const sources: Array<[string, () => Promise<Record<string, number>>]> = [
-    ["gato_mestre", () => fetchFromGatoMestre(round)],
-    ["cartola_selecao", () => fetchFromCartolaSelecao()],
+    ["public_api", () => fetchFromPublicPage(round)],
+    ...(glbId
+      ? [
+          ["gato_mestre_auth", () => fetchFromGatoMestre(round)] as [string, () => Promise<Record<string, number>>],
+          ["cartola_selecao", () => fetchFromCartolaSelecao()] as [string, () => Promise<Record<string, number>>],
+        ]
+      : []),
   ];
 
   for (const [name, fetchFn] of sources) {
@@ -235,7 +277,7 @@ export async function fetchPopularityMap(round: number): Promise<Map<string, num
         return new Map(Object.entries(popularity));
       }
 
-      await log("degraded", `${name} returned 0 popularity entries — trying next source`);
+      await log("degraded", `${name} returned 0 entries — trying next source`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await log("error", `${name} failed: ${msg}`);
@@ -245,9 +287,10 @@ export async function fetchPopularityMap(round: number): Promise<Map<string, num
   // 3. Fallback to stale cache
   const stale = await loadStaleCache(round);
   if (stale && Object.keys(stale).length > 0) {
-    await log("degraded", `Using stale popularity cache for round ${round}`);
+    await log("degraded", `Using stale popularity cache for round ${round} (${Object.keys(stale).length} players)`);
     return new Map(Object.entries(stale));
   }
 
+  await log("degraded", `No popularity data available for round ${round}`);
   return new Map();
 }

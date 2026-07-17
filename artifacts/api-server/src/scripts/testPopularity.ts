@@ -27,7 +27,7 @@ async function main() {
     .catch(() => []);
 
   for (const l of logs) {
-    console.log(`[${l.status.padEnd(8)}] ${l.message.slice(0, 120)}`);
+    console.log(`[${l.status.padEnd(8)}] ${(l.message ?? "").slice(0, 120)}`);
   }
 
   process.exit(0);
