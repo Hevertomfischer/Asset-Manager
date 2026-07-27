@@ -31,3 +31,6 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.production]
+
+[userenv.shared]
+FIRST_ADMIN_EMAIL = "hevertom.fischer@gmail.com"

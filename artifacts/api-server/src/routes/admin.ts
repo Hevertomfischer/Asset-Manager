@@ -690,6 +690,24 @@ router.patch("/admin/feedback/:id", async (req, res) => {
 
 // ── Users admin endpoints ─────────────────────────────────────────────────────
 
+router.post("/admin/users/set-role", async (req, res) => {
+  const { email, role } = req.body as { email?: string; role?: string };
+  if (!email) return res.status(400).json({ error: "email required" });
+  const VALID_ROLES = ["user", "admin"] as const;
+  type ValidRole = typeof VALID_ROLES[number];
+  if (!role || !VALID_ROLES.includes(role as ValidRole)) {
+    return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` });
+  }
+  const [user] = await db
+    .update(usersTable)
+    .set({ role, updatedAt: new Date() })
+    .where(eq(usersTable.email, email))
+    .returning({ id: usersTable.id, email: usersTable.email, role: usersTable.role });
+  if (!user) return res.status(404).json({ error: "User not found" });
+  log.info("Set user role", { email, role, userId: user.id });
+  return res.json({ ok: true, user });
+});
+
 router.get("/admin/users", async (req, res) => {
   try {
     const { search, limit: limitQ, offset: offsetQ } = req.query as Record<string, string>;

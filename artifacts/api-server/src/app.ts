@@ -6,6 +6,7 @@ import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import passport from "passport";
 import cors from "cors";
+import { eq } from "drizzle-orm";
 import router from "./routes";
 import { configurePassport } from "./auth/passport";
 import { attachUser } from "./middlewares/attachUser";
@@ -13,6 +14,8 @@ import { startSyncJob } from "./jobs/syncJob";
 import { rootLogger } from "./lib/logger";
 import { createOgMiddleware, createDynamicOgMiddleware } from "./middlewares/ogInjector";
 import { getSitemapData, playerSlug } from "./routes/stats";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db/schema";
 
 const log = rootLogger;
 
@@ -184,6 +187,22 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 if (process.env["NODE_ENV"] !== "test") {
   startSyncJob();
+}
+
+// ── Bootstrap: garante role=admin para o primeiro admin ──────────────────────
+const FIRST_ADMIN_EMAIL = process.env["FIRST_ADMIN_EMAIL"];
+if (FIRST_ADMIN_EMAIL) {
+  db.update(usersTable)
+    .set({ role: "admin", updatedAt: new Date() })
+    .where(eq(usersTable.email, FIRST_ADMIN_EMAIL))
+    .returning({ id: usersTable.id, email: usersTable.email })
+    .then(([user]) => {
+      if (user) log.info("Bootstrap: admin role granted", { email: FIRST_ADMIN_EMAIL, userId: user.id });
+      else log.warn("Bootstrap: FIRST_ADMIN_EMAIL not found in DB yet", { email: FIRST_ADMIN_EMAIL });
+    })
+    .catch((err: unknown) => {
+      log.error("Bootstrap: failed to grant admin role", { email: FIRST_ADMIN_EMAIL, error: err instanceof Error ? err.message : String(err) });
+    });
 }
 
 // ── Utilitário: URL pública da aplicação ─────────────────────────────────────
