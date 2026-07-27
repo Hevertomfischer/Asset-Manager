@@ -27,6 +27,15 @@ function requireGoogleOAuth(_req: Request, res: Response, next: NextFunction): v
 const CALLBACK_PATH = "/api/auth/google/callback";
 
 function getCallbackURL(req: Request): string {
+  // In the Replit dev environment, REPLIT_DEV_DOMAIN is always set and NODE_ENV is not
+  // "production". Use it directly so the OAuth callback returns to the preview URL
+  // instead of the production site stored in OAUTH_CALLBACK_URL.
+  const replitDevDomain = process.env["REPLIT_DEV_DOMAIN"];
+  const isProduction = process.env["NODE_ENV"] === "production";
+  if (replitDevDomain && !isProduction) {
+    return `https://${replitDevDomain}${CALLBACK_PATH}`;
+  }
+
   const envURL = process.env["OAUTH_CALLBACK_URL"];
   if (envURL) {
     const base = envURL.replace(/\/$/, "");
