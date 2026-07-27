@@ -1,8 +1,10 @@
 import { db } from "@workspace/db";
+import { matchesTable } from "@workspace/db/schema";
 import type { Player } from "@workspace/db/schema";
 import type { GeProbablePlayer } from "../providers/geProbablesProvider";
 import type { CartolaStatusResult, PlayerStatusRecord } from "../providers/cartolaStatusProvider";
 import { upsertAvailability, getScoutsByPlayer } from "../repositories/projectionRepository";
+import { eq, and } from "drizzle-orm";
 
 const PROBABLE_STATUS = "Provável";
 const INJURY_STATUS = "Contundido";
@@ -111,6 +113,18 @@ export async function runAvailabilityEngine(
   cartolaStatus?: CartolaStatusResult
 ): Promise<void> {
   const players = await db.query.playersTable.findMany();
+
+  // Build a set of club IDs with a valid (non-postponed) match this round.
+  const validMatches = await db
+    .select({ homeClubId: matchesTable.homeClubId, awayClubId: matchesTable.awayClubId })
+    .from(matchesTable)
+    .where(and(eq(matchesTable.round, round), eq(matchesTable.valid, true)));
+  const validMatchClubIds = new Set<number>();
+  for (const m of validMatches) {
+    if (m.homeClubId) validMatchClubIds.add(m.homeClubId);
+    if (m.awayClubId) validMatchClubIds.add(m.awayClubId);
+  }
+
   const probableNamesMap = new Map<string, boolean>();
 
   for (const p of probables) {
@@ -138,8 +152,15 @@ export async function runAvailabilityEngine(
         ? recentScouts.reduce((sum, s) => sum + (s.minutesPlayed ?? 0), 0) / recentScouts.length
         : 0;
 
+    // Players from clubs with a postponed/invalid match cannot score this round.
+    const hasNoValidMatch =
+      player.clubId != null &&
+      validMatchClubIds.size > 0 &&
+      !validMatchClubIds.has(player.clubId);
+
     const effectiveStatus = cartolaStatusRecord?.statusLabel ?? player.status;
-    const playProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null, player.priceVariation ?? null);
+    const rawPlayProbability = calculatePlayProbability(effectiveStatus, isProbable, cartolaStatusRecord, player.playedLastRound ?? null, player.priceVariation ?? null);
+    const playProbability = hasNoValidMatch ? 0 : rawPlayProbability;
     const expectedMinutes = calculateExpectedMinutes(playProbability, recentAvgMinutes);
     const riskScore = calculateRiskScore(playProbability, effectiveStatus);
 

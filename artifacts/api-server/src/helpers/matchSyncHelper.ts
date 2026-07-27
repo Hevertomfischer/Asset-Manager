@@ -97,6 +97,7 @@ async function syncPartidasResponse(data: CartolaPartidasResponse, round: number
       awayScore: partida.placar_oficial_visitante ?? null,
       homeForm: partida.aproveitamento_mandante ?? null,
       awayForm: partida.aproveitamento_visitante ?? null,
+      valid: partida.valida ?? true,
     });
     upserted++;
   }

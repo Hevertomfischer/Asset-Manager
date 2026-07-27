@@ -2,7 +2,7 @@ import { Router } from "express";
 import axios from "axios";
 import { db } from "@workspace/db";
 import { matchesTable, clubsTable, playerScoutRoundTable, playersTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNull, or } from "drizzle-orm";
 import { getClubStrengthFromMatches } from "../repositories/matchRepository";
 import { syncMatchesFromCartolaApi } from "../helpers/matchSyncHelper";
 
@@ -37,7 +37,7 @@ router.get("/matches/current", async (_req, res) => {
     const matchesInDB = await db
       .select()
       .from(matchesTable)
-      .where(eq(matchesTable.round, round));
+      .where(and(eq(matchesTable.round, round), eq(matchesTable.valid, true)));
 
     if (matchesInDB.length > 0) {
       const clubs = await db.select().from(clubsTable);
@@ -60,7 +60,7 @@ router.get("/matches/current", async (_req, res) => {
     const updatedMatches = await db
       .select()
       .from(matchesTable)
-      .where(eq(matchesTable.round, round));
+      .where(and(eq(matchesTable.round, round), eq(matchesTable.valid, true)));
 
     const clubs = await db.select().from(clubsTable);
     const clubMap = new Map(clubs.map((c) => [c.id, c]));
@@ -87,7 +87,7 @@ router.get("/matches/confrontos", async (_req, res) => {
     let matches = await db
       .select()
       .from(matchesTable)
-      .where(eq(matchesTable.round, round));
+      .where(and(eq(matchesTable.round, round), eq(matchesTable.valid, true)));
 
     if (matches.length === 0) {
       try {
@@ -95,7 +95,7 @@ router.get("/matches/confrontos", async (_req, res) => {
         matches = await db
           .select()
           .from(matchesTable)
-          .where(eq(matchesTable.round, round));
+          .where(and(eq(matchesTable.round, round), eq(matchesTable.valid, true)));
       } catch {
         console.warn("[confrontos route] Could not sync matches from /partidas API");
       }

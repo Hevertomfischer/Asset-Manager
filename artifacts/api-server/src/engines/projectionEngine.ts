@@ -530,10 +530,18 @@ export async function runProjectionEngine(round: number): Promise<void> {
 
   const players = await db.query.playersTable.findMany();
   const availabilities = await getAvailabilityByRound(round);
-  const matches = await getMatchesByRound(round);
+  const allMatches = await getMatchesByRound(round);
+  // Only consider matches that are actually scheduled for this round (not postponed/cancelled).
+  const matches = allMatches.filter((m) => m.valid !== false);
 
   const availMap = new Map(availabilities.map((a) => [a.playerId, a]));
   const homeClubIds = new Set(matches.map((m) => m.homeClubId).filter(Boolean) as number[]);
+  // Set of all club IDs that have a valid match this round — used to skip players with no game.
+  const validMatchClubIds = new Set<number>();
+  for (const m of matches) {
+    if (m.homeClubId) validMatchClubIds.add(m.homeClubId);
+    if (m.awayClubId) validMatchClubIds.add(m.awayClubId);
+  }
 
   const clubFormMap = new Map<number, string[]>();
   const clubOpponentMap = new Map<number, number>();
@@ -565,7 +573,15 @@ export async function runProjectionEngine(round: number): Promise<void> {
   );
 
   let processed = 0;
+  let skippedNoMatch = 0;
   for (const player of players) {
+    // Skip players whose club has no valid match this round (postponed/cancelled games).
+    // These players cannot score Cartola points, so generating a projection would be misleading.
+    if (player.clubId != null && validMatchClubIds.size > 0 && !validMatchClubIds.has(player.clubId)) {
+      skippedNoMatch++;
+      continue;
+    }
+
     const avail = availMap.get(player.id);
     // Fallback play probability based on player status when no availability record exists.
     // Prevents suspended/nulo players from getting a 70% default.
@@ -596,5 +612,5 @@ export async function runProjectionEngine(round: number): Promise<void> {
     processed++;
   }
 
-  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round}`);
+  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round} (skipped ${skippedNoMatch} players from clubs with no valid match)`);
 }
