@@ -168,6 +168,7 @@ export default function Lineup() {
   const [formation, setFormation] = useState("4-3-3");
   const [strategy, setStrategy] = useState<ValidStrategy>(initialStrategy);
   const [budget, setBudget] = useState(100.00);
+  const [budgetText, setBudgetText] = useState("100.00");
 
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
@@ -405,21 +406,26 @@ export default function Lineup() {
                 <div className="flex items-center gap-1">
                   <span className="text-sm font-mono font-bold text-primary">C$</span>
                   <input
-                    type="number"
-                    min={80}
-                    max={500}
-                    step={0.01}
-                    value={budget}
+                    type="text"
+                    inputMode="decimal"
+                    value={budgetText}
                     onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v)) setBudget(Math.min(500, Math.max(80, v)));
+                      // allow digits, one dot, up to 2 decimal places while typing
+                      const raw = e.target.value.replace(",", ".");
+                      if (/^\d{0,3}(\.\d{0,2})?$/.test(raw)) setBudgetText(raw);
                     }}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onBlur={() => {
+                      const v = parseFloat(budgetText);
+                      const clamped = isNaN(v) ? budget : Math.min(500, Math.max(80, v));
+                      setBudget(clamped);
+                      setBudgetText(clamped.toFixed(2));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none"
                   />
                 </div>
               </div>
-              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0] ?? budget)} max={500} min={80} step={0.01} className="py-1" />
+              <Slider value={[budget]} onValueChange={(v) => { const val = v[0] ?? budget; setBudget(val); setBudgetText(val.toFixed(2)); }} max={500} min={80} step={0.01} className="py-1" />
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                 <span>C$ 80</span>
                 <span>C$ 500</span>
