@@ -123,20 +123,22 @@ function getScoringFn(
         const formTrendBonus = formTrend * 4;
         const trapPenalty = isTrap ? 6 : 0;
 
-        // Bonus for players whose recent average exceeds the minimum needed to valorize.
-        // Uses shortAvg (3-round window) as the proxy for "média atual".
-        // minimoParaValorizar = null means Cartola hasn't published the threshold yet → no bonus/penalty.
+        // Bonus for players projected to exceed the minimum needed to valorize this round.
+        // Use expectedPoints (projection for this round) as the estimate — it accounts for
+        // matchup, form trend, and availability, unlike the backward-looking shortAvg.
+        // Fall back to shortAvg only when no projection is available (e.g. new player).
+        // minimoParaValorizar = null means Cartola hasn't published the threshold yet → no bonus.
+        const projectionForThisRound = expected > 0 ? expected : shortAvg;
         let minimoBonus = 0;
-        if (minimoParaValorizar != null && shortAvg > 0) {
-          if (shortAvg >= minimoParaValorizar * 1.2) {
+        if (minimoParaValorizar != null && projectionForThisRound > 0) {
+          if (projectionForThisRound >= minimoParaValorizar * 1.2) {
             // Comfortably above threshold — strong valorization signal
             minimoBonus = aboveMinimoBonus + comfortableAboveMinimoBonus;
-          } else if (shortAvg >= minimoParaValorizar) {
+          } else if (projectionForThisRound >= minimoParaValorizar) {
             // At or just above threshold — moderate valorization signal
             minimoBonus = aboveMinimoBonus;
           }
-          // Below minimoParaValorizar → no bonus (depreciating player, not penalized
-          // separately since priceVariation already captures negative drift)
+          // Below minimoParaValorizar → no bonus (priceVariation already captures negative drift)
         }
 
         return (
