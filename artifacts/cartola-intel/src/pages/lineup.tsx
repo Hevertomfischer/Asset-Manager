@@ -414,7 +414,8 @@ export default function Lineup() {
                       const v = parseFloat(e.target.value);
                       if (!isNaN(v)) setBudget(Math.min(500, Math.max(80, v)));
                     }}
-                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none"
+                    onWheel={(e) => e.currentTarget.blur()}
+                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
