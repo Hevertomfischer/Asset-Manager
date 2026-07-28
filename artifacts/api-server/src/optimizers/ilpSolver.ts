@@ -102,6 +102,12 @@ export interface IlpConstraints {
    * Requires IlpCandidate.riskScore to be populated.
    */
   maxTotalRisk?: number;
+  /**
+   * When true, suppresses the 80% budget utilization floor.
+   * Use for strategies (e.g. valorizacao) that intentionally pick cheap
+   * players — the floor would make the problem infeasible at higher budgets.
+   */
+  skipBudgetFloor?: boolean;
 }
 
 export interface IlpSolution {
@@ -168,10 +174,13 @@ export function solveLineupILP(
   }
 
   // Budget ceiling always applied.
-  // 80% utilization floor only when there is no risk cap — a tight risk cap may
-  // require cheap/safe players that genuinely cannot fill 80% of the budget.
+  // 80% utilization floor is skipped when: (a) a risk cap is active (tight risk
+  // cap forces cheap players), or (b) skipBudgetFloor is set (e.g. valorizacao
+  // strategy intentionally picks cheap players and the floor causes infeasibility
+  // when the budget is raised above ~1.25× the optimal team cost).
+  const applyFloor = constraints.maxTotalRisk == null && !constraints.skipBudgetFloor;
   modelConstraints["budget"] = {
-    ...(constraints.maxTotalRisk == null ? { min: budgetLimit * 0.80 } : {}),
+    ...(applyFloor ? { min: budgetLimit * 0.80 } : {}),
     max: budgetLimit,
   };
 
