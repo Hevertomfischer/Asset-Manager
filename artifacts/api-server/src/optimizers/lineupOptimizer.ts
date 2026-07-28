@@ -244,8 +244,16 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const availMap = new Map(availabilities.map((a) => [a.playerId, a.playProbability]));
 
+  // Only consider matches marked valid (not postponed/cancelled) for club eligibility.
+  const validMatches = roundMatches.filter((m) => m.valid !== false);
+  const validClubIds = new Set<number>();
+  for (const m of validMatches) {
+    if (m.homeClubId) validClubIds.add(m.homeClubId);
+    if (m.awayClubId) validClubIds.add(m.awayClubId);
+  }
+
   const opponentMap = new Map<number, number>();
-  for (const match of roundMatches) {
+  for (const match of validMatches) {
     if (match.homeClubId && match.awayClubId) {
       opponentMap.set(match.homeClubId, match.awayClubId);
       opponentMap.set(match.awayClubId, match.homeClubId);
@@ -262,6 +270,12 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     .map((proj) => {
       const player = playerMap.get(proj.playerId);
       if (!player) return null;
+
+      // Exclude players from clubs whose match is postponed/cancelled this round.
+      // Their projections may be stale (generated before the match was invalidated).
+      if (validClubIds.size > 0 && player.clubId != null && !validClubIds.has(player.clubId)) {
+        return null;
+      }
 
       const availPlayProb = availMap.get(proj.playerId);
       let finalPlayProb: number | null = proj.playProbability;

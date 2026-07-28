@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { adminConfigTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
+import { and, eq } from "drizzle-orm";
 import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
 import {
   getScoutsByPlayer,
@@ -574,11 +574,19 @@ export async function runProjectionEngine(round: number): Promise<void> {
 
   let processed = 0;
   let skippedNoMatch = 0;
+  let deletedStale = 0;
   for (const player of players) {
     // Skip players whose club has no valid match this round (postponed/cancelled games).
     // These players cannot score Cartola points, so generating a projection would be misleading.
+    // Also delete any stale projection that may exist from a previous ETL run (before the match
+    // was marked invalid), so the lineup optimizer never serves those stale rows.
     if (player.clubId != null && validMatchClubIds.size > 0 && !validMatchClubIds.has(player.clubId)) {
       skippedNoMatch++;
+      const deleted = await db
+        .delete(playerProjectionTable)
+        .where(and(eq(playerProjectionTable.playerId, player.id), eq(playerProjectionTable.round, round)))
+        .returning({ id: playerProjectionTable.id });
+      if (deleted.length > 0) deletedStale++;
       continue;
     }
 
@@ -612,5 +620,5 @@ export async function runProjectionEngine(round: number): Promise<void> {
     processed++;
   }
 
-  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round} (skipped ${skippedNoMatch} players from clubs with no valid match)`);
+  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round} (skipped ${skippedNoMatch} players from clubs with no valid match; deleted ${deletedStale} stale projections)`);
 }
