@@ -81,16 +81,28 @@ export const PROJECTION_WEIGHTS = {
   },
   valorizacao: {
     /**
-     * Bonus added to the score when a player's recent average (shortAvg)
-     * is above their minimoParaValorizar — i.e. they are on track to increase
-     * in price next round.
+     * PRIMARY signal: continuous margin weight.
+     *
+     * marginScore = clamp((projection − MPV) / MPV, −1, 2) × marginWeight
+     *
+     * Examples at marginWeight=18:
+     *   proj=12, MPV=6  → +100% margin → +18   (very safe to valorize)
+     *   proj=7,  MPV=6  → +16%  margin → +2.9  (likely to valorize)
+     *   proj=6,  MPV=6  → 0%    margin → 0     (right on the edge)
+     *   proj=4,  MPV=6  → −33%  margin → −6    (will not valorize)
+     *
+     * When MPV is null (not yet published), marginScore = 0 and the
+     * tiebreaker signals (variation, momentum, form) decide ordering.
      */
-    aboveMinimoBonus: 5.0,
-    /**
-     * Extra bonus for players well above the minimum (shortAvg ≥ minimoParaValorizar * 1.2).
-     * Rewards players comfortably on track to valorize, not just barely above the threshold.
-     */
-    comfortableAboveMinimoBonus: 3.0,
+    marginWeight: 18.0,
+    /** Multiplier on priceVariation — secondary tiebreaker. */
+    variationWeight: 1.0,
+    /** Multiplier on momentum (shortAvg vs mediumAvg trend). */
+    momentumWeight: 2.0,
+    /** Multiplier on formTrend from projection engine. */
+    formTrendWeight: 1.5,
+    /** Weight on expectedPoints — keeps lineup viable. */
+    expectedWeight: 0.15,
   },
 };
 

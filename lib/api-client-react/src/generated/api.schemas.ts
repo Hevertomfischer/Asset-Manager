@@ -176,6 +176,10 @@ export interface LineupPlayer {
   clubId?: number | null;
   clubAbbr?: string | null;
   clubName?: string | null;
+  /** Mínimo de pontos para valorizar (MPV). Null when not yet published. */
+  minimoParaValorizar?: number | null;
+  /** expectedPoints − minimoParaValorizar. Positive = projected to valorize. */
+  valorizacaoMargin?: number | null;
 }
 
 export interface LineupReservePlayer {

@@ -105,7 +105,13 @@ function getScoringFn(
       };
     }
     case "valorizacao": {
-      const { aboveMinimoBonus, comfortableAboveMinimoBonus } = PROJECTION_WEIGHTS.valorizacao;
+      const {
+        marginWeight,
+        variationWeight,
+        momentumWeight,
+        formTrendWeight,
+        expectedWeight,
+      } = PROJECTION_WEIGHTS.valorizacao;
       return (pw) => {
         const explanation = pw.projection.explanationJson as Record<string, unknown> | null;
         const priceVariation = (explanation?.priceVariation as number | undefined) ?? (pw.player.priceVariation ?? 0);
@@ -116,38 +122,32 @@ function getScoringFn(
         const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
         const minimoParaValorizar = pw.player.minimoParaValorizar ?? null;
 
-        const variationSignal = priceVariation * 3;
-        const momentumSignal = shortAvg > 0 && mediumAvg > 0
-          ? ((shortAvg - mediumAvg) / Math.max(mediumAvg, 1)) * 8
-          : 0;
-        const formTrendBonus = formTrend * 4;
-        const trapPenalty = isTrap ? 6 : 0;
-
-        // Bonus for players projected to exceed the minimum needed to valorize this round.
-        // Use expectedPoints (projection for this round) as the estimate — it accounts for
-        // matchup, form trend, and availability, unlike the backward-looking shortAvg.
-        // Fall back to shortAvg only when no projection is available (e.g. new player).
-        // minimoParaValorizar = null means Cartola hasn't published the threshold yet → no bonus.
+        // ── PRIMARY: continuous valorization margin ────────────────────────
+        // Uses the forward-looking projection (not backward shortAvg) for this
+        // round's estimate. clamp keeps outliers from dominating the score.
         const projectionForThisRound = expected > 0 ? expected : shortAvg;
-        let minimoBonus = 0;
-        if (minimoParaValorizar != null && projectionForThisRound > 0) {
-          if (projectionForThisRound >= minimoParaValorizar * 1.2) {
-            // Comfortably above threshold — strong valorization signal
-            minimoBonus = aboveMinimoBonus + comfortableAboveMinimoBonus;
-          } else if (projectionForThisRound >= minimoParaValorizar) {
-            // At or just above threshold — moderate valorization signal
-            minimoBonus = aboveMinimoBonus;
-          }
-          // Below minimoParaValorizar → no bonus (priceVariation already captures negative drift)
+        let marginScore = 0;
+        if (minimoParaValorizar != null && minimoParaValorizar > 0 && projectionForThisRound > 0) {
+          const relativeMargin = (projectionForThisRound - minimoParaValorizar) / minimoParaValorizar;
+          const clamped = Math.max(-1, Math.min(2, relativeMargin));
+          marginScore = clamped * marginWeight;
         }
 
+        // ── SECONDARY: tiebreaker signals (backward-looking) ───────────────
+        const variationSignal = priceVariation * variationWeight;
+        const momentumSignal = shortAvg > 0 && mediumAvg > 0
+          ? ((shortAvg - mediumAvg) / Math.max(mediumAvg, 1)) * momentumWeight
+          : 0;
+        const formTrendBonus = formTrend * formTrendWeight;
+        const trapPenalty = isTrap ? 6 : 0;
+
         return (
+          marginScore +
           variationSignal +
           momentumSignal +
           formTrendBonus +
-          minimoBonus +
-          expected * 0.25 +
-          (pw.projection.valueScore ?? 0) * 2 -
+          expected * expectedWeight +
+          (pw.projection.valueScore ?? 0) * 0.5 -
           trapPenalty -
           samplePenalty(pw)
         );

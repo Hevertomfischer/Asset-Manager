@@ -124,6 +124,9 @@ router.post("/lineup/generate", async (req, res) => {
         coachPlayerId: result.coachPlayerId,
         players: result.players.map((p) => {
           const club = p.player.clubId ? clubMap.get(p.player.clubId) : undefined;
+          const mpv = p.player.minimoParaValorizar ?? null;
+          const proj = p.projection.expectedPoints ?? null;
+          const valorizacaoMargin = mpv != null && proj != null ? proj - mpv : null;
           return {
             playerId: p.playerId,
             position: p.position,
@@ -144,6 +147,8 @@ router.post("/lineup/generate", async (req, res) => {
             clubId: p.player.clubId ?? null,
             clubAbbr: club?.abbreviation ?? club?.shortName ?? null,
             clubName: club?.name ?? null,
+            minimoParaValorizar: mpv,
+            valorizacaoMargin,
           };
         }),
         reserves: result.reserves.map((r) => {

@@ -27,11 +27,13 @@ function LineupPlayerCard({
   captainId,
   coachId,
   onSwapRequest,
+  strategy,
 }: {
   player: LineupPlayer;
   captainId?: number | null;
   coachId?: number | null;
   onSwapRequest?: () => void;
+  strategy?: string;
 }) {
   const isCaptain = player.playerId === captainId;
   const isCoach = player.position === "TEC" || player.playerId === coachId;
@@ -74,24 +76,44 @@ function LineupPlayerCard({
       )}
 
       {!isCoach && (
-        <div className="mt-2 pt-2 border-t border-border/30 flex items-center justify-between gap-1 flex-wrap">
-          <PlayerBadges badges={topBadges} />
-          <div className="flex items-center gap-1">
-            {onSwapRequest && (
-              <button
-                onClick={onSwapRequest}
-                title="Simular troca"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all"
-              >
-                <ArrowLeftRight className="w-3 h-3" />
-                Trocar
-              </button>
-            )}
-            <PlayerExplanationSheet
-              exp={exp}
-              playerName={player.nickname ?? player.name ?? ""}
-              position={player.position ?? undefined}
-            />
+        <div className="mt-2 pt-2 border-t border-border/30 space-y-1.5">
+          {/* Valorização margin row — shown only in valorizacao strategy */}
+          {strategy === "valorizacao" && player.valorizacaoMargin != null && (
+            <div className="flex items-center gap-1">
+              {player.valorizacaoMargin >= 0 ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold">
+                  <TrendingUp className="w-3 h-3" />
+                  folga +{player.valorizacaoMargin.toFixed(1)} pts
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/10 text-red-400 text-[10px] font-semibold">
+                  falta {Math.abs(player.valorizacaoMargin).toFixed(1)} pts
+                </span>
+              )}
+              {player.minimoParaValorizar != null && (
+                <span className="text-[9px] text-muted-foreground">MPV {player.minimoParaValorizar.toFixed(1)}</span>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-1 flex-wrap">
+            <PlayerBadges badges={topBadges} />
+            <div className="flex items-center gap-1">
+              {onSwapRequest && (
+                <button
+                  onClick={onSwapRequest}
+                  title="Simular troca"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all"
+                >
+                  <ArrowLeftRight className="w-3 h-3" />
+                  Trocar
+                </button>
+              )}
+              <PlayerExplanationSheet
+                exp={exp}
+                playerName={player.nickname ?? player.name ?? ""}
+                position={player.position ?? undefined}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -482,8 +504,8 @@ export default function Lineup() {
                 <div>
                   <p className="text-sm font-semibold text-emerald-400">Estratégia: Valorização</p>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Jogadores selecionados pela tendência de subir de preço: variação positiva recente e média em alta nas últimas rodadas.
-                    Acompanhe o badge <span className="text-emerald-400 font-medium">"Valorizando"</span> em cada card.
+                    Jogadores selecionados pela maior folga entre projeção e MPV (mínimo para valorizar). Quanto maior a folga, maior a certeza de subir de preço nesta rodada.
+                    Veja <span className="text-emerald-400 font-medium">"folga +X pts"</span> em cada card.
                   </p>
                 </div>
               </div>
@@ -508,6 +530,7 @@ export default function Lineup() {
                           captainId={currentLineup.captainPlayerId}
                           coachId={currentLineup.coachPlayerId}
                           onSwapRequest={() => handleSwapRequest(p)}
+                          strategy={strategy}
                         />
                       ))}
                     </div>
@@ -527,6 +550,7 @@ export default function Lineup() {
                       player={coachPlayer}
                       captainId={currentLineup.captainPlayerId}
                       coachId={currentLineup.coachPlayerId}
+                      strategy={strategy}
                     />
                   </div>
                 </div>
