@@ -626,7 +626,7 @@ export default function Players() {
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm" title="Média base: pontuação sem contar Gols, Assistências e SG">
                         {player.baseAverage != null
-                          ? <span className="text-blue-400">base {player.baseAverage.toFixed(1)}</span>
+                          ? <span className="text-blue-400">{player.baseAverage.toFixed(1)}</span>
                           : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell className="text-right">
