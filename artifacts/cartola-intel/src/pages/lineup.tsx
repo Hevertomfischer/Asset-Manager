@@ -400,11 +400,25 @@ export default function Lineup() {
             </div>
 
             <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Orçamento Máx.</Label>
-                <span className="text-lg font-mono font-bold text-primary">C$ {budget.toFixed(2).replace('.', ',')}</span>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold shrink-0">Orçamento Máx.</Label>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-mono font-bold text-primary">C$</span>
+                  <input
+                    type="number"
+                    min={80}
+                    max={500}
+                    step={0.01}
+                    value={budget}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v)) setBudget(Math.min(500, Math.max(80, v)));
+                    }}
+                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none"
+                  />
+                </div>
               </div>
-              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0])} max={500} min={80} step={0.01} className="py-1" />
+              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0] ?? budget)} max={500} min={80} step={0.01} className="py-1" />
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                 <span>C$ 80</span>
                 <span>C$ 500</span>
