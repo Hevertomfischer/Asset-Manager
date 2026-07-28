@@ -1,4 +1,6 @@
 import { Router } from "express";
+import fs from "node:fs";
+import path from "node:path";
 import { db } from "@workspace/db";
 import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable, usersTable, subscriptionsTable, feedbackTable } from "@workspace/db/schema";
 import { desc, eq, gte, sql, and } from "drizzle-orm";
@@ -6,6 +8,7 @@ import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { applyMpvToDatabase } from "../services/mpvService";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { runAvailabilityEngine } from "../engines/availabilityEngine";
+import { getLatestProjectionRound } from "../repositories/projectionRepository";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
 import { createLogger } from "../lib/logger";
 import axios from "axios";
@@ -782,6 +785,173 @@ router.get("/admin/users", async (req, res) => {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to fetch admin users", { error: msg });
     res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// ── POST /admin/import-csv-scouts ────────────────────────────────────────────
+/**
+ * One-shot import of the cartola_2026 CSV into player_scout_round (source='csv_2026').
+ * Reads the file from <cwd>/attached_assets/. Works in both dev (tsx) and production
+ * (node dist/index.cjs) because node is launched from the workspace root in both cases.
+ *
+ * Returns { inserted, skipped, total } and is idempotent (ON CONFLICT DO UPDATE).
+ */
+let csvImportInProgress = false;
+
+router.post("/admin/import-csv-scouts", async (_req, res) => {
+  if (csvImportInProgress) {
+    res.status(429).json({ error: "CSV import already in progress" });
+    return;
+  }
+
+  const CSV_FILENAME = "cartola_2026_rodadas_1-20_1785252053293.csv";
+  // Try CWD (prod, run from workspace root) then two levels up (dev, CWD=artifacts/api-server)
+  const candidatePaths = [
+    path.join(process.cwd(), "attached_assets", CSV_FILENAME),
+    path.join(process.cwd(), "..", "..", "attached_assets", CSV_FILENAME),
+  ];
+  const csvPath = candidatePaths.find((p) => fs.existsSync(p)) ?? "";
+
+  if (!csvPath) {
+    res.status(404).json({ error: "CSV file not found", candidatePaths });
+    return;
+  }
+
+  csvImportInProgress = true;
+  try {
+    const { parse } = await import("csv-parse/sync");
+
+    // 1. Build atleta_id → player_id map
+    const playersRows = await db.execute<{ id: number; external_id: string }>(
+      sql`SELECT id, external_id FROM players WHERE external_source = 'cartola_api'`
+    );
+    const idMap = new Map(playersRows.rows.map((p) => [p.external_id, p.id]));
+
+    // 2. Parse CSV
+    const raw = fs.readFileSync(csvPath, "utf8");
+    const records: Record<string, string>[] = parse(raw, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    });
+
+    const toInt = (v: string): number | null => {
+      if (!v || v.trim() === "") return null;
+      const n = parseInt(v, 10);
+      return isNaN(n) ? null : n;
+    };
+    const toFloat = (v: string): number | null => {
+      if (!v || v.trim() === "") return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    };
+
+    // 3. Batch upsert via pg pool
+    // @ts-ignore — $client is the underlying Pool on drizzle-orm/node-postgres
+    const pool = (db as any).$client as import("pg").Pool;
+
+    const UPSERT_TPL = `
+      INSERT INTO player_scout_round (
+        player_id, round, source, points,
+        goals, assists, shots, shots_on_target,
+        tackles, interceptions, fouls_suffered, fouls_committed,
+        saves, goals_conceded, clean_sheet,
+        yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
+        ff, v, pc, ps, collected_at
+      ) VALUES %ROWS%
+      ON CONFLICT (player_id, round, source) DO UPDATE SET
+        points          = EXCLUDED.points,
+        goals           = EXCLUDED.goals,
+        assists         = EXCLUDED.assists,
+        shots           = EXCLUDED.shots,
+        shots_on_target = EXCLUDED.shots_on_target,
+        tackles         = EXCLUDED.tackles,
+        interceptions   = EXCLUDED.interceptions,
+        fouls_suffered  = EXCLUDED.fouls_suffered,
+        fouls_committed = EXCLUDED.fouls_committed,
+        saves           = EXCLUDED.saves,
+        goals_conceded  = EXCLUDED.goals_conceded,
+        clean_sheet     = EXCLUDED.clean_sheet,
+        yellow_cards    = EXCLUDED.yellow_cards,
+        red_cards       = EXCLUDED.red_cards,
+        penalty_missed  = EXCLUDED.penalty_missed,
+        penalty_saved   = EXCLUDED.penalty_saved,
+        own_goals       = EXCLUDED.own_goals,
+        ff              = EXCLUDED.ff,
+        v               = EXCLUDED.v,
+        pc              = EXCLUDED.pc,
+        ps              = EXCLUDED.ps,
+        collected_at    = now()
+    `;
+
+    const BATCH = 200;
+    let valueSets: string[] = [];
+    let params: unknown[] = [];
+    let pi = 1;
+    let inserted = 0;
+    let skipped = 0;
+
+    const flushPool = async () => {
+      if (valueSets.length === 0) return;
+      const querySql = UPSERT_TPL.replace("%ROWS%", valueSets.join(",\n"));
+      await pool.query(querySql, params);
+      inserted += valueSets.length;
+      valueSets = [];
+      params = [];
+      pi = 1;
+    };
+
+    for (const r of records) {
+      const playerId = idMap.get(r.atleta_id);
+      if (!playerId) { skipped++; continue; }
+
+      const vals: unknown[] = [
+        playerId,
+        parseInt(r.rodada, 10),
+        "csv_2026",
+        toFloat(r.pontuacao),
+        toInt(r.G),  toInt(r.A),  toInt(r.FT), toInt(r.FD),
+        toInt(r.DS), toInt(r.I),  toInt(r.FS), toInt(r.FC),
+        toInt(r.DE), toInt(r.GS), toInt(r.SG),
+        toInt(r.CA), toInt(r.CV), toInt(r.PP), toInt(r.DP), toInt(r.GC),
+        toInt(r.FF), toInt(r.V),  toInt(r.PC), toInt(r.PS),
+        new Date(),
+      ];
+
+      const placeholders = vals.map(() => `$${pi++}`).join(", ");
+      valueSets.push(`(${placeholders})`);
+      params.push(...vals);
+
+      if (valueSets.length >= BATCH) await flushPool();
+    }
+    await flushPool();
+
+    // Recalculate MPV now that csv_2026 data is in the DB
+    const mpvUpdated = await applyMpvToDatabase(true);
+    log.info("CSV scouts import: MPV recalculated", { mpvUpdated });
+
+    // Recalculate projections immediately so the new scout data is reflected
+    const projRound = await getLatestProjectionRound();
+    if (projRound) {
+      await runProjectionEngine(projRound);
+      log.info("CSV scouts import: projections recalculated", { round: projRound });
+    }
+
+    await logAdminAction(
+      "admin_import_csv_scouts",
+      "success",
+      `CSV import complete: ${inserted} rows upserted, ${skipped} skipped. MPV updated for ${mpvUpdated} players. Source=csv_2026, file=${CSV_FILENAME}`
+    );
+
+    log.info("CSV scouts import complete", { inserted, skipped, total: records.length, mpvUpdated, projRound });
+    res.json({ success: true, inserted, skipped, total: records.length, mpvUpdated, projRound });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("CSV scouts import failed", { error: msg });
+    await logAdminAction("admin_import_csv_scouts", "error", `CSV import failed: ${msg}`);
+    res.status(500).json({ error: "CSV import failed", details: msg });
+  } finally {
+    csvImportInProgress = false;
   }
 });
 
