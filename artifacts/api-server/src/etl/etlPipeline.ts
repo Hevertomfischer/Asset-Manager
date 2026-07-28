@@ -115,7 +115,8 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           priceVariation: player.priceVariation,
           playedLastRound: player.playedLastRound,
           gamesPlayed: player.gamesPlayed,
-          minimoParaValorizar: player.minimoParaValorizar,
+          // minimoParaValorizar is never taken from the API — always computed
+          // by the formula in Step 2b (applyMpvToDatabase).
           cumulativeScouts: player.cumulativeScouts,
         });
         playersUpserted++;
@@ -190,7 +191,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
 
   // === Step 2b: Compute MPV via formula (fills NULL values only) ===
   try {
-    const mpvUpdated = await applyMpvToDatabase(false);
+    const mpvUpdated = await applyMpvToDatabase(true);
     await logETL("etl", "mpv", "success", `MPV formula applied to ${mpvUpdated} players for round ${round}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
