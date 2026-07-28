@@ -1,0 +1,408 @@
+Início
+Copa do Mundo da FIFA 2026™
+Brasileiro
+Bolão do Cartola
+Dashboard
+Escalação
+Competições
+
+Brasileiro
+
+Buscar
+Escalação
+Ícone de cronômetro
+Mercado fecha em 1 dia
+Cartoletas
+Meu time
+109.81
+Saldo
+2.07
+
+
+Campo de futebol
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Renê
+Renê
+
+C$ 9.22
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Samuel Lino
+S. Lino
+
+C$ 11.84
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Leozinho
+Leozinho
+
+C$ 7.49
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Japa
+Japa
+
+C$ 6.93
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do André
+André
+
+C$ 6.91
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Matheus Pereira
+M. Pereira
+
+C$ 15.25
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Bernabei
+Bernabei
+
+C$ 9.55
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Léo Pereira
+L. Pereira
+
+C$ 9.96
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Aguirre
+Aguirre
+
+C$ 5.93
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Claudinho
+Claudinho
+
+C$ 7.28
+
+4-3-3
+
+Background cartão do AtletaStatus do Atleta é Provável
+Foto do Lucas Arcanjo
+L. Arcanjo
+
+C$ 9.95
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Odair Hellmann
+O. Hellmann
+
+C$ 9.50
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Rossi
+Rossi
+
+C$ 8.10
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Marcelinho
+Marcelinho
+
+C$ 6.62
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Willian Machado
+W. Machado
+
+C$ 5.36
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Josué
+Josué
+
+C$ 6.44
+
+Background cartão do AtletaStatus do Atleta é ProvávelFoto do Alerrandro
+Alerrandro
+
+C$ 6.98
+
+Assistente de escalação
+Banco de Reservas
+Pronto para mitar!
+
+Mercado
+Buscar
+Filtros
+Provável
+Estrela Inativa
+Foto do Arthur Dias
+Arthur Dias
+
+Status do Atleta é Provável
+zag
+CAP
+
+COR
+
+x
+CAP
+
+C$5.39	
+0.00
+0.00
+
+3.49
+
+0.25
+
+2.17 até 4.17
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Breno Bidon
+Breno Bidon
+
+Status do Atleta é Provável
+mei
+COR
+
+COR
+
+x
+CAP
+
+C$8.38	
+-1.16
+ícone de variação negativa	
+-1.10
+
+3.88
+
+0.29
+
+3.79 até 5.79
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Allan
+Allan
+
+Status do Atleta é Provável
+mei
+COR
+
+COR
+
+x
+CAP
+
+C$2.72	
+-0.27
+ícone de variação negativa	
+-0.10
+
+0.82
+
+0.31
+
+0.98 até 2.98
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Rossi
+Rossi
+
+Status do Atleta é Provável
+gol
+FLA
+
+INT
+
+x
+FLA
+
+C$8.10	
+-1.38
+ícone de variação negativa	
+-1.00
+
+4.94
+
+0.32
+
+4.22 até 6.22
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Anthoni
+Anthoni
+
+Status do Atleta é Provável
+gol
+INT
+
+INT
+
+x
+FLA
+
+C$3.91	
+-0.34
+ícone de variação negativa	
+-0.70
+
+2.55
+
+0.35
+
+3.13 até 5.13
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Aldo Filho
+Aldo Filho
+
+Status do Atleta é Provável
+mei
+MIR
+
+MIR
+
+x
+REM
+
+C$3.80	
+-0.37
+ícone de variação negativa	
+-0.30
+
+2.09
+
+0.36
+
+1.42 até 3.42
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Thomazella
+Thomazella
+
+Status do Atleta é Provável
+gol
+MIR
+
+MIR
+
+x
+REM
+
+C$2.00	
+0.00
+0.00
+
+0.00
+
+0.46
+
+- até -
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Martinelli
+Martinelli
+
+Status do Atleta é Provável
+mei
+FLU
+
+FLU
+
+x
+BAH
+
+C$5.22	
+-0.31
+ícone de variação negativa	
+0.00
+
+1.80
+
+0.89
+
+2.04 até 4.04
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Hércules
+Hércules
+
+Status do Atleta é Provável
+mei
+FLU
+
+FLU
+
+x
+BAH
+
+C$6.83	
+-0.02
+ícone de variação negativa	
+0.00
+
+3.77
+
+0.98
+
+2.59 até 4.59
+
+Boa escolha
+
+Boa escolha
+Estrela Inativa
+Foto do Willian José
+Willian José
+
+Status do Atleta é Provável
+ata
+BAH
+
+FLU
+
+x
+BAH
+
+C$7.55	
+-0.47
+ícone de variação negativa	
+0.00
+
+2.69
+
+0.99
+
+1.73 até 3.73
+
+Boa escolha
+
+Boa escolha
+Entenda mais
+Tudo sobre o Cartola PRO
+Termos e políticas
+Dicas para mitar
+Ajuda
+Siga-nos:
+Facebook
+Twitter
+Instagram
+Baixar na Apple Store
+Disponível no Google Play
+© 2000-2026 Globo Comunicação e Participações S.A.
