@@ -16,6 +16,7 @@ import {
 } from "../repositories/projectionRepository";
 import { runAvailabilityEngine } from "../engines/availabilityEngine";
 import { runProjectionEngine } from "../engines/projectionEngine";
+import { applyMpvToDatabase } from "../services/mpvService";
 import { roundSnapshotTable } from "@workspace/db/schema";
 import { desc, eq, and, isNull } from "drizzle-orm";
 import axios from "axios";
@@ -185,6 +186,16 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     const msg = error instanceof Error ? error.message : String(error);
     warnings.push(`Scout fetch degraded: ${msg}`);
     await logETL("etl", "scouts", "degraded", msg);
+  }
+
+  // === Step 2b: Compute MPV via formula (fills NULL values only) ===
+  try {
+    const mpvUpdated = await applyMpvToDatabase(false);
+    await logETL("etl", "mpv", "success", `MPV formula applied to ${mpvUpdated} players for round ${round}`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    warnings.push(`MPV calculation degraded: ${msg}`);
+    await logETL("etl", "mpv", "degraded", msg);
   }
 
   // === Step 3: Fetch matches from Cartola /partidas API ===

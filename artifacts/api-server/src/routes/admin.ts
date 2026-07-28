@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { dataCollectionLogTable, adminConfigTable, analyticsEventsTable, usersTable, subscriptionsTable, feedbackTable } from "@workspace/db/schema";
 import { desc, eq, gte, sql, and } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
+import { applyMpvToDatabase } from "../services/mpvService";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { runAvailabilityEngine } from "../engines/availabilityEngine";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
@@ -142,6 +143,20 @@ router.post("/admin/sync/current-round", async (_req, res) => {
     res.status(500).json({ error: "Sync failed", details: msg });
   } finally {
     syncInProgress = false;
+  }
+});
+
+router.post("/admin/recalc-mpv", async (req, res) => {
+  const overwrite = req.query.overwrite === "true";
+  try {
+    const updated = await applyMpvToDatabase(overwrite);
+    await logAdminAction("admin_recalc_mpv", "success", `MPV recalculated for ${updated} players (overwrite=${overwrite})`);
+    res.json({ success: true, updated, overwrite });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error("MPV recalculation failed", { error: msg });
+    await logAdminAction("admin_recalc_mpv", "error", `MPV recalculation failed: ${msg}`);
+    res.status(500).json({ error: "MPV recalculation failed", details: msg });
   }
 });
 
