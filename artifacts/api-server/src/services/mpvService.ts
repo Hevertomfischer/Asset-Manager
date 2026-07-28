@@ -104,36 +104,76 @@ export async function computeMpvForAllPlayers(): Promise<MpvEntry[]> {
 
   if (players.length === 0) return [];
 
-  // 2. Load the last (LOOKBACK+1) scout rounds per player in a single query
-  //    using a window function, keeping only the most-recent-per-player rows.
-  const rows = await db
-    .select({
-      playerId:  playerScoutRoundTable.playerId,
-      round:     playerScoutRoundTable.round,
-      points:    playerScoutRoundTable.points,
-      active:    hasScoutActivity,
-    })
-    .from(playerScoutRoundTable)
-    .where(
-      sql`${playerScoutRoundTable.playerId} IN (${sql.join(
-        players.map((p) => sql`${p.id}`),
-        sql`, `
-      )}) AND ${playerScoutRoundTable.round} IN (
-        SELECT DISTINCT round FROM player_scout_round
-        ORDER BY round DESC
-        LIMIT ${LOOKBACK + 1}
-      )`
-    )
-    .orderBy(
-      playerScoutRoundTable.playerId,
-      sql`${playerScoutRoundTable.round} DESC`
-    );
+  // 2. Load the last (LOOKBACK+1) scout rounds per player in a single query.
+  //    When multiple sources exist for the same (player_id, round), prefer
+  //    'csv_2026' (authoritative, includes FF/V/PC/PS) over API snapshots.
+  //    We deduplicate via DISTINCT ON ordered by source priority descending.
+  const rows = await db.execute<{
+    player_id: number;
+    round: number;
+    points: number | null;
+    active: boolean;
+  }>(sql`
+    SELECT player_id, round, points, active
+    FROM (
+      SELECT DISTINCT ON (player_id, round)
+        player_id,
+        round,
+        points,
+        (
+          COALESCE(goals,          0) +
+          COALESCE(assists,        0) +
+          COALESCE(shots,          0) +
+          COALESCE(shots_on_target,0) +
+          COALESCE(tackles,        0) +
+          COALESCE(interceptions,  0) +
+          COALESCE(fouls_suffered, 0) +
+          COALESCE(fouls_committed,0) +
+          COALESCE(saves,          0) +
+          COALESCE(goals_conceded, 0) +
+          COALESCE(clean_sheet,    0) +
+          COALESCE(yellow_cards,   0) +
+          COALESCE(red_cards,      0) +
+          COALESCE(penalty_missed, 0) +
+          COALESCE(penalty_saved,  0) +
+          COALESCE(own_goals,      0) +
+          COALESCE(ff,             0) +
+          COALESCE(v,              0)
+        ) > 0 AS active
+      FROM player_scout_round
+      WHERE player_id IN (${sql.join(players.map((p) => sql`${p.id}`), sql`, `)})
+        AND round IN (
+          SELECT DISTINCT round FROM player_scout_round
+          ORDER BY round DESC
+          LIMIT ${LOOKBACK + 1}
+        )
+      ORDER BY
+        player_id,
+        round,
+        -- source priority: csv_2026 first, then cartola_api, then historical_cartola
+        CASE source
+          WHEN 'csv_2026'          THEN 1
+          WHEN 'cartola_api'       THEN 2
+          WHEN 'cartola_api_scouts'THEN 3
+          ELSE                          4
+        END
+    ) deduped
+    ORDER BY player_id, round DESC
+  `);
+
+  // reshape to match the original structure
+  const reshapedRows = rows.rows.map((r) => ({
+    playerId: r.player_id,
+    round:    r.round,
+    points:   r.points,
+    active:   Boolean(r.active),
+  }));
 
   // 3. Group rows by player_id (already ordered DESC by round)
   const byPlayer = new Map<number, ScoutRow[]>();
-  for (const row of rows) {
+  for (const row of reshapedRows) {
     const list = byPlayer.get(row.playerId) ?? [];
-    list.push({ round: row.round, points: row.points, active: Boolean(row.active) });
+    list.push({ round: row.round, points: row.points, active: row.active });
     byPlayer.set(row.playerId, list);
   }
 

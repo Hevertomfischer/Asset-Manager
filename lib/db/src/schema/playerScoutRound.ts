@@ -26,6 +26,11 @@ export const playerScoutRoundTable = pgTable("player_scout_round", {
   penaltyMissed: integer("penalty_missed"),
   penaltySaved: integer("penalty_saved"),
   ownGoals: integer("own_goals"),
+  // Cartola-specific scouts missing from generic football mapping
+  ff: integer("ff"),   // Finalização pra Fora  (+0.8 each)
+  v:  integer("v"),   // Vitória                (+1.0 per match)
+  pc: integer("pc"),  // Pênalti Cometido       (-0.3 each)
+  ps: integer("ps"),  // Pênalti Sofrido        (+0.5 each)
   collectedAt: timestamp("collected_at").defaultNow().notNull(),
 });
 
