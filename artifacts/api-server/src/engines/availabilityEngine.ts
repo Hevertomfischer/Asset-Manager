@@ -164,7 +164,12 @@ export async function runAvailabilityEngine(
     const expectedMinutes = calculateExpectedMinutes(playProbability, recentAvgMinutes);
     const riskScore = calculateRiskScore(playProbability, effectiveStatus);
 
-    const probableStatus = isProbable ? PROBABLE_STATUS : (effectiveStatus ?? "Indefinido");
+    // Hard statuses from Cartola API take absolute priority over the probables feed.
+    // A suspended, injured, or null player cannot be labelled "Provável".
+    const hasHardStatus = effectiveStatus === SUSPENSION_STATUS
+      || effectiveStatus === INJURY_STATUS
+      || effectiveStatus === NULL_STATUS;
+    const probableStatus = (!hasHardStatus && isProbable) ? PROBABLE_STATUS : (effectiveStatus ?? "Indefinido");
     const injuryStatus = effectiveStatus === INJURY_STATUS ? INJURY_STATUS : null;
     const suspensionStatus = effectiveStatus === SUSPENSION_STATUS ? SUSPENSION_STATUS : null;
 
