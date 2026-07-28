@@ -6,3 +6,9 @@ id = "oVTeHrOzc8sckPKwsSuc4"
 uri = "file://attached_assets/scouts_por_rodada.xlsx"
 type = "table"
 title = "Scouts por Rodada — Cartola Intel"
+
+[[outputs]]
+id = "E8E16tl9MkdsOQeV1uEoy"
+uri = "file://attached_assets/scouts_completo.xlsx"
+type = "table"
+title = "Scouts Completo — Todos os Jogadores, Todas as Rodadas"
