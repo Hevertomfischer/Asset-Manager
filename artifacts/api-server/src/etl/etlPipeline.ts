@@ -206,10 +206,10 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     xgClubsMapped = xgResult.clubsMapped;
     xgDegraded = xgResult.degraded ?? false;
     await logETL(
-      "xG sync auto",
+      "footystats_xg",
       "xg",
       xgResult.matchesUpdated > 0 ? "success" : "degraded",
-      `xG auto-sync round ${round}: ${xgResult.matchesUpdated} matches updated, ${xgResult.clubStatsParsed} team stats parsed, ${xgResult.clubsMapped} clubs mapped`
+      `xG auto-sync round ${round}: ${xgResult.matchesUpdated} matches updated, ${xgResult.clubStatsParsed} team stats parsed (historical), ${xgResult.clubsMapped} clubs mapped`
     );
     if (xgResult.warnings.length > 0) {
       warnings.push(...xgResult.warnings.map((w) => `[xG] ${w}`));
@@ -217,7 +217,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     warnings.push(`xG auto-sync degraded: ${msg}`);
-    await logETL("xG sync auto", "xg", "degraded", `xG auto-sync failed for round ${round}: ${msg}`);
+    await logETL("footystats_xg", "xg", "degraded", `xG auto-sync failed for round ${round}: ${msg}`);
   }
 
   // === Step 4: Cartola Status Provider ===
