@@ -7,7 +7,7 @@
  * `escalacoes` counts. Grows as the round progresses; returns all positions for
  * completed rounds.
  *
- * Fallback sources (require GLOBO_GLBID cookie):
+ * Fallback sources (require GLOBO_GLLIB cookie):
  *   - Gato Mestre API (v2 authenticated)
  *   - Cartola /mercado/selecao
  *
@@ -39,7 +39,7 @@ async function log(status: string, message: string) {
 }
 
 function buildAuthHeaders(): Record<string, string> {
-  const glbId = process.env.GLOBO_GLBID ?? "";
+  const glbId = process.env.GLOBO_GLLIB ?? "";
   return {
     "User-Agent": "Mozilla/5.0",
     "Accept": "application/json",
@@ -109,7 +109,7 @@ async function fetchFromPublicPage(round: number): Promise<Record<string, number
 }
 
 /**
- * FALLBACK — requires GLOBO_GLBID cookie.
+ * FALLBACK — requires GLOBO_GLLIB cookie.
  * Tries the Gato Mestre authenticated API endpoint.
  */
 async function fetchFromGatoMestre(round: number): Promise<Record<string, number>> {
@@ -124,7 +124,7 @@ async function fetchFromGatoMestre(round: number): Promise<Record<string, number
   );
 
   if (res.status === 401 || res.status === 403) {
-    throw new Error(`GLBID cookie rejected (HTTP ${res.status}) — please renew GLOBO_GLBID`);
+    throw new Error(`GLBID cookie rejected (HTTP ${res.status}) — please renew GLOBO_GLLIB`);
   }
   if (res.status !== 200) {
     throw new Error(`Gato Mestre auth API returned HTTP ${res.status}`);
@@ -135,7 +135,7 @@ async function fetchFromGatoMestre(round: number): Promise<Record<string, number
 }
 
 /**
- * FALLBACK — requires GLOBO_GLBID cookie.
+ * FALLBACK — requires GLOBO_GLLIB cookie.
  * Tries the Cartola /mercado/selecao endpoint.
  */
 async function fetchFromCartolaSelecao(): Promise<Record<string, number>> {
@@ -241,8 +241,8 @@ async function saveToCache(round: number, popularity: Record<string, number>) {
  * Source priority:
  *   1. DB cache (2-hour TTL)
  *   2. Public mais-escalados API (no auth needed) — primary
- *   3. Gato Mestre auth API (requires GLOBO_GLBID) — fallback
- *   4. Cartola /mercado/selecao (requires GLOBO_GLBID) — fallback
+ *   3. Gato Mestre auth API (requires GLOBO_GLLIB) — fallback
+ *   4. Cartola /mercado/selecao (requires GLOBO_GLLIB) — fallback
  *   5. Stale DB cache
  */
 export async function fetchPopularityMap(round: number): Promise<Map<string, number>> {
@@ -254,7 +254,7 @@ export async function fetchPopularityMap(round: number): Promise<Map<string, num
   }
 
   // 2. Try sources in priority order
-  const glbId = process.env.GLOBO_GLBID;
+  const glbId = process.env.GLOBO_GLLIB;
 
   const sources: Array<[string, () => Promise<Record<string, number>>]> = [
     ["public_api", () => fetchFromPublicPage(round)],

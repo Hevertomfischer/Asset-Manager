@@ -209,8 +209,11 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
 export async function fetchMarket(): Promise<CartolaMarketResult> {
   const source = "cartola_api";
   try {
+    const glbId = process.env.GLOBO_GLLIB ?? "";
+    const authHeaders = glbId ? { Cookie: `GLBID=${glbId}` } : {};
+
     const [marketRes, roundRes] = await Promise.all([
-      axios.get(`${BASE_URL}/atletas/mercado`, { timeout: 15000 }),
+      axios.get(`${BASE_URL}/atletas/mercado`, { timeout: 15000, headers: authHeaders }),
       axios.get(`${BASE_URL}/mercado/status`, { timeout: 15000 }),
     ]);
 
