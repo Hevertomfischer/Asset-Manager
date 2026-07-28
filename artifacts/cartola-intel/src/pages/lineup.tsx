@@ -404,10 +404,10 @@ export default function Lineup() {
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Orçamento Máx.</Label>
                 <span className="text-lg font-mono font-bold text-primary">C$ {budget.toFixed(2).replace('.', ',')}</span>
               </div>
-              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0])} max={200} min={80} step={0.01} className="py-1" />
+              <Slider value={[budget]} onValueChange={(v) => setBudget(v[0])} max={500} min={80} step={0.01} className="py-1" />
               <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
                 <span>C$ 80</span>
-                <span>C$ 200</span>
+                <span>C$ 500</span>
               </div>
             </div>
 
