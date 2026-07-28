@@ -328,9 +328,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     budgetLimit,
     maxPlayersPerClub: LINEUP_CONFIG.maxPlayersPerClub,
     opponentMap,
-    // valorizacao picks cheap players intentionally — the 80% floor causes
-    // infeasibility when budget is raised above ~1.25× the optimal team cost.
-    skipBudgetFloor: strategy === "valorizacao",
   });
 
   if (!solution.feasible) {

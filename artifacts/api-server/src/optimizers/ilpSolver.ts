@@ -102,12 +102,6 @@ export interface IlpConstraints {
    * Requires IlpCandidate.riskScore to be populated.
    */
   maxTotalRisk?: number;
-  /**
-   * When true, suppresses the 80% budget utilization floor.
-   * Use for strategies (e.g. valorizacao) that intentionally pick cheap
-   * players — the floor would make the problem infeasible at higher budgets.
-   */
-  skipBudgetFloor?: boolean;
 }
 
 export interface IlpSolution {
@@ -173,16 +167,11 @@ export function solveLineupILP(
     modelConstraints[`pos_${position}`] = { min: count, max: count };
   }
 
-  // Budget ceiling always applied.
-  // 80% utilization floor is skipped when: (a) a risk cap is active (tight risk
-  // cap forces cheap players), or (b) skipBudgetFloor is set (e.g. valorizacao
-  // strategy intentionally picks cheap players and the floor causes infeasibility
-  // when the budget is raised above ~1.25× the optimal team cost).
-  const applyFloor = constraints.maxTotalRisk == null && !constraints.skipBudgetFloor;
-  modelConstraints["budget"] = {
-    ...(applyFloor ? { min: budgetLimit * 0.80 } : {}),
-    max: budgetLimit,
-  };
+  // Budget ceiling always applied. No floor — the formation constraint (12
+  // players across specific positions) already prevents degenerate cheap-only
+  // lineups, and a % floor becomes infeasible whenever budget >> max team cost
+  // (e.g. C$ 285 floor = 228, but the most expensive feasible team is ~200).
+  modelConstraints["budget"] = { max: budgetLimit };
 
   // Optional risk cap: Σ(riskScore_i · x_i) ≤ maxTotalRisk
   if (constraints.maxTotalRisk != null) {
