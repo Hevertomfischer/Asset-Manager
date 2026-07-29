@@ -22,7 +22,7 @@ export type Plan = "free" | "pro";
  */
 export const FOUNDER_ACCESS_CUTOFF: Date = process.env["FOUNDER_ACCESS_CUTOFF_DATE"]
   ? new Date(process.env["FOUNDER_ACCESS_CUTOFF_DATE"])
-  : new Date("2026-09-30T23:59:59Z");
+  : new Date("2026-12-31T23:59:59Z");
 
 /**
  * Retorna o plano REAL do usuário (free | pro), consultando subscriptionsTable.
