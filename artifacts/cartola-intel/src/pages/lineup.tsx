@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -979,18 +980,22 @@ export default function Lineup() {
         />
       )}
 
-      {/* Share card — off-screen, captured by html-to-image */}
-      <LineupShareCard
-        ref={shareCardRef}
-        players={currentLineup?.players ?? []}
-        reserves={currentLineup?.reserves ?? []}
-        captainId={currentLineup?.captainPlayerId}
-        coachId={currentLineup?.coachPlayerId}
-        formation={currentLineup?.formation}
-        expectedPoints={currentLineup?.expectedPoints}
-        totalCost={currentLineup?.totalCost}
-        round={currentLineup?.round}
-      />
+      {/* Share card — renderizado via portal no document.body para evitar
+          clipping por overflow:hidden ou transforms de ancestrais */}
+      {createPortal(
+        <LineupShareCard
+          ref={shareCardRef}
+          players={currentLineup?.players ?? []}
+          reserves={currentLineup?.reserves ?? []}
+          captainId={currentLineup?.captainPlayerId}
+          coachId={currentLineup?.coachPlayerId}
+          formation={currentLineup?.formation}
+          expectedPoints={currentLineup?.expectedPoints}
+          totalCost={currentLineup?.totalCost}
+          round={currentLineup?.round}
+        />,
+        document.body,
+      )}
     </div>
   );
 }
