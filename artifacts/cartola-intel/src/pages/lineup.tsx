@@ -459,74 +459,70 @@ export default function Lineup() {
       {/* Lineup Display */}
       <div className="lg:col-span-8 flex flex-col">
         {currentLineup ? (
-          <div className="w-full animate-in zoom-in-95 duration-500 space-y-6">
-            {/* Summary bar */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-card border border-border/50 p-4 rounded-2xl shadow-lg">
-              <div className="flex gap-6">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Pts Esperados</p>
-                  <p className="text-2xl font-mono font-bold text-primary">{(currentLineup.expectedPoints ?? 0).toFixed(1)}</p>
+          <div className="w-full animate-in zoom-in-95 duration-500 space-y-3">
+            {/* Summary bar — compact */}
+            <div className="flex items-center justify-between gap-2 bg-card border border-border/50 px-3 py-2 rounded-xl shadow-sm">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Pts esp.</p>
+                  <p className="text-sm font-mono font-bold text-primary leading-none">{(currentLineup.expectedPoints ?? 0).toFixed(1)}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Custo Total</p>
-                  <p className="text-2xl font-mono font-bold text-foreground">C$ {(currentLineup.totalCost ?? 0).toFixed(2)}</p>
+                <div className="w-px h-6 bg-border/50" />
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Custo</p>
+                  <p className="text-sm font-mono font-bold text-foreground leading-none">C$ {(currentLineup.totalCost ?? 0).toFixed(2)}</p>
                 </div>
-                {strategy === "valorizacao" ? (
-                  <div className="hidden md:block">
-                    <p className="text-xs text-muted-foreground uppercase font-semibold">Valoriz. Total</p>
-                    <p className="text-2xl font-mono font-bold text-emerald-400">
-                      {(() => {
-                        const total = (currentLineup.players ?? []).reduce((sum, p) => {
-                          const exp = (p.explanation ?? {}) as ExplanationJson;
-                          return sum + (exp.priceVariation ?? 0);
-                        }, 0);
-                        return (total >= 0 ? "+" : "") + "C$ " + total.toFixed(2);
-                      })()}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="hidden md:block">
-                    <p className="text-xs text-muted-foreground uppercase font-semibold">Formação</p>
-                    <p className="text-2xl font-mono font-bold text-foreground">{currentLineup.formation}</p>
-                  </div>
-                )}
-                <div className="hidden md:block">
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Risco</p>
-                  <p className="text-2xl font-mono font-bold text-yellow-500">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
+                <div className="w-px h-6 bg-border/50" />
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">
+                    {strategy === "valorizacao" ? "Valoriz." : "Formação"}
+                  </p>
+                  <p className="text-sm font-mono font-bold text-foreground leading-none">
+                    {strategy === "valorizacao" ? (() => {
+                      const total = (currentLineup.players ?? []).reduce((sum, p) => {
+                        const exp = (p.explanation ?? {}) as ExplanationJson;
+                        return sum + (exp.priceVariation ?? 0);
+                      }, 0);
+                      return (total >= 0 ? "+" : "") + total.toFixed(2);
+                    })() : currentLineup.formation}
+                  </p>
+                </div>
+                <div className="w-px h-6 bg-border/50" />
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Risco</p>
+                  <p className="text-sm font-mono font-bold text-yellow-500 leading-none">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 justify-end">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   variant="outline"
-                  className="rounded-xl border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-md"
+                  size="sm"
+                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
                   onClick={handleSave}
                   disabled={saveLineupMutation.isPending}
                 >
-                  {saveLineupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                  Salvar Escalação
+                  {saveLineupMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  <span className="ml-1 hidden sm:inline">Salvar</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-xl border-primary/40 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shadow-md"
+                  size="sm"
+                  className="h-7 px-2 text-xs rounded-lg border-primary/40 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
                   onClick={() => setRegisterDialogOpen(true)}
                 >
-                  <ClipboardList className="w-4 h-4 mr-2" />
-                  Foi esse o meu time
+                  <ClipboardList className="w-3 h-3" />
+                  <span className="ml-1 hidden sm:inline">Meu time</span>
                 </Button>
               </div>
             </div>
 
-            {/* Valorization strategy banner */}
+            {/* Valorization strategy banner — compact */}
             {strategy === "valorizacao" && (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-emerald-400">Estratégia: Valorização</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Jogadores selecionados pela maior folga entre projeção e MPV (mínimo para valorizar). Quanto maior a folga, maior a certeza de subir de preço nesta rodada.
-                    Veja <span className="text-emerald-400 font-medium">"folga +X pts"</span> em cada card.
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  <span className="text-emerald-400 font-semibold">Valorização</span> — jogadores com maior folga acima do MPV.
+                </p>
               </div>
             )}
 
