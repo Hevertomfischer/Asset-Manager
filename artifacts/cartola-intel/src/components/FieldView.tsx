@@ -121,9 +121,9 @@ function JerseyCard({
         <p className="text-[10px] sm:text-[11px] font-bold text-white truncate leading-tight">
           {displayName}
         </p>
-        {player.expectedPoints != null && (
-          <p className="text-[9px] sm:text-[10px] text-emerald-400 font-mono font-bold leading-none">
-            {player.expectedPoints.toFixed(1)} pts
+        {player.price != null && (
+          <p className="text-[9px] sm:text-[10px] text-yellow-300 font-mono font-bold leading-none">
+            C$ {player.price.toFixed(2)}
           </p>
         )}
       </div>
