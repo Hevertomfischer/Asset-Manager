@@ -350,56 +350,79 @@ export default function Lineup() {
         </div>
 
         <Card className="bg-card shadow-xl border-border/50 rounded-2xl overflow-hidden">
-          <CardHeader className="bg-secondary/30 border-b border-border/50 py-4">
-            <CardTitle className="text-lg">Parâmetros</CardTitle>
+          <CardHeader className="bg-secondary/30 border-b border-border/50 py-2.5 px-4">
+            <CardTitle className="text-sm font-semibold">Parâmetros</CardTitle>
           </CardHeader>
-          <CardContent className="p-5 space-y-6">
-            <div className="space-y-3">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Formação</Label>
-              <Select value={formation} onValueChange={setFormation}>
-                <SelectTrigger className="h-12 bg-background border-border rounded-xl">
-                  <SelectValue placeholder="Selecionar formação" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="3-4-3">3-4-3 (Ofensivo)</SelectItem>
-                  <SelectItem value="3-5-2">3-5-2 (Controle)</SelectItem>
-                  <SelectItem value="4-3-3">4-3-3 (Ofensivo)</SelectItem>
-                  <SelectItem value="4-4-2">4-4-2 (Equilibrado)</SelectItem>
-                  <SelectItem value="4-5-1">4-5-1 (Defensivo)</SelectItem>
-                  <SelectItem value="5-3-2">5-3-2 (Sólido)</SelectItem>
-                  <SelectItem value="5-4-1">5-4-1 (Ultra-defensivo)</SelectItem>
-                </SelectContent>
-              </Select>
+          <CardContent className="p-3 space-y-3">
+            {/* Formação + Orçamento em linha */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Formação</Label>
+                <Select value={formation} onValueChange={setFormation}>
+                  <SelectTrigger className="h-9 bg-background border-border rounded-lg text-sm">
+                    <SelectValue placeholder="Formação" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3-4-3">3-4-3</SelectItem>
+                    <SelectItem value="3-5-2">3-5-2</SelectItem>
+                    <SelectItem value="4-3-3">4-3-3</SelectItem>
+                    <SelectItem value="4-4-2">4-4-2</SelectItem>
+                    <SelectItem value="4-5-1">4-5-1</SelectItem>
+                    <SelectItem value="5-3-2">5-3-2</SelectItem>
+                    <SelectItem value="5-4-1">5-4-1</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Orçamento</Label>
+                <div className="flex items-center gap-1 h-9 px-2 bg-background border border-border rounded-lg">
+                  <span className="text-xs font-mono text-primary">C$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={budgetText}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(",", ".");
+                      if (/^\d{0,3}(\.\d{0,2})?$/.test(raw)) setBudgetText(raw);
+                    }}
+                    onBlur={() => {
+                      const v = parseFloat(budgetText);
+                      const clamped = isNaN(v) ? budget : Math.min(500, Math.max(80, v));
+                      setBudget(clamped);
+                      setBudgetText(clamped.toFixed(2));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="flex-1 text-right text-sm font-mono font-bold text-primary bg-transparent focus:outline-none min-w-0"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Estratégia</Label>
-              <div className="space-y-2">
+            <Slider value={[budget]} onValueChange={(v) => { const val = v[0] ?? budget; setBudget(val); setBudgetText(val.toFixed(2)); }} max={500} min={80} step={0.01} className="py-0.5" />
+
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Estratégia</Label>
+              <div className="space-y-1">
                 {strategies.map((s) => {
                   const isActive = strategy === s.value;
                   const btn = (
                     <button
                       onClick={() => setStrategy(s.value)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all duration-200 ${
                         isActive
-                          ? "border-primary bg-primary/10 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+                          ? "border-primary bg-primary/10"
                           : "border-border bg-background hover:border-muted-foreground/50"
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${isActive ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
-                        <s.icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className={`font-semibold flex items-center gap-1.5 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-                          {s.label}
-                          {s.requiresPro && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
-                              Pro
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{s.desc}</div>
-                      </div>
+                      <s.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-semibold flex-1 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                        {s.label}
+                      </span>
+                      {s.requiresPro && (
+                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
+                          Pro
+                        </span>
+                      )}
                     </button>
                   );
                   return (
@@ -411,57 +434,21 @@ export default function Lineup() {
               </div>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold shrink-0">Orçamento Máx.</Label>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-mono font-bold text-primary">C$</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={budgetText}
-                    onChange={(e) => {
-                      // allow digits, one dot, up to 2 decimal places while typing
-                      const raw = e.target.value.replace(",", ".");
-                      if (/^\d{0,3}(\.\d{0,2})?$/.test(raw)) setBudgetText(raw);
-                    }}
-                    onBlur={() => {
-                      const v = parseFloat(budgetText);
-                      const clamped = isNaN(v) ? budget : Math.min(500, Math.max(80, v));
-                      setBudget(clamped);
-                      setBudgetText(clamped.toFixed(2));
-                    }}
-                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    className="w-24 text-right text-lg font-mono font-bold text-primary bg-transparent border-b border-primary/40 focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-              <Slider value={[budget]} onValueChange={(v) => { const val = v[0] ?? budget; setBudget(val); setBudgetText(val.toFixed(2)); }} max={500} min={80} step={0.01} className="py-1" />
-              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                <span>C$ 80</span>
-                <span>C$ 500</span>
-              </div>
-            </div>
-
             <Button
-              className="w-full h-14 rounded-xl text-lg font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 transition-all bg-gradient-to-r from-primary to-accent"
+              className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 transition-all bg-gradient-to-r from-primary to-accent"
               onClick={handleGenerate}
               disabled={generateLineupMutation.isPending}
             >
               {generateLineupMutation.isPending ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Gerando...
-                </>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...</>
               ) : (
-                <>
-                  <Calculator className="w-5 h-5 mr-2" /> Gerar Escalação
-                </>
+                <><Calculator className="w-4 h-4 mr-2" /> Gerar Escalação</>
               )}
             </Button>
 
             {generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 && (
-              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="flex items-center gap-2 text-destructive text-xs p-2.5 rounded-lg bg-destructive/10 border border-destructive/30">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 {generateLineupMutation.error?.message || "Falha ao gerar escalação"}
               </div>
             )}
