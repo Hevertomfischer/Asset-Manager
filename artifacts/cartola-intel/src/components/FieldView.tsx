@@ -12,7 +12,7 @@ import { getClubColors } from "@/lib/clubColors";
 // ── Clubes com imagem PNG disponível ────────────────────────────────────────
 
 const JERSEY_PNG_CLUBS = new Set([
-  "ATH", "ATL", "BAH", "BOT", "BRA", "CFC", "CHA",
+  "ATH", "ATL", "BAH", "BOT", "BRA", "CAP", "CFC", "CHA",
   "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
   "PAL", "REM", "SAN", "SAO", "VAS", "VIT",
 ]);
