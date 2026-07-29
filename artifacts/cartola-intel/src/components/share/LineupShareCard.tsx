@@ -340,7 +340,7 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
         ref={ref}
         aria-hidden="true"
         style={{
-          position: "absolute",
+          position: "fixed",
           left: "-9999px",
           top: 0,
           width: CARD_WIDTH,
