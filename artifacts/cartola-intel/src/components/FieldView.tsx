@@ -2,25 +2,46 @@
  * FieldView — vista de campo para a escalação.
  *
  * Renderiza um campo de futebol com os jogadores posicionados
- * em linhas (ATA → MEI → DEF → GOL) usando camisas estilizadas
- * com as cores reais do clube.
+ * em linhas (ATA → MEI → DEF → GOL) usando os escudos/camisas
+ * reais dos clubes (PNG em /jerseys/{ABBR}.png) com fallback SVG.
  */
 
 import type { LineupPlayer, LineupReservePlayer } from "@workspace/api-client-react";
 import { getClubColors } from "@/lib/clubColors";
 
-// ── Jersey SVG ────────────────────────────────────────────────────────────────
+// ── Clubes com imagem PNG disponível ────────────────────────────────────────
+
+const JERSEY_PNG_CLUBS = new Set([
+  "ATH", "ATL", "BAH", "BOT", "BRA", "CFC", "CHA",
+  "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
+  "PAL", "REM", "SAO", "VAS", "VIT",
+]);
+
+function getJerseyImageUrl(abbr: string | null | undefined): string | null {
+  if (!abbr) return null;
+  const key = abbr.toUpperCase();
+  if (!JERSEY_PNG_CLUBS.has(key)) return null;
+  return `${import.meta.env.BASE_URL}jerseys/${key}.png`;
+}
+
+// ── Jersey — imagem real ou SVG fallback ──────────────────────────────────────
 
 function Jersey({
   abbr,
   isCaptain,
+  size = "md",
   position,
 }: {
   abbr: string | null | undefined;
   isCaptain: boolean;
+  size?: "sm" | "md";
   position?: string | null;
 }) {
-  const { primary, secondary, text } = getClubColors(abbr);
+  const url = getJerseyImageUrl(abbr);
+  const sizeClass = size === "sm"
+    ? "w-10 h-10 sm:w-12 sm:h-12"
+    : "w-12 h-12 sm:w-16 sm:h-16";
+
   return (
     <div className="relative inline-block">
       {isCaptain && (
@@ -28,42 +49,49 @@ function Jersey({
           C
         </div>
       )}
-      <svg
-        viewBox="0 0 80 72"
-        className="w-11 h-11 sm:w-14 sm:h-14 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] group-hover:scale-110 transition-transform duration-200"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {/* Body */}
-        <path
-          d="M22 17 L5 36 L19 42 L19 67 L61 67 L61 42 L75 36 L58 17 Q49 10 40 10 Q31 10 22 17 Z"
-          fill={primary}
+      {url ? (
+        <img
+          src={url}
+          alt={abbr ?? ""}
+          className={`${sizeClass} object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] group-hover:scale-110 transition-transform duration-200`}
+          draggable={false}
         />
-        {/* Left sleeve */}
-        <path d="M22 17 L5 36 L19 42 L25 27 Z" fill={secondary} />
-        {/* Right sleeve */}
-        <path d="M58 17 L75 36 L61 42 L55 27 Z" fill={secondary} />
-        {/* Collar */}
-        <path
-          d="M34 11 Q40 6 46 11 L44 19 Q40 15 36 19 Z"
-          fill={secondary}
-        />
-        {/* Position label on shirt */}
-        {position && (
-          <text
-            x="40"
-            y="50"
-            textAnchor="middle"
-            fill={text}
-            fontSize="13"
-            fontWeight="bold"
-            fontFamily="monospace"
-            opacity="0.55"
-          >
-            {position}
-          </text>
-        )}
-      </svg>
+      ) : (
+        <JerseySvgFallback abbr={abbr} size={size} position={position} />
+      )}
     </div>
+  );
+}
+
+// ── SVG Fallback (clubes sem PNG) ────────────────────────────────────────────
+
+function JerseySvgFallback({
+  abbr,
+  size = "md",
+  position,
+}: {
+  abbr: string | null | undefined;
+  size?: "sm" | "md";
+  position?: string | null;
+}) {
+  const { primary, secondary, text } = getClubColors(abbr);
+  const sizeClass = size === "sm" ? "w-10 h-10 sm:w-12 sm:h-12" : "w-12 h-12 sm:w-16 sm:h-16";
+  return (
+    <svg
+      viewBox="0 0 80 72"
+      className={`${sizeClass} drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] group-hover:scale-110 transition-transform duration-200`}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M22 17 L5 36 L19 42 L19 67 L61 67 L61 42 L75 36 L58 17 Q49 10 40 10 Q31 10 22 17 Z" fill={primary} />
+      <path d="M22 17 L5 36 L19 42 L25 27 Z" fill={secondary} />
+      <path d="M58 17 L75 36 L61 42 L55 27 Z" fill={secondary} />
+      <path d="M34 11 Q40 6 46 11 L44 19 Q40 15 36 19 Z" fill={secondary} />
+      {position && (
+        <text x="40" y="50" textAnchor="middle" fill={text} fontSize="13" fontWeight="bold" fontFamily="monospace" opacity="0.55">
+          {position}
+        </text>
+      )}
+    </svg>
   );
 }
 
@@ -78,7 +106,6 @@ function JerseyCard({
 }) {
   const isCaptain = player.playerId === captainId;
   const raw = player.nickname ?? player.name ?? "";
-  // Show nickname up to first space, or full nickname if single word, capped at 9 chars
   const displayName = raw.split(" ")[0]?.slice(0, 9) ?? raw;
 
   return (
@@ -88,7 +115,7 @@ function JerseyCard({
         isCaptain={isCaptain}
         position={player.position}
       />
-      <div className="bg-black/65 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-center w-[60px] sm:w-[70px]">
+      <div className="bg-black/65 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-center w-[64px] sm:w-[72px]">
         <p className="text-[10px] sm:text-[11px] font-bold text-white truncate leading-tight">
           {displayName}
         </p>
@@ -105,7 +132,6 @@ function JerseyCard({
 // ── ReserveJerseyCard ──────────────────────────────────────────────────────────
 
 function ReserveJerseyCard({ reserve }: { reserve: LineupReservePlayer }) {
-  const { primary, secondary } = getClubColors(reserve.clubAbbr);
   const displayName = (reserve.nickname ?? reserve.name ?? "").split(" ")[0]?.slice(0, 9) ?? "";
   return (
     <div className="flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 transition-opacity">
@@ -115,14 +141,9 @@ function ReserveJerseyCard({ reserve }: { reserve: LineupReservePlayer }) {
             ★
           </div>
         )}
-        <svg viewBox="0 0 80 72" className="w-9 h-9 sm:w-11 sm:h-11 drop-shadow-md" xmlns="http://www.w3.org/2000/svg">
-          <path d="M22 17 L5 36 L19 42 L19 67 L61 67 L61 42 L75 36 L58 17 Q49 10 40 10 Q31 10 22 17 Z" fill={primary} />
-          <path d="M22 17 L5 36 L19 42 L25 27 Z" fill={secondary} />
-          <path d="M58 17 L75 36 L61 42 L55 27 Z" fill={secondary} />
-          <path d="M34 11 Q40 6 46 11 L44 19 Q40 15 36 19 Z" fill={secondary} />
-        </svg>
+        <Jersey abbr={reserve.clubAbbr} isCaptain={false} size="sm" />
       </div>
-      <div className="bg-black/60 rounded px-1 py-0.5 text-center w-[50px] sm:w-[58px]">
+      <div className="bg-black/60 rounded px-1 py-0.5 text-center w-[52px] sm:w-[60px]">
         <p className="text-[9px] sm:text-[10px] font-semibold text-white/80 truncate leading-tight">{displayName}</p>
         {reserve.expectedPoints != null && (
           <p className="text-[8px] sm:text-[9px] text-emerald-400/80 font-mono leading-none">{reserve.expectedPoints.toFixed(1)}</p>
@@ -137,22 +158,14 @@ function ReserveJerseyCard({ reserve }: { reserve: LineupReservePlayer }) {
 function PitchBackground() {
   return (
     <>
-      {/* Grass stripes */}
       <div className="absolute inset-0 pitch-pattern opacity-80" />
-      {/* Outer border */}
       <div className="absolute inset-3 border-2 border-white/25 rounded-sm pointer-events-none" />
-      {/* Centre line */}
       <div className="absolute top-1/2 left-3 right-3 border-t-2 border-white/25 pointer-events-none" />
-      {/* Centre circle */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-2 border-white/25 rounded-full pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white/40 rounded-full pointer-events-none" />
-      {/* Top penalty box */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 w-40 h-20 border-2 border-white/25 border-t-0 pointer-events-none" />
-      {/* Bottom penalty box */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-40 h-20 border-2 border-white/25 border-b-0 pointer-events-none" />
-      {/* Top goal area */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-9 border-2 border-white/25 border-t-0 pointer-events-none" />
-      {/* Bottom goal area */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-20 h-9 border-2 border-white/25 border-b-0 pointer-events-none" />
     </>
   );
@@ -184,10 +197,12 @@ export function FieldView({ players, reserves = [], captainId, coachId }: FieldV
   return (
     <div className="w-full space-y-3">
       {/* Field */}
-      <div className="relative w-full max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#0A1A14]" style={{ aspectRatio: "10/13" }}>
+      <div
+        className="relative w-full max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#0A1A14]"
+        style={{ aspectRatio: "10/13" }}
+      >
         <PitchBackground />
 
-        {/* Players layer — attack → mid → def → gk */}
         <div className="absolute inset-0 flex flex-col justify-between py-5 px-2 z-10">
           {/* ATT */}
           <div className="flex justify-evenly w-full items-center">
