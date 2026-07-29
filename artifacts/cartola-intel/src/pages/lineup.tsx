@@ -700,14 +700,13 @@ export default function Lineup() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    {p.expectedPoints != null && (
-                      <p className="text-2xl font-mono font-bold text-primary">
-                        {p.expectedPoints.toFixed(1)}
-                        <span className="text-sm font-normal text-muted-foreground ml-1">pts</span>
+                    {p.price != null && (
+                      <p className="text-2xl font-mono font-bold text-foreground">
+                        <span className="text-sm font-normal text-muted-foreground mr-0.5">C$</span>{p.price.toFixed(2)}
                       </p>
                     )}
-                    {p.price != null && (
-                      <p className="text-xs text-muted-foreground font-mono">C$ {p.price.toFixed(2)}</p>
+                    {p.expectedPoints != null && (
+                      <p className="text-xs text-primary font-mono font-semibold">{p.expectedPoints.toFixed(1)} pts esp.</p>
                     )}
                   </div>
                 </div>
