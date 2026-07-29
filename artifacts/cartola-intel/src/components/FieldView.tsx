@@ -100,16 +100,18 @@ function JerseySvgFallback({
 function JerseyCard({
   player,
   captainId,
+  onClick,
 }: {
   player: LineupPlayer;
   captainId?: number | null;
+  onClick?: (player: LineupPlayer) => void;
 }) {
   const isCaptain = player.playerId === captainId;
   const raw = player.nickname ?? player.name ?? "";
   const displayName = raw.split(" ")[0]?.slice(0, 9) ?? raw;
 
-  return (
-    <div className="flex flex-col items-center gap-0.5 group">
+  const inner = (
+    <>
       <Jersey
         abbr={player.clubAbbr}
         isCaptain={isCaptain}
@@ -125,6 +127,24 @@ function JerseyCard({
           </p>
         )}
       </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={() => onClick(player)}
+        className="flex flex-col items-center gap-0.5 group cursor-pointer active:scale-95 transition-transform duration-100 focus:outline-none"
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-0.5 group">
+      {inner}
     </div>
   );
 }
@@ -178,9 +198,10 @@ interface FieldViewProps {
   reserves?: LineupReservePlayer[];
   captainId?: number | null;
   coachId?: number | null;
+  onPlayerClick?: (player: LineupPlayer) => void;
 }
 
-export function FieldView({ players, reserves = [], captainId, coachId }: FieldViewProps) {
+export function FieldView({ players, reserves = [], captainId, coachId, onPlayerClick }: FieldViewProps) {
   const fieldPlayers = players.filter((p) => p.position !== "TEC");
   const coach = players.find((p) => p.position === "TEC" || p.playerId === coachId);
 
@@ -207,32 +228,32 @@ export function FieldView({ players, reserves = [], captainId, coachId }: FieldV
           {/* ATT */}
           <div className="flex justify-evenly w-full items-center">
             {att.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
             ))}
           </div>
 
           {/* MID */}
           <div className="flex justify-evenly w-full items-center">
             {mid.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
             ))}
           </div>
 
           {/* DEF */}
           <div className="flex justify-evenly w-full items-center">
             {def.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
             ))}
           </div>
 
           {/* GOL + TEC */}
           <div className="flex justify-center w-full relative items-center">
             {gk.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
             ))}
             {coach && (
               <div className="absolute right-2 bottom-0 scale-90 opacity-80 hover:opacity-100 transition-opacity">
-                <JerseyCard player={coach} captainId={captainId} />
+                <JerseyCard player={coach} captainId={captainId} onClick={onPlayerClick} />
               </div>
             )}
           </div>

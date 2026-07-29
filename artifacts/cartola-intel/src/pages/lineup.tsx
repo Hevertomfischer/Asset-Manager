@@ -3,18 +3,20 @@ import { useSearchParams } from "react-router-dom";
 import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, BarChart2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useTrack } from "@/hooks/useTrack";
-import { type ExplanationJson, getTopBadges } from "@/lib/explainPlayer";
+import { type ExplanationJson, getTopBadges, explainPlayer, normalizeMatchup } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
 import { LineupProbabilities } from "@/components/LineupProbabilities";
@@ -180,6 +182,7 @@ export default function Lineup() {
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
+  const [fieldClickedPlayer, setFieldClickedPlayer] = useState<LineupPlayer | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"field" | "list">(() => {
     try { return (localStorage.getItem("lineup_view_mode") as "field" | "list") ?? "field"; }
@@ -566,6 +569,7 @@ export default function Lineup() {
                 reserves={currentLineup.reserves ?? []}
                 captainId={currentLineup.captainPlayerId}
                 coachId={currentLineup.coachPlayerId}
+                onPlayerClick={setFieldClickedPlayer}
               />
             )}
 
@@ -654,6 +658,137 @@ export default function Lineup() {
           </div>
         )}
       </div>
+
+      {/* Field player detail sheet */}
+      {fieldClickedPlayer && (() => {
+        const p = fieldClickedPlayer;
+        const exp = (p.explanation ?? {}) as ExplanationJson;
+        const isCaptain = p.playerId === currentLineup?.captainPlayerId;
+        const isCoach = p.position === "TEC";
+        const insights = isCoach ? [] : explainPlayer(p.position ? { ...exp, position: p.position } : exp);
+
+        const formScore = exp.formScore ?? 0;
+        const formPct = Math.min(100, (formScore / 10) * 100);
+        const matchupScore = exp.matchupScore ?? 1;
+        const matchupPct = normalizeMatchup(matchupScore);
+        const volatility = exp.volatility ?? 0;
+        const riskPct = Math.min(100, volatility * 100);
+        const playProb = (exp.playProbability ?? 1) * 100;
+
+        return (
+          <Sheet open={!!fieldClickedPlayer} onOpenChange={(o) => { if (!o) setFieldClickedPlayer(null); }}>
+            <SheetContent side="bottom" className="rounded-t-2xl max-h-[88dvh] overflow-y-auto pb-safe">
+              <SheetHeader className="mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <SheetTitle className="text-lg leading-tight truncate">
+                      {p.nickname ?? p.name ?? "Jogador"}
+                    </SheetTitle>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {p.position && (
+                        <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          {p.position}
+                        </span>
+                      )}
+                      {p.clubAbbr && (
+                        <span className="text-xs text-muted-foreground">{p.clubAbbr}</span>
+                      )}
+                      {isCaptain && (
+                        <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/15 px-1.5 py-0.5 rounded">
+                          ★ Capitão
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {p.expectedPoints != null && (
+                      <p className="text-2xl font-mono font-bold text-primary">
+                        {p.expectedPoints.toFixed(1)}
+                        <span className="text-sm font-normal text-muted-foreground ml-1">pts</span>
+                      </p>
+                    )}
+                    {p.price != null && (
+                      <p className="text-xs text-muted-foreground font-mono">C$ {p.price.toFixed(2)}</p>
+                    )}
+                  </div>
+                </div>
+              </SheetHeader>
+
+              {!isCoach && (
+                <>
+                  {/* Metrics bars */}
+                  {isPro ? (
+                    <div className="space-y-3 bg-secondary/30 rounded-xl p-4 border border-border/40 mb-4">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Métricas</p>
+                      {[
+                        { label: "Forma", pct: formPct, sublabel: `${formScore.toFixed(1)} pts`, color: formPct >= 70 ? "bg-green-500" : formPct >= 45 ? "bg-yellow-500" : "bg-red-500" },
+                        { label: "Confronto", pct: matchupPct, sublabel: `×${matchupScore.toFixed(2)}`, color: matchupPct >= 65 ? "bg-green-500" : matchupPct >= 42 ? "bg-yellow-500" : "bg-red-500" },
+                        { label: "Risco", pct: riskPct, sublabel: riskPct < 30 ? "Baixo" : riskPct < 60 ? "Médio" : "Alto", color: riskPct < 30 ? "bg-green-500" : riskPct < 60 ? "bg-yellow-500" : "bg-red-500" },
+                        ...(exp.playProbability != null ? [{ label: "Prob. jogo", pct: playProb, sublabel: `${Math.round(playProb)}%`, color: playProb >= 70 ? "bg-green-500" : playProb >= 40 ? "bg-yellow-500" : "bg-red-500" }] : []),
+                      ].map(({ label, pct, sublabel, color }) => (
+                        <div key={label} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground font-medium">{label}</span>
+                            <span className="text-foreground font-semibold">{sublabel}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setFieldClickedPlayer(null); openPaywall(); }}
+                      className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors text-sm"
+                    >
+                      <Lock className="w-4 h-4" />
+                      Ver métricas completas — Pro
+                    </button>
+                  )}
+
+                  {/* Insights */}
+                  {isPro && insights.length > 0 && (
+                    <div className="space-y-1 mb-4">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Fatores</p>
+                      {insights.slice(0, 4).map((ins, i) => {
+                        const colors = { positive: "text-green-500", warning: "text-yellow-500", neutral: "text-muted-foreground", info: "text-blue-400" };
+                        return (
+                          <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/20 last:border-0">
+                            <span className={`text-sm leading-snug ${colors[ins.kind]}`}>{ins.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 mt-2">
+                <Button
+                  variant="default"
+                  className="flex-1 rounded-xl"
+                  onClick={() => {
+                    setFieldClickedPlayer(null);
+                    handleSwapRequest(p);
+                  }}
+                >
+                  <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  Trocar jogador
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl px-4"
+                  onClick={() => setFieldClickedPlayer(null)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        );
+      })()}
 
       {/* Swap simulator sheet */}
       {swapOutPlayer && currentLineup && (
