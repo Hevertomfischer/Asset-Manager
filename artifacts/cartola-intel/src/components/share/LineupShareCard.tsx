@@ -217,56 +217,117 @@ function ReserveSlot({ reserve }: { reserve: LineupReservePlayer }) {
   );
 }
 
-// ── Pitch background (SVG puro) ──────────────────────────────────────────────
+// ── Pitch background (CSS puro — sem SVG defs/url que html-to-image não resolve) ─
 
-function PitchSvg({ width, height }: { width: number; height: number }) {
-  const lw = 1.5;
+function PitchBackground({ width, height }: { width: number; height: number }) {
   const lc = "rgba(255,255,255,0.22)";
-  const cx = width / 2;
+  const lw = "1.5px";
   const pad = 12;
+  const cx = width / 2;
   const goalW = 70;
   const goalH = 30;
   const penW = 130;
   const penH = 68;
   const circleR = 40;
+
+  const border = `${lw} solid ${lc}`;
+
   return (
-    <svg
-      width={width}
-      height={height}
-      style={{ position: "absolute", inset: 0 }}
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "linear-gradient(180deg, #0d4a26 0%, #0a3d1f 50%, #0d4a26 100%)",
+        overflow: "hidden",
+      }}
     >
-      {/* Green pitch gradient */}
-      <defs>
-        <linearGradient id="pitch-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0d4a26" />
-          <stop offset="50%" stopColor="#0a3d1f" />
-          <stop offset="100%" stopColor="#0d4a26" />
-        </linearGradient>
-        {/* Stripes */}
-        <pattern id="stripes" x="0" y="0" width="1" height="40" patternUnits="userSpaceOnUse">
-          <rect width={width} height="20" fill="rgba(0,0,0,0.06)" />
-          <rect y="20" width={width} height="20" fill="transparent" />
-        </pattern>
-      </defs>
-      <rect width={width} height={height} fill="url(#pitch-grad)" />
-      <rect width={width} height={height} fill="url(#stripes)" />
+      {/* Alternating stripe rows */}
+      {Array.from({ length: Math.ceil(height / 40) }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: i * 40,
+            height: 20,
+            background: "rgba(0,0,0,0.05)",
+          }}
+        />
+      ))}
+
       {/* Outer border */}
-      <rect x={pad} y={pad} width={width - pad * 2} height={height - pad * 2} fill="none" stroke={lc} strokeWidth={lw} />
-      {/* Half line */}
-      <line x1={pad} y1={height / 2} x2={width - pad} y2={height / 2} stroke={lc} strokeWidth={lw} />
-      {/* Center circle */}
-      <circle cx={cx} cy={height / 2} r={circleR} fill="none" stroke={lc} strokeWidth={lw} />
-      <circle cx={cx} cy={height / 2} r={3} fill={lc} />
+      <div style={{ position: "absolute", top: pad, left: pad, right: pad, bottom: pad, border, borderRadius: 2, pointerEvents: "none" }} />
+
+      {/* Half-way line */}
+      <div style={{ position: "absolute", top: height / 2, left: pad, right: pad, borderTop: border }} />
+
+      {/* Center circle (approximated with border-radius) */}
+      <div style={{
+        position: "absolute",
+        top: height / 2 - circleR,
+        left: cx - circleR,
+        width: circleR * 2,
+        height: circleR * 2,
+        borderRadius: "50%",
+        border,
+      }} />
+      {/* Center dot */}
+      <div style={{
+        position: "absolute",
+        top: height / 2 - 3,
+        left: cx - 3,
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: lc,
+      }} />
+
       {/* Top penalty area */}
-      <rect x={cx - penW / 2} y={pad} width={penW} height={penH} fill="none" stroke={lc} strokeWidth={lw} />
+      <div style={{
+        position: "absolute",
+        top: pad,
+        left: cx - penW / 2,
+        width: penW,
+        height: penH,
+        border,
+        borderTop: "none",
+      }} />
       {/* Top goal area */}
-      <rect x={cx - goalW / 2} y={pad} width={goalW} height={goalH} fill="none" stroke={lc} strokeWidth={lw} />
+      <div style={{
+        position: "absolute",
+        top: pad,
+        left: cx - goalW / 2,
+        width: goalW,
+        height: goalH,
+        border,
+        borderTop: "none",
+      }} />
+
       {/* Bottom penalty area */}
-      <rect x={cx - penW / 2} y={height - pad - penH} width={penW} height={penH} fill="none" stroke={lc} strokeWidth={lw} />
+      <div style={{
+        position: "absolute",
+        bottom: pad,
+        left: cx - penW / 2,
+        width: penW,
+        height: penH,
+        border,
+        borderBottom: "none",
+      }} />
       {/* Bottom goal area */}
-      <rect x={cx - goalW / 2} y={height - pad - goalH} width={goalW} height={goalH} fill="none" stroke={lc} strokeWidth={lw} />
-    </svg>
+      <div style={{
+        position: "absolute",
+        bottom: pad,
+        left: cx - goalW / 2,
+        width: goalW,
+        height: goalH,
+        border,
+        borderBottom: "none",
+      }} />
+    </div>
   );
 }
 
@@ -397,13 +458,16 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
 
         {/* ── Field ── */}
         <div style={{ position: "relative", width: CARD_WIDTH, height: FIELD_HEIGHT, overflow: "hidden" }}>
-          <PitchSvg width={CARD_WIDTH} height={FIELD_HEIGHT} />
+          <PitchBackground width={CARD_WIDTH} height={FIELD_HEIGHT} />
 
           {/* Player rows — absolute overlay */}
           <div
             style={{
               position: "absolute",
-              inset: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
