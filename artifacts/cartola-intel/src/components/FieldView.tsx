@@ -209,9 +209,18 @@ export function FieldView({ players, reserves = [], captainId, coachId, onPlayer
     fieldPlayers.filter((p) => positions.includes(p.position ?? ""));
 
   const gk  = byPosition(["GOL"]);
-  const def = byPosition(["ZAG", "LAT"]);
   const mid = byPosition(["MEI"]);
   const att = byPosition(["ATA"]);
+
+  // LATs nas pontas, ZAGs no centro
+  const rawDef = byPosition(["ZAG", "LAT"]);
+  const lats = rawDef.filter((p) => p.position === "LAT");
+  const zags = rawDef.filter((p) => p.position === "ZAG");
+  const def = lats.length >= 2
+    ? [lats[0]!, ...zags, lats[1]!]
+    : lats.length === 1
+      ? [lats[0]!, ...zags]
+      : zags;
 
   const sortedReserves = [...reserves].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
 
