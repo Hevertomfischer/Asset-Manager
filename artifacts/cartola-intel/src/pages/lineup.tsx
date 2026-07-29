@@ -361,9 +361,13 @@ export default function Lineup() {
                   <SelectValue placeholder="Selecionar formação" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="4-4-2">4-4-2 (Equilibrado)</SelectItem>
-                  <SelectItem value="4-3-3">4-3-3 (Ofensivo)</SelectItem>
+                  <SelectItem value="3-4-3">3-4-3 (Ofensivo)</SelectItem>
                   <SelectItem value="3-5-2">3-5-2 (Controle)</SelectItem>
+                  <SelectItem value="4-3-3">4-3-3 (Ofensivo)</SelectItem>
+                  <SelectItem value="4-4-2">4-4-2 (Equilibrado)</SelectItem>
+                  <SelectItem value="4-5-1">4-5-1 (Defensivo)</SelectItem>
+                  <SelectItem value="5-3-2">5-3-2 (Sólido)</SelectItem>
+                  <SelectItem value="5-4-1">5-4-1 (Ultra-defensivo)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
