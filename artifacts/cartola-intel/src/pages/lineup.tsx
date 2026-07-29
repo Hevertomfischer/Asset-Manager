@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -21,6 +21,7 @@ import { LineupProbabilities } from "@/components/LineupProbabilities";
 import { RegisterRoundDialog } from "@/components/RegisterRoundDialog";
 import type { Player } from "@workspace/api-client-react";
 import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
+import { FieldView } from "@/components/FieldView";
 
 function LineupPlayerCard({
   player,
@@ -180,6 +181,10 @@ export default function Lineup() {
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"field" | "list">(() => {
+    try { return (localStorage.getItem("lineup_view_mode") as "field" | "list") ?? "field"; }
+    catch { return "field"; }
+  });
 
   const autoGenerateRef = useRef(false);
 
@@ -532,77 +537,111 @@ export default function Lineup() {
               </div>
             )}
 
-            {/* Players grouped by position */}
-            <div className="space-y-4">
-              {positionOrder.map((pos) => {
-                const players = positionGroups[pos];
-                if (!players?.length) return null;
-                return (
-                  <div key={pos}>
+            {/* View mode toggle */}
+            <div className="flex items-center gap-1 bg-secondary/50 rounded-xl p-1 self-start">
+              <button
+                onClick={() => { setViewMode("field"); try { localStorage.setItem("lineup_view_mode", "field"); } catch { /* ignore */ } }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  viewMode === "field" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Campo
+              </button>
+              <button
+                onClick={() => { setViewMode("list"); try { localStorage.setItem("lineup_view_mode", "list"); } catch { /* ignore */ } }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                Lista
+              </button>
+            </div>
+
+            {/* Field view */}
+            {viewMode === "field" && (
+              <FieldView
+                players={currentLineup.players ?? []}
+                reserves={currentLineup.reserves ?? []}
+                captainId={currentLineup.captainPlayerId}
+                coachId={currentLineup.coachPlayerId}
+              />
+            )}
+
+            {/* List view */}
+            {viewMode === "list" && (
+              <div className="space-y-4">
+                {positionOrder.map((pos) => {
+                  const players = positionGroups[pos];
+                  if (!players?.length) return null;
+                  return (
+                    <div key={pos}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className={`font-mono text-xs ${getPositionColor(pos)}`}>{pos}</Badge>
+                        <span className="text-xs text-muted-foreground">{players.length} jogador{players.length > 1 ? "es" : ""}</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {players.map((p) => (
+                          <LineupPlayerCard
+                            key={p.playerId}
+                            player={p}
+                            captainId={currentLineup.captainPlayerId}
+                            coachId={currentLineup.coachPlayerId}
+                            onSwapRequest={() => handleSwapRequest(p)}
+                            strategy={strategy}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Coach */}
+                {coachPlayer && (
+                  <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className={`font-mono text-xs ${getPositionColor(pos)}`}>{pos}</Badge>
-                      <span className="text-xs text-muted-foreground">{players.length} jogador{players.length > 1 ? "es" : ""}</span>
+                      <Badge variant="outline" className={`font-mono text-xs ${getPositionColor("TEC")}`}>TEC</Badge>
+                      <span className="text-xs text-muted-foreground">Técnico</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {players.map((p) => (
-                        <LineupPlayerCard
-                          key={p.playerId}
-                          player={p}
-                          captainId={currentLineup.captainPlayerId}
-                          coachId={currentLineup.coachPlayerId}
-                          onSwapRequest={() => handleSwapRequest(p)}
-                          strategy={strategy}
-                        />
-                      ))}
+                      <LineupPlayerCard
+                        player={coachPlayer}
+                        captainId={currentLineup.captainPlayerId}
+                        coachId={currentLineup.coachPlayerId}
+                        strategy={strategy}
+                      />
                     </div>
                   </div>
-                );
-              })}
+                )}
 
-              {/* Coach */}
-              {coachPlayer && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className={`font-mono text-xs ${getPositionColor("TEC")}`}>TEC</Badge>
-                    <span className="text-xs text-muted-foreground">Técnico</span>
+                {/* Bench Reserves */}
+                {(currentLineup.reserves?.length ?? 0) > 0 && (
+                  <div className="pt-2 border-t border-border/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-semibold text-foreground">Banco de Reservas</span>
+                      <Badge variant="secondary" className="text-[10px]">{currentLineup.reserves!.length}</Badge>
+                      <span className="text-[10px] text-muted-foreground ml-1">
+                        {currentLineup.reserves!.some((r) => r.isLuxuryReserve) && (
+                          <span className="text-purple-400">· 1 reserva de luxo</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
+                      {[...currentLineup.reserves!]
+                        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+                        .map((r) => (
+                          <ReserveCard key={r.playerId} reserve={r} />
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2 opacity-60">
+                      Reservas selecionadas com probabilidade de jogo {">"} 25%. A reserva de luxo entra quando todos os titulares jogaram e ela supera o pior titular.
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    <LineupPlayerCard
-                      player={coachPlayer}
-                      captainId={currentLineup.captainPlayerId}
-                      coachId={currentLineup.coachPlayerId}
-                      strategy={strategy}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Bench Reserves */}
-              {(currentLineup.reserves?.length ?? 0) > 0 && (
-                <div className="pt-2 border-t border-border/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold text-foreground">Banco de Reservas</span>
-                    <Badge variant="secondary" className="text-[10px]">{currentLineup.reserves!.length}</Badge>
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      {currentLineup.reserves!.some((r) => r.isLuxuryReserve) && (
-                        <span className="text-purple-400">· 1 reserva de luxo</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
-                    {[...currentLineup.reserves!]
-                      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-                      .map((r) => (
-                        <ReserveCard key={r.playerId} reserve={r} />
-                      ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-2 opacity-60">
-                    Reservas selecionadas com probabilidade de jogo {">"} 25%. A reserva de luxo entra quando todos os titulares jogaram e ela supera o pior titular.
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Monte Carlo probability distribution (Pro) */}
             <LineupProbabilities lineup={currentLineup} />
