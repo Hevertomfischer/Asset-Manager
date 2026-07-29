@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, BarChart2, Lock } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -181,6 +181,7 @@ export default function Lineup() {
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
+  const [swapOutReserve, setSwapOutReserve] = useState<LineupReservePlayer | null>(null);
   const [fieldClickedPlayer, setFieldClickedPlayer] = useState<LineupPlayer | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"field" | "list">(() => {
@@ -266,11 +267,48 @@ export default function Lineup() {
   };
 
   const handleSwapRequest = (player: LineupPlayer) => {
-    if (!isPro) {
-      openPaywall();
-      return;
-    }
+    if (!isPro) { openPaywall(); return; }
     setSwapOutPlayer(player);
+  };
+
+  const handleReserveSwapRequest = (reserve: LineupReservePlayer) => {
+    if (!isPro) { openPaywall(); return; }
+    setSwapOutReserve(reserve);
+  };
+
+  const handleApplyReserveSwap = (outId: number, inPlayer: Player) => {
+    if (!currentLineup) return;
+    const outReserve = currentLineup.reserves?.find((r) => r.playerId === outId);
+    const outName = outReserve?.nickname ?? outReserve?.name ?? "Reserva";
+    const newReserve: LineupReservePlayer = {
+      playerId: inPlayer.id,
+      name: inPlayer.name,
+      nickname: inPlayer.nickname,
+      position: outReserve?.position,
+      price: inPlayer.price,
+      averagePoints: inPlayer.averagePoints,
+      expectedPoints: inPlayer.projection?.expectedPoints ?? null,
+      clubId: inPlayer.club?.id ?? null,
+      clubAbbr: inPlayer.club?.abbreviation ?? null,
+      clubName: inPlayer.club?.name ?? null,
+      isLuxuryReserve: outReserve?.isLuxuryReserve ?? false,
+      orderIndex: outReserve?.orderIndex ?? 0,
+    };
+    setCurrentLineup({
+      ...currentLineup,
+      reserves: currentLineup.reserves?.map((r) =>
+        r.playerId === outId ? newReserve : r
+      ) ?? [],
+    });
+    setSwapOutReserve(null);
+    toast({ title: "Reserva trocada", description: `${outName} → ${inPlayer.nickname ?? inPlayer.name}` });
+  };
+
+  const handleSetCaptain = (playerId: number) => {
+    if (!currentLineup) return;
+    setCurrentLineup({ ...currentLineup, captainPlayerId: playerId });
+    setFieldClickedPlayer(null);
+    toast({ title: "Capitão definido" });
   };
 
   const handleApplySwap = (
@@ -494,6 +532,23 @@ export default function Lineup() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                {/* View toggle inline */}
+                <div className="flex items-center gap-0.5 bg-secondary rounded-lg p-0.5 mr-1">
+                  <button
+                    onClick={() => { setViewMode("field"); try { localStorage.setItem("lineup_view_mode", "field"); } catch { /* ignore */ } }}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === "field" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <LayoutDashboard className="w-3 h-3" />
+                    <span className="hidden sm:inline">Campo</span>
+                  </button>
+                  <button
+                    onClick={() => { setViewMode("list"); try { localStorage.setItem("lineup_view_mode", "list"); } catch { /* ignore */ } }}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <List className="w-3 h-3" />
+                    <span className="hidden sm:inline">Lista</span>
+                  </button>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -526,28 +581,6 @@ export default function Lineup() {
               </div>
             )}
 
-            {/* View mode toggle */}
-            <div className="flex items-center gap-1 bg-secondary/50 rounded-xl p-1 self-start">
-              <button
-                onClick={() => { setViewMode("field"); try { localStorage.setItem("lineup_view_mode", "field"); } catch { /* ignore */ } }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  viewMode === "field" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Campo
-              </button>
-              <button
-                onClick={() => { setViewMode("list"); try { localStorage.setItem("lineup_view_mode", "list"); } catch { /* ignore */ } }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <List className="w-4 h-4" />
-                Lista
-              </button>
-            </div>
-
             {/* Field view */}
             {viewMode === "field" && (
               <FieldView
@@ -556,6 +589,7 @@ export default function Lineup() {
                 captainId={currentLineup.captainPlayerId}
                 coachId={currentLineup.coachPlayerId}
                 onPlayerClick={setFieldClickedPlayer}
+                onReserveClick={handleReserveSwapRequest}
               />
             )}
 
@@ -750,32 +784,44 @@ export default function Lineup() {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 mt-2">
-                <Button
-                  variant="default"
-                  className="flex-1 rounded-xl"
-                  onClick={() => {
-                    setFieldClickedPlayer(null);
-                    handleSwapRequest(p);
-                  }}
-                >
-                  <ArrowLeftRight className="w-4 h-4 mr-2" />
-                  Trocar jogador
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-xl px-4"
-                  onClick={() => setFieldClickedPlayer(null)}
-                >
-                  Fechar
-                </Button>
+              <div className="flex flex-col gap-2 mt-2">
+                {!isCoach && !isCaptain && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
+                    onClick={() => handleSetCaptain(p.playerId!)}
+                  >
+                    <Crown className="w-4 h-4 mr-2" />
+                    Definir como Capitão
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="default"
+                    className="flex-1 rounded-xl"
+                    onClick={() => {
+                      setFieldClickedPlayer(null);
+                      handleSwapRequest(p);
+                    }}
+                  >
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                    Trocar jogador
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl px-4"
+                    onClick={() => setFieldClickedPlayer(null)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
         );
       })()}
 
-      {/* Swap simulator sheet */}
+      {/* Swap simulator — main players */}
       {swapOutPlayer && currentLineup && (
         <SwapSimulator
           isOpen={!!swapOutPlayer}
@@ -784,6 +830,35 @@ export default function Lineup() {
           lineup={currentLineup}
           budget={budget}
           onApply={handleApplySwap}
+        />
+      )}
+
+      {/* Swap simulator — reserves (skip simulation; direct pick) */}
+      {swapOutReserve && currentLineup && (
+        <SwapSimulator
+          isOpen={!!swapOutReserve}
+          onClose={() => setSwapOutReserve(null)}
+          outPlayer={{
+            playerId: swapOutReserve.playerId,
+            name: swapOutReserve.name,
+            nickname: swapOutReserve.nickname,
+            position: swapOutReserve.position,
+            price: swapOutReserve.price,
+            clubAbbr: swapOutReserve.clubAbbr,
+            clubName: swapOutReserve.clubName,
+            clubId: swapOutReserve.clubId,
+            expectedPoints: swapOutReserve.expectedPoints,
+            averagePoints: swapOutReserve.averagePoints,
+            floorPoints: null,
+            ceilingPoints: null,
+            riskScore: null,
+            explanation: null,
+          }}
+          lineup={currentLineup}
+          budget={budget}
+          skipSimulation
+          label={swapOutReserve.isLuxuryReserve ? "Trocar Reserva de Luxo" : "Trocar Reserva"}
+          onApply={(outId, inPlayer) => handleApplyReserveSwap(outId, inPlayer)}
         />
       )}
 

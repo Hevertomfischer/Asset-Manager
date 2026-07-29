@@ -55,6 +55,8 @@ export interface SwapSimulatorProps {
   lineup: LineupSuggestion;
   budget: number;
   onApply: (outId: number, inPlayer: Player, after: LineupMetrics) => void;
+  skipSimulation?: boolean; // para reservas: pula a chamada de simulação
+  label?: string; // override do título "Simular troca"
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -158,6 +160,8 @@ export function SwapSimulator({
   lineup,
   budget,
   onApply,
+  skipSimulation = false,
+  label,
 }: SwapSimulatorProps) {
   const [search, setSearch] = useState("");
   const [phase, setPhase] = useState<"select" | "result">("select");
@@ -235,6 +239,12 @@ export function SwapSimulator({
   });
 
   const handleSelectCandidate = (candidate: Player) => {
+    if (skipSimulation) {
+      setSelectedCandidate(candidate);
+      setSimulateResult({ valid: true, reason: null, before: { expectedPoints: 0, totalRisk: 0, costUsed: 0, differential: 0 }, after: { expectedPoints: 0, totalRisk: 0, costUsed: 0, differential: 0 }, delta: { expectedPoints: 0, totalRisk: 0, cost: 0 } });
+      setPhase("result");
+      return;
+    }
     setSimulatingId(candidate.id ?? null);
     simulateMutation.mutate(candidate);
   };
@@ -279,7 +289,7 @@ export function SwapSimulator({
             </div>
             <div className="min-w-0">
               <SheetTitle className="text-sm leading-tight">
-                Simular troca
+                {label ?? (skipSimulation ? "Trocar reserva" : "Simular troca")}
               </SheetTitle>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Badge
@@ -402,8 +412,8 @@ export function SwapSimulator({
                 </div>
               )}
 
-              {/* Before vs After panel */}
-              {simulateResult.valid && (
+              {/* Before vs After panel — only for full simulation */}
+              {simulateResult.valid && !skipSimulation && (
                 <>
                   <div>
                     <div className="flex items-center gap-2 mb-2">

@@ -151,10 +151,14 @@ function JerseyCard({
 
 // ── ReserveJerseyCard ──────────────────────────────────────────────────────────
 
-function ReserveJerseyCard({ reserve }: { reserve: LineupReservePlayer }) {
+function ReserveJerseyCard({ reserve, onClick }: { reserve: LineupReservePlayer; onClick?: (r: LineupReservePlayer) => void }) {
   const displayName = (reserve.nickname ?? reserve.name ?? "").split(" ")[0]?.slice(0, 9) ?? "";
+  const Wrapper = onClick ? "button" : "div";
   return (
-    <div className="flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 transition-opacity">
+    <Wrapper
+      {...(onClick ? { type: "button" as const, onClick: () => onClick(reserve) } : {})}
+      className={`flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 transition-opacity${onClick ? " cursor-pointer active:scale-95 transition-transform duration-100 focus:outline-none" : ""}`}
+    >
       <div className="relative inline-block">
         {reserve.isLuxuryReserve && (
           <div className="absolute -top-1.5 -right-1 z-10 w-4 h-4 rounded-full bg-purple-400 text-white text-[8px] font-black flex items-center justify-center shadow ring-1 ring-purple-300">
@@ -165,11 +169,11 @@ function ReserveJerseyCard({ reserve }: { reserve: LineupReservePlayer }) {
       </div>
       <div className="bg-black/60 rounded px-1 py-0.5 text-center w-[52px] sm:w-[60px]">
         <p className="text-[9px] sm:text-[10px] font-semibold text-white/80 truncate leading-tight">{displayName}</p>
-        {reserve.expectedPoints != null && (
-          <p className="text-[8px] sm:text-[9px] text-emerald-400/80 font-mono leading-none">{reserve.expectedPoints.toFixed(1)}</p>
+        {reserve.price != null && (
+          <p className="text-[8px] sm:text-[9px] text-yellow-300/80 font-mono leading-none">C${reserve.price.toFixed(2)}</p>
         )}
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -199,9 +203,10 @@ interface FieldViewProps {
   captainId?: number | null;
   coachId?: number | null;
   onPlayerClick?: (player: LineupPlayer) => void;
+  onReserveClick?: (reserve: LineupReservePlayer) => void;
 }
 
-export function FieldView({ players, reserves = [], captainId, coachId, onPlayerClick }: FieldViewProps) {
+export function FieldView({ players, reserves = [], captainId, coachId, onPlayerClick, onReserveClick }: FieldViewProps) {
   const fieldPlayers = players.filter((p) => p.position !== "TEC");
   const coach = players.find((p) => p.position === "TEC" || p.playerId === coachId);
 
@@ -277,7 +282,7 @@ export function FieldView({ players, reserves = [], captainId, coachId, onPlayer
           </p>
           <div className="flex justify-center flex-wrap gap-3">
             {sortedReserves.map((r) => (
-              <ReserveJerseyCard key={r.playerId} reserve={r} />
+              <ReserveJerseyCard key={r.playerId} reserve={r} onClick={onReserveClick} />
             ))}
           </div>
         </div>
