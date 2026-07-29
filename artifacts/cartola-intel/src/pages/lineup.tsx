@@ -3,8 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -676,14 +675,14 @@ export default function Lineup() {
         const playProb = (exp.playProbability ?? 1) * 100;
 
         return (
-          <Sheet open={!!fieldClickedPlayer} onOpenChange={(o) => { if (!o) setFieldClickedPlayer(null); }}>
-            <SheetContent side="bottom" className="rounded-t-2xl max-h-[88dvh] overflow-y-auto pb-safe">
-              <SheetHeader className="mb-4">
+          <Dialog open={!!fieldClickedPlayer} onOpenChange={(o) => { if (!o) setFieldClickedPlayer(null); }}>
+            <DialogContent className="max-w-sm w-full rounded-2xl overflow-y-auto max-h-[85dvh]">
+              <DialogHeader className="mb-2">
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col flex-1 min-w-0">
-                    <SheetTitle className="text-lg leading-tight truncate">
+                    <DialogTitle className="text-lg leading-tight truncate">
                       {p.nickname ?? p.name ?? "Jogador"}
-                    </SheetTitle>
+                    </DialogTitle>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {p.position && (
                         <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
@@ -712,7 +711,7 @@ export default function Lineup() {
                     )}
                   </div>
                 </div>
-              </SheetHeader>
+              </DialogHeader>
 
               {!isCoach && (
                 <>
@@ -785,8 +784,8 @@ export default function Lineup() {
                   Fechar
                 </Button>
               </div>
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
         );
       })()}
 
