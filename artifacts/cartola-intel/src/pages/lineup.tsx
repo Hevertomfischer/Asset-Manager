@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
@@ -454,36 +455,45 @@ export default function Lineup() {
 
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Estratégia</Label>
-              <div className="space-y-1">
-                {strategies.map((s) => {
-                  const isActive = strategy === s.value;
-                  const btn = (
-                    <button
-                      onClick={() => setStrategy(s.value)}
-                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all duration-200 ${
-                        isActive
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-background hover:border-muted-foreground/50"
-                      }`}
-                    >
-                      <s.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className={`text-xs font-semibold flex-1 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-                        {s.label}
-                      </span>
-                      {s.requiresPro && (
-                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
-                          Pro
-                        </span>
-                      )}
-                    </button>
-                  );
-                  return (
-                    <div key={s.value}>
-                      {s.requiresPro ? <ProGate compact>{btn}</ProGate> : btn}
-                    </div>
-                  );
-                })}
-              </div>
+              <TooltipProvider delayDuration={400}>
+                <div className="space-y-1">
+                  {strategies.map((s) => {
+                    const isActive = strategy === s.value;
+                    const btn = (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setStrategy(s.value)}
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all duration-200 ${
+                              isActive
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-background hover:border-muted-foreground/50"
+                            }`}
+                          >
+                            <s.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                            <span className={`text-xs font-semibold flex-1 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                              {s.label}
+                            </span>
+                            {s.requiresPro && (
+                              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
+                                Pro
+                              </span>
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[200px] text-xs">
+                          {s.desc}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                    return (
+                      <div key={s.value}>
+                        {s.requiresPro ? <ProGate compact>{btn}</ProGate> : btn}
+                      </div>
+                    );
+                  })}
+                </div>
+              </TooltipProvider>
             </div>
 
             <Button
