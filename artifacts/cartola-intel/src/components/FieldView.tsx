@@ -14,7 +14,7 @@ import { getClubColors } from "@/lib/clubColors";
 const JERSEY_PNG_CLUBS = new Set([
   "ATH", "ATL", "BAH", "BOT", "BRA", "CFC", "CHA",
   "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
-  "PAL", "REM", "SAO", "VAS", "VIT",
+  "PAL", "REM", "SAN", "SAO", "VAS", "VIT",
 ]);
 
 function getJerseyImageUrl(abbr: string | null | undefined): string | null {
