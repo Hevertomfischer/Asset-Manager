@@ -111,10 +111,6 @@ const WEIGHT_CONFIG: Record<string, { label: string; hint: string }> = {
     label: "Qualidade do Confronto (xG)",
     hint: "Peso da dificuldade do adversário com base em Expected Goals (xG). Depende da disponibilidade dos dados do Footystats.",
   },
-  playProbability: {
-    label: "Probabilidade de Jogar",
-    hint: "Peso da chance do jogador entrar em campo segundo o status no Cartola (Provável, Dúvida, etc.).",
-  },
   homeAdvantage: {
     label: "Vantagem em Casa",
     hint: "Bônus por jogar em casa — times mandantes tendem a pontuar mais. Peso zero anula esse fator.",
@@ -507,7 +503,6 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   overallAverage: 0.3,
   recentForm: 0.35,
   matchup: 0.15,
-  playProbability: 0.15,
   homeAdvantage: 0.05,
 };
 
