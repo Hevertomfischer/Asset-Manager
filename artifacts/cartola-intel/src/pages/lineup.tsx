@@ -183,6 +183,7 @@ export default function Lineup() {
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
   const [swapOutReserve, setSwapOutReserve] = useState<LineupReservePlayer | null>(null);
   const [fieldClickedPlayer, setFieldClickedPlayer] = useState<LineupPlayer | null>(null);
+  const [reserveClickedPlayer, setReserveClickedPlayer] = useState<LineupReservePlayer | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"field" | "list">(() => {
     try { return (localStorage.getItem("lineup_view_mode") as "field" | "list") ?? "field"; }
@@ -273,7 +274,20 @@ export default function Lineup() {
 
   const handleReserveSwapRequest = (reserve: LineupReservePlayer) => {
     if (!isPro) { openPaywall(); return; }
-    setSwapOutReserve(reserve);
+    setReserveClickedPlayer(reserve);
+  };
+
+  const handleSetLuxuryReserve = (playerId: number) => {
+    if (!currentLineup) return;
+    setCurrentLineup({
+      ...currentLineup,
+      reserves: (currentLineup.reserves ?? []).map((r) => ({
+        ...r,
+        isLuxuryReserve: r.playerId === playerId,
+      })),
+    });
+    setReserveClickedPlayer(null);
+    toast({ title: "Reserva de Luxo definido" });
   };
 
   const handleApplyReserveSwap = (outId: number, inPlayer: Player) => {
@@ -832,6 +846,70 @@ export default function Lineup() {
           onApply={handleApplySwap}
         />
       )}
+
+      {/* Reserve click dialog */}
+      {reserveClickedPlayer && (() => {
+        const r = reserveClickedPlayer;
+        const isLuxury = r.isLuxuryReserve ?? false;
+        return (
+          <Dialog open onOpenChange={(open) => { if (!open) setReserveClickedPlayer(null); }}>
+            <DialogContent className="max-w-xs w-full rounded-2xl">
+              <DialogHeader className="mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <DialogTitle className="text-base leading-tight truncate">
+                      {r.nickname ?? r.name ?? "Reserva"}
+                    </DialogTitle>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {r.position && (
+                        <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          {r.position}
+                        </span>
+                      )}
+                      {r.clubAbbr && <span className="text-xs text-muted-foreground">{r.clubAbbr}</span>}
+                      {isLuxury && (
+                        <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                          ★ Reserva de Luxo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {r.price != null && (
+                    <p className="text-xl font-mono font-bold text-foreground shrink-0">
+                      <span className="text-xs font-normal text-muted-foreground mr-0.5">C$</span>{r.price.toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              </DialogHeader>
+              <div className="flex flex-col gap-2">
+                {!isLuxury && (
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
+                    onClick={() => handleSetLuxuryReserve(r.playerId!)}
+                  >
+                    <Star className="w-4 h-4 mr-2" />
+                    Definir como Reserva de Luxo
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="default"
+                    className="flex-1 rounded-xl"
+                    onClick={() => { setReserveClickedPlayer(null); setSwapOutReserve(r); }}
+                  >
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                    Trocar
+                  </Button>
+                  <Button variant="outline" className="rounded-xl px-4" onClick={() => setReserveClickedPlayer(null)}>
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Swap simulator — reserves (skip simulation; direct pick) */}
       {swapOutReserve && currentLineup && (
