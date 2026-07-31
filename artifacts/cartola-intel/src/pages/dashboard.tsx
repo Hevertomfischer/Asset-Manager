@@ -28,7 +28,7 @@ import {
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
 import { PlayerBadges } from "@/components/PlayerCard";
-import { getBadgeUrl } from "@/lib/clubColors";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -74,6 +74,7 @@ function ClubBadge({ club }: { club: MatchClub }) {
         src={getBadgeUrl(club?.abbreviation, club?.badgeUrl)}
         alt={club.name ?? ""}
         className="w-6 h-6 object-contain shrink-0"
+        style={getBadgeScale(club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(club?.abbreviation)})` } : undefined}
         loading="lazy"
       />
     );

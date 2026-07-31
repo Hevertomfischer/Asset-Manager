@@ -19,7 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PlayerCard } from "@/components/PlayerCard";
-import { getBadgeUrl } from "@/lib/clubColors";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 
 type SortColumn =
   | "name"
@@ -381,7 +381,7 @@ export default function Players() {
               </div>
               <div className="flex items-center gap-3">
                 {getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl) && (
-                  <img src={getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" />
+                  <img src={getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" style={getBadgeScale(topDiferencial.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(topDiferencial.club?.abbreviation)})` } : undefined} />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-foreground truncate">{topDiferencial.nickname ?? topDiferencial.name}</p>
@@ -421,7 +421,7 @@ export default function Players() {
               </div>
               <div className="flex items-center gap-3">
                 {getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl) && (
-                  <img src={getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" />
+                  <img src={getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" style={getBadgeScale(topArmadilha.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(topArmadilha.club?.abbreviation)})` } : undefined} />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-foreground truncate">{topArmadilha.nickname ?? topArmadilha.name}</p>
@@ -446,7 +446,7 @@ export default function Players() {
               <div style={{ padding: "14px 20px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
                   {getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl) && (
-                    <img src={getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl)} alt="" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
+                    <img src={getBadgeUrl(topDiferencial.club?.abbreviation, topDiferencial.club?.badgeUrl)} alt="" style={{ width: "36px", height: "36px", objectFit: "contain", ...(getBadgeScale(topDiferencial.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(topDiferencial.club?.abbreviation)})` } : {}) }} />
                   )}
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
@@ -486,7 +486,7 @@ export default function Players() {
               <div style={{ padding: "14px 20px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
                   {getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl) && (
-                    <img src={getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl)} alt="" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
+                    <img src={getBadgeUrl(topArmadilha.club?.abbreviation, topArmadilha.club?.badgeUrl)} alt="" style={{ width: "36px", height: "36px", objectFit: "contain", ...(getBadgeScale(topArmadilha.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(topArmadilha.club?.abbreviation)})` } : {}) }} />
                   )}
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>

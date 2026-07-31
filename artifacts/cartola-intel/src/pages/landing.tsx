@@ -8,7 +8,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getBadgeUrl } from "@/lib/clubColors";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import {
   Activity,
   AlertTriangle,
@@ -79,8 +79,11 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
         </span>
       )}
 
-      <Avatar className="h-12 w-12 border-2 border-border/40 [&_img]:object-contain">
-        <AvatarImage src={getBadgeUrl(player.club.abbreviation, player.club.badgeUrl)} />
+      <Avatar className={`h-12 w-12 border-2 border-border/40 [&_img]:object-contain ${getBadgeScale(player.club.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
+        <AvatarImage
+          src={getBadgeUrl(player.club.abbreviation, player.club.badgeUrl)}
+          style={getBadgeScale(player.club.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club.abbreviation)})` } : undefined}
+        />
         <AvatarFallback className="bg-secondary text-xs font-semibold">
           {player.club.abbreviation?.slice(0, 2) ?? "??"}
         </AvatarFallback>
