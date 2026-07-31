@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Swords, AlertCircle, TrendingUp, TrendingDown, Minus, Shield, Target, Zap } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 
 interface ClubStats {
   offensiveStrength: number;
@@ -116,8 +117,8 @@ function ConfrontoCard({ c }: { c: Confronto }) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {c.homeClub?.badgeUrl && (
-              <img src={c.homeClub.badgeUrl} alt="" className="w-8 h-8 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            {getBadgeUrl(c.homeClub?.abbreviation, c.homeClub?.badgeUrl) && (
+              <img src={getBadgeUrl(c.homeClub?.abbreviation, c.homeClub?.badgeUrl)} alt="" className="w-8 h-8 object-contain shrink-0" style={getBadgeScale(c.homeClub?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(c.homeClub?.abbreviation)})` } : undefined} onError={(e) => { e.currentTarget.style.display = "none"; }} />
             )}
             <div className="min-w-0">
               <p className="font-bold text-sm truncate">{c.homeClub?.name ?? "?"}</p>
@@ -142,8 +143,8 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               <p className="font-bold text-sm truncate">{c.awayClub?.name ?? "?"}</p>
               <p className="text-[10px] text-muted-foreground">Visitante</p>
             </div>
-            {c.awayClub?.badgeUrl && (
-              <img src={c.awayClub.badgeUrl} alt="" className="w-8 h-8 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            {getBadgeUrl(c.awayClub?.abbreviation, c.awayClub?.badgeUrl) && (
+              <img src={getBadgeUrl(c.awayClub?.abbreviation, c.awayClub?.badgeUrl)} alt="" className="w-8 h-8 object-contain shrink-0" style={getBadgeScale(c.awayClub?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(c.awayClub?.abbreviation)})` } : undefined} onError={(e) => { e.currentTarget.style.display = "none"; }} />
             )}
           </div>
         </div>

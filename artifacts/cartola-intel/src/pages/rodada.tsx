@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Zap, AlertTriangle, Trophy, TrendingUp, TrendingDown, Users, Target, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { PublicNav } from "@/components/PublicNav";
 import { Badge } from "@/components/ui/badge";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Button } from "@/components/ui/button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -206,8 +207,8 @@ export default function RodadaPage() {
                       <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Diferencial da rodada</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      {data.topDiferencial.club.badgeUrl && (
-                        <img src={data.topDiferencial.club.badgeUrl} alt="" className="w-10 h-10 object-contain shrink-0" />
+                      {getBadgeUrl(data.topDiferencial.club.abbreviation, data.topDiferencial.club.badgeUrl) && (
+                        <img src={getBadgeUrl(data.topDiferencial.club.abbreviation, data.topDiferencial.club.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" style={getBadgeScale(data.topDiferencial.club.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(data.topDiferencial.club.abbreviation)})` } : undefined} />
                       )}
                       <div className="flex-1 min-w-0">
                         <Link
@@ -243,8 +244,8 @@ export default function RodadaPage() {
                       <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Armadilha da rodada</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      {data.topArmadilha.club.badgeUrl && (
-                        <img src={data.topArmadilha.club.badgeUrl} alt="" className="w-10 h-10 object-contain shrink-0" />
+                      {getBadgeUrl(data.topArmadilha.club.abbreviation, data.topArmadilha.club.badgeUrl) && (
+                        <img src={getBadgeUrl(data.topArmadilha.club.abbreviation, data.topArmadilha.club.badgeUrl)} alt="" className="w-10 h-10 object-contain shrink-0" style={getBadgeScale(data.topArmadilha.club.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(data.topArmadilha.club.abbreviation)})` } : undefined} />
                       )}
                       <div className="flex-1 min-w-0">
                         <Link
@@ -316,8 +317,8 @@ export default function RodadaPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2.5">
-                              {player.club.badgeUrl && (
-                                <img src={player.club.badgeUrl} alt="" className="w-5 h-5 object-contain shrink-0" />
+                              {getBadgeUrl(player.club.abbreviation, player.club.badgeUrl) && (
+                                <img src={getBadgeUrl(player.club.abbreviation, player.club.badgeUrl)} alt="" className="w-5 h-5 object-contain shrink-0" style={getBadgeScale(player.club.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club.abbreviation)})` } : undefined} />
                               )}
                               <div className="min-w-0">
                                 <Link

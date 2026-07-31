@@ -12,6 +12,7 @@ import { usePaywall } from "@/context/PaywallContext";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { PlayerCard, ClubBadge } from "@/components/PlayerCard";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import {
   AreaChart,
   Area,
@@ -763,8 +764,8 @@ export default function Comparar() {
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors text-sm"
                       onMouseDown={() => addPlayer(p.id)}
                     >
-                      {p.club?.badgeUrl && (
-                        <img src={p.club.badgeUrl} alt="" className="w-5 h-5 object-contain shrink-0" />
+                      {getBadgeUrl(p.club?.abbreviation, p.club?.badgeUrl) && (
+                        <img src={getBadgeUrl(p.club?.abbreviation, p.club?.badgeUrl)} alt="" className="w-5 h-5 object-contain shrink-0" style={getBadgeScale(p.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(p.club?.abbreviation)})` } : undefined} />
                       )}
                       <div className="flex-1 min-w-0">
                         <span className="font-medium text-foreground">

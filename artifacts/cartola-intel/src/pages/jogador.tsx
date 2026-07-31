@@ -8,6 +8,7 @@ import {
 import { Zap, AlertTriangle, TrendingUp, TrendingDown, ArrowRight, BarChart2, Target } from "lucide-react";
 import { PublicNav } from "@/components/PublicNav";
 import { Button } from "@/components/ui/button";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -152,11 +153,12 @@ export default function JogadorPage() {
         <div className="border-b border-border/40 bg-card/30">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
             <div className="flex items-center gap-5">
-              {data.player.club.badgeUrl && (
+              {getBadgeUrl(data.player.club.abbreviation, data.player.club.badgeUrl) && (
                 <img
-                  src={data.player.club.badgeUrl}
+                  src={getBadgeUrl(data.player.club.abbreviation, data.player.club.badgeUrl)}
                   alt={data.player.club.abbreviation ?? ""}
                   className="w-14 h-14 sm:w-16 sm:h-16 object-contain shrink-0"
+                  style={getBadgeScale(data.player.club.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(data.player.club.abbreviation)})` } : undefined}
                 />
               )}
               <div className="flex-1 min-w-0">

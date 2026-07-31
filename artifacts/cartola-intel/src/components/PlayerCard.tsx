@@ -30,6 +30,7 @@ import { TrendingUp, TrendingDown, Crown, Star, AlertTriangle } from "lucide-rea
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import type { InsightKind } from "@/lib/explainPlayer";
+import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 
 // ── Badge chip colour map ──────────────────────────────────────────────────────
 // Única fonte de verdade para os chips de insight — importada pelas páginas.
@@ -103,9 +104,13 @@ export function ClubBadge({
   abbr?: string | null;
   className?: string;
 }) {
+  const scale = getBadgeScale(abbr);
   return (
     <Avatar className={`border border-border/30 shrink-0 [&_img]:object-contain ${className}`}>
-      <AvatarImage src={url ?? undefined} />
+      <AvatarImage
+        src={getBadgeUrl(abbr, url) ?? undefined}
+        style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
+      />
       <AvatarFallback className="bg-secondary text-[10px] font-semibold">
         {abbr?.slice(0, 2) ?? "??"}
       </AvatarFallback>
@@ -266,7 +271,7 @@ export function PlayerCard({
             </div>
           )}
           <Avatar className="w-10 h-10 border border-white/10">
-            <AvatarImage src={player.club?.badgeUrl ?? undefined} />
+            <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
             <AvatarFallback className="bg-white/10 text-xs">
               {player.club?.abbreviation ?? "??"}
             </AvatarFallback>
@@ -298,7 +303,7 @@ export function PlayerCard({
     return (
       <>
         <Avatar className="w-8 h-8 border border-border shrink-0">
-          <AvatarImage src={player.club?.badgeUrl ?? undefined} />
+          <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
           <AvatarFallback className="bg-secondary text-[10px]">
             {player.club?.abbreviation?.slice(0, 2) ?? "??"}
           </AvatarFallback>
@@ -336,7 +341,7 @@ export function PlayerCard({
     return (
       <div className={`text-center ${className}`} onClick={onClick}>
         <Avatar className="w-8 h-8 mx-auto mb-2 border border-border/30 [&_img]:object-contain">
-          <AvatarImage src={player.club?.badgeUrl ?? undefined} />
+          <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
           <AvatarFallback className="bg-secondary text-xs font-semibold">
             {player.club?.abbreviation?.slice(0, 2) ?? "??"}
           </AvatarFallback>
@@ -444,7 +449,7 @@ export function PlayerCard({
       onClick={onClick}
     >
       <Avatar className="w-9 h-9 border border-border shrink-0">
-        <AvatarImage src={player.club?.badgeUrl ?? undefined} />
+        <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
         <AvatarFallback className="bg-secondary text-xs">
           {player.club?.abbreviation ?? "??"}
         </AvatarFallback>

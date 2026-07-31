@@ -67,6 +67,10 @@ export const CLUB_COLORS: Record<string, ClubColors> = {
   FOR: { primary: "#CC1212", secondary: "#003087", text: "#FFFFFF" },
   // Santos — branco e preto
   SAN: { primary: "#F5F5F5", secondary: "#1A1A1A", text: "#1A1A1A" },
+  // Atlético-MG alias (API retorna "CAM", mapa usa "ATL")
+  CAM: { primary: "#1A1A1A", secondary: "#FFFFFF", text: "#FFFFFF" },
+  // Red Bull Bragantino alias
+  RBB: { primary: "#CC1212", secondary: "#FFFFFF", text: "#FFFFFF" },
 };
 
 const DEFAULT_COLORS: ClubColors = { primary: "#1e3a5f", secondary: "#4a90e2", text: "#FFFFFF" };
@@ -74,4 +78,41 @@ const DEFAULT_COLORS: ClubColors = { primary: "#1e3a5f", secondary: "#4a90e2", t
 export function getClubColors(abbr: string | null | undefined): ClubColors {
   if (!abbr) return DEFAULT_COLORS;
   return CLUB_COLORS[abbr.toUpperCase()] ?? DEFAULT_COLORS;
+}
+
+/**
+ * Overrides locais de badge — usados quando a imagem da API é inviável
+ * (fundo branco transparente, URL quebrada, etc.).
+ * Paths relativos ao /public da aplicação.
+ */
+export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
+  SAN: "/badges/SAN.png",
+};
+
+/**
+ * Scale overrides — aplicados via CSS transform quando o logo do clube
+ * é visualmente menor que os demais dentro do frame padrão 60x60.
+ */
+export const CLUB_BADGE_SCALE: Record<string, number> = {
+  CHA: 1.5,
+};
+
+/**
+ * Retorna a URL do badge a usar, priorizando override local sobre a URL da API.
+ */
+export function getBadgeUrl(
+  abbr: string | null | undefined,
+  apiUrl: string | null | undefined,
+): string | undefined {
+  const key = abbr?.toUpperCase();
+  if (key && CLUB_BADGE_OVERRIDES[key]) return CLUB_BADGE_OVERRIDES[key];
+  return apiUrl ?? undefined;
+}
+
+/**
+ * Retorna o fator de scale CSS a aplicar na imagem do badge (padrão 1).
+ */
+export function getBadgeScale(abbr: string | null | undefined): number {
+  const key = abbr?.toUpperCase();
+  return (key && CLUB_BADGE_SCALE[key]) ?? 1;
 }
