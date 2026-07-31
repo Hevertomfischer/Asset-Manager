@@ -5,9 +5,9 @@ description: Where club badge/jersey images live in cartola-intel and how to pro
 
 # Club badge assets
 
-- Badges are served from TWO directories in `artifacts/cartola-intel/public/`:
-  - `badges/{ABBR}.png` — used by `getBadgeUrl()` overrides (`CLUB_BADGE_OVERRIDES` in `lib/clubColors.ts`) for cards/tables/pages.
-  - `jerseys/{ABBR}.png` — used by FieldView (pitch view), gated by the `JERSEY_PNG_CLUBS` allowlist inside `FieldView.tsx`. New clubs must be added to that set or the SVG fallback renders.
+- USER DECISION: AI-generated stylized jersey-shield images are used ONLY in the field view (escalação + reservas), served from `public/jerseys/{ABBR}.png`, gated by the `JERSEY_PNG_CLUBS` allowlist in `FieldView.tsx`. New clubs must be added to that set or the SVG fallback renders.
+- Cards, tables, and pages must use the official Globo CDN crest (`club.badgeUrl` from the API). `CLUB_BADGE_OVERRIDES`/`CLUB_BADGE_SCALE` in `lib/clubColors.ts` are intentionally EMPTY — do not re-add jersey images there; the user rejected mixing them into player lists.
+- `public/badges/` holds the processed 1024px sources; `jerseys/` holds 240px derivatives.
 - Override paths are relative (no leading slash) and prefixed with `import.meta.env.BASE_URL` — root-relative paths 404 under the `/cartola-intel` sub-path.
 
 ## Processing uploaded AI badge images

@@ -86,23 +86,16 @@ export function getClubColors(abbr: string | null | undefined): ClubColors {
  * Paths relativos ao /public da aplicação.
  */
 // Paths relativos (sem barra inicial) — prefixados com BASE_URL em getBadgeUrl
-export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
-  SAN: "badges/SAN.png",
-  CAM: "badges/CAM.png",
-  CAP: "badges/CAP.png",
-  CHA: "badges/CHA.png",
-};
+// Vazio: as imagens em public/badges são camisas estilizadas usadas SOMENTE
+// na vista de campo (FieldView, via public/jerseys). Cards e listas usam o
+// escudo oficial vindo da API (badgeUrl).
+export const CLUB_BADGE_OVERRIDES: Record<string, string> = {};
 
 /**
  * Scale overrides — aplicados via CSS transform quando o logo do clube
  * é visualmente menor que os demais dentro do frame padrão 60x60.
  */
-export const CLUB_BADGE_SCALE: Record<string, number> = {
-  CHA: 1.5,
-  CAP: 1.5,
-  CAM: 1.5,
-  SAN: 1.5,
-};
+export const CLUB_BADGE_SCALE: Record<string, number> = {};
 
 /**
  * Retorna a URL do badge a usar, priorizando override local sobre a URL da API.
