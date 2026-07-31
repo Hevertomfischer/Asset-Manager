@@ -91,11 +91,11 @@ export function getClubColors(abbr: string | null | undefined): ClubColors {
  * Usada na vista de campo E nos cards/listas de jogadores (decisão do usuário).
  * Incrementar JERSEY_VERSION quando os PNGs mudarem (cache-buster).
  */
-export const JERSEY_VERSION = 2;
+export const JERSEY_VERSION = 3;
 export const JERSEY_PNG_CLUBS = new Set([
-  "ATH", "ATL", "BAH", "BOT", "BRA", "CAM", "CAP", "CFC", "CHA",
+  "ATH", "ATL", "BAH", "BOT", "CAM", "CAP", "CFC", "CHA",
   "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
-  "PAL", "REM", "SAN", "SAO", "VAS", "VIT",
+  "PAL", "RBB", "REM", "SAN", "SAO", "VAS", "VIT",
 ]);
 
 export const CLUB_BADGE_OVERRIDES: Record<string, string> = Object.fromEntries(
