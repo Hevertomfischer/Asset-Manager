@@ -7,22 +7,13 @@
  */
 
 import type { LineupPlayer, LineupReservePlayer } from "@workspace/api-client-react";
-import { getClubColors } from "@/lib/clubColors";
-
-// ── Clubes com imagem PNG disponível ────────────────────────────────────────
-
-const JERSEY_PNG_CLUBS = new Set([
-  "ATH", "ATL", "BAH", "BOT", "BRA", "CAM", "CAP", "CFC", "CHA",
-  "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
-  "PAL", "REM", "SAN", "SAO", "VAS", "VIT",
-]);
+import { getClubColors, JERSEY_PNG_CLUBS, JERSEY_VERSION } from "@/lib/clubColors";
 
 function getJerseyImageUrl(abbr: string | null | undefined): string | null {
   if (!abbr) return null;
   const key = abbr.toUpperCase();
   if (!JERSEY_PNG_CLUBS.has(key)) return null;
-  // ?v=N — cache-buster: incrementar quando os PNGs em public/jerseys mudarem
-  return `${import.meta.env.BASE_URL}jerseys/${key}.png?v=2`;
+  return `${import.meta.env.BASE_URL}jerseys/${key}.png?v=${JERSEY_VERSION}`;
 }
 
 // ── Jersey — imagem real ou SVG fallback ──────────────────────────────────────

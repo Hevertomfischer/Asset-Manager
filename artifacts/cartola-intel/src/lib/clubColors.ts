@@ -86,10 +86,21 @@ export function getClubColors(abbr: string | null | undefined): ClubColors {
  * Paths relativos ao /public da aplicação.
  */
 // Paths relativos (sem barra inicial) — prefixados com BASE_URL em getBadgeUrl
-// Vazio: as imagens em public/badges são camisas estilizadas usadas SOMENTE
-// na vista de campo (FieldView, via public/jerseys). Cards e listas usam o
-// escudo oficial vindo da API (badgeUrl).
-export const CLUB_BADGE_OVERRIDES: Record<string, string> = {};
+/**
+ * Clubes com camisa estilizada em public/jerseys/{ABBR}.png.
+ * Usada na vista de campo E nos cards/listas de jogadores (decisão do usuário).
+ * Incrementar JERSEY_VERSION quando os PNGs mudarem (cache-buster).
+ */
+export const JERSEY_VERSION = 2;
+export const JERSEY_PNG_CLUBS = new Set([
+  "ATH", "ATL", "BAH", "BOT", "BRA", "CAM", "CAP", "CFC", "CHA",
+  "COR", "CRU", "FLA", "FLU", "GRE", "INT", "MIR",
+  "PAL", "REM", "SAN", "SAO", "VAS", "VIT",
+]);
+
+export const CLUB_BADGE_OVERRIDES: Record<string, string> = Object.fromEntries(
+  [...JERSEY_PNG_CLUBS].map((abbr) => [abbr, `jerseys/${abbr}.png?v=${JERSEY_VERSION}`]),
+);
 
 /**
  * Scale overrides — aplicados via CSS transform quando o logo do clube
