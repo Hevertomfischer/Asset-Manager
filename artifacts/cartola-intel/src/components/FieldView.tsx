@@ -21,7 +21,8 @@ function getJerseyImageUrl(abbr: string | null | undefined): string | null {
   if (!abbr) return null;
   const key = abbr.toUpperCase();
   if (!JERSEY_PNG_CLUBS.has(key)) return null;
-  return `${import.meta.env.BASE_URL}jerseys/${key}.png`;
+  // ?v=N — cache-buster: incrementar quando os PNGs em public/jerseys mudarem
+  return `${import.meta.env.BASE_URL}jerseys/${key}.png?v=2`;
 }
 
 // ── Jersey — imagem real ou SVG fallback ──────────────────────────────────────
