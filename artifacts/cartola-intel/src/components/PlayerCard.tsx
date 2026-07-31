@@ -106,7 +106,7 @@ export function ClubBadge({
 }) {
   const scale = getBadgeScale(abbr);
   return (
-    <Avatar className={`border border-border/30 shrink-0 [&_img]:object-contain ${className}`}>
+    <Avatar className={`border border-border/30 shrink-0 [&_img]:object-contain bg-white/10 ${scale !== 1 ? "overflow-visible" : ""} ${className}`}>
       <AvatarImage
         src={getBadgeUrl(abbr, url) ?? undefined}
         style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
@@ -270,7 +270,7 @@ export function PlayerCard({
               C
             </div>
           )}
-          <Avatar className="w-10 h-10 border border-white/10">
+          <Avatar className={`w-10 h-10 border border-white/10 bg-white/10 [&_img]:object-contain ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
             <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
             <AvatarFallback className="bg-white/10 text-xs">
               {player.club?.abbreviation ?? "??"}
@@ -302,7 +302,7 @@ export function PlayerCard({
   if (variant === "swap") {
     return (
       <>
-        <Avatar className="w-8 h-8 border border-border shrink-0">
+        <Avatar className={`w-8 h-8 border border-border shrink-0 bg-white/10 [&_img]:object-contain ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
           <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
           <AvatarFallback className="bg-secondary text-[10px]">
             {player.club?.abbreviation?.slice(0, 2) ?? "??"}
@@ -340,7 +340,7 @@ export function PlayerCard({
   if (variant === "compare") {
     return (
       <div className={`text-center ${className}`} onClick={onClick}>
-        <Avatar className="w-8 h-8 mx-auto mb-2 border border-border/30 [&_img]:object-contain">
+        <Avatar className={`w-8 h-8 mx-auto mb-2 border border-border/30 [&_img]:object-contain bg-white/10 ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
           <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
           <AvatarFallback className="bg-secondary text-xs font-semibold">
             {player.club?.abbreviation?.slice(0, 2) ?? "??"}
@@ -448,7 +448,7 @@ export function PlayerCard({
       className={`flex items-center gap-3 ${onClick ? "cursor-pointer" : ""} ${className}`}
       onClick={onClick}
     >
-      <Avatar className="w-9 h-9 border border-border shrink-0">
+      <Avatar className={`w-9 h-9 border border-border shrink-0 bg-white/10 [&_img]:object-contain ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
         <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
         <AvatarFallback className="bg-secondary text-xs">
           {player.club?.abbreviation ?? "??"}

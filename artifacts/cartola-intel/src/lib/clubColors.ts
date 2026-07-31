@@ -85,8 +85,9 @@ export function getClubColors(abbr: string | null | undefined): ClubColors {
  * (fundo branco transparente, URL quebrada, etc.).
  * Paths relativos ao /public da aplicação.
  */
+// Paths relativos (sem barra inicial) — prefixados com BASE_URL em getBadgeUrl
 export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
-  SAN: "/badges/SAN.png",
+  SAN: "badges/SAN.png",
 };
 
 /**
@@ -94,7 +95,7 @@ export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
  * é visualmente menor que os demais dentro do frame padrão 60x60.
  */
 export const CLUB_BADGE_SCALE: Record<string, number> = {
-  CHA: 1.5,
+  CHA: 2.0,
 };
 
 /**
@@ -105,7 +106,13 @@ export function getBadgeUrl(
   apiUrl: string | null | undefined,
 ): string | undefined {
   const key = abbr?.toUpperCase();
-  if (key && CLUB_BADGE_OVERRIDES[key]) return CLUB_BADGE_OVERRIDES[key];
+  if (key && CLUB_BADGE_OVERRIDES[key]) {
+    // Prefixar com BASE_URL para funcionar em qualquer sub-path (ex: /cartola-intel/)
+    const base = import.meta.env.BASE_URL ?? "/";
+    return base.endsWith("/")
+      ? base + CLUB_BADGE_OVERRIDES[key]
+      : base + "/" + CLUB_BADGE_OVERRIDES[key];
+  }
   return apiUrl ?? undefined;
 }
 
