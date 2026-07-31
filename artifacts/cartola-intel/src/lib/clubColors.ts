@@ -88,15 +88,16 @@ export function getClubColors(abbr: string | null | undefined): ClubColors {
 // Paths relativos (sem barra inicial) — prefixados com BASE_URL em getBadgeUrl
 export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
   SAN: "badges/SAN.png",
+  CAM: "badges/CAM.png",
+  CAP: "badges/CAP.png",
+  CHA: "badges/CHA.png",
 };
 
 /**
  * Scale overrides — aplicados via CSS transform quando o logo do clube
  * é visualmente menor que os demais dentro do frame padrão 60x60.
  */
-export const CLUB_BADGE_SCALE: Record<string, number> = {
-  CHA: 2.0,
-};
+export const CLUB_BADGE_SCALE: Record<string, number> = {};
 
 /**
  * Retorna a URL do badge a usar, priorizando override local sobre a URL da API.
