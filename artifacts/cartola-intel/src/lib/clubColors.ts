@@ -99,6 +99,9 @@ export const CLUB_BADGE_OVERRIDES: Record<string, string> = {
  */
 export const CLUB_BADGE_SCALE: Record<string, number> = {
   CHA: 1.5,
+  CAP: 1.5,
+  CAM: 1.5,
+  SAN: 1.5,
 };
 
 /**
@@ -124,5 +127,5 @@ export function getBadgeUrl(
  */
 export function getBadgeScale(abbr: string | null | undefined): number {
   const key = abbr?.toUpperCase();
-  return (key && CLUB_BADGE_SCALE[key]) ?? 1;
+  return (key ? CLUB_BADGE_SCALE[key] : undefined) ?? 1;
 }

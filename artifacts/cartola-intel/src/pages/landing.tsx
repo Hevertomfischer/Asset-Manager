@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { getBadgeUrl } from "@/lib/clubColors";
 import {
   Activity,
   AlertTriangle,
@@ -79,7 +80,7 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
       )}
 
       <Avatar className="h-12 w-12 border-2 border-border/40 [&_img]:object-contain">
-        <AvatarImage src={player.club.badgeUrl ?? undefined} />
+        <AvatarImage src={getBadgeUrl(player.club.abbreviation, player.club.badgeUrl)} />
         <AvatarFallback className="bg-secondary text-xs font-semibold">
           {player.club.abbreviation?.slice(0, 2) ?? "??"}
         </AvatarFallback>
