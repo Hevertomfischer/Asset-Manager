@@ -55,6 +55,14 @@ function greedyBaseline(candidates: IlpCandidate[], constraints: IlpConstraints)
       if (oppId !== undefined) {
         const oppPosKey = `${oppId}_${c.position}`;
         if ((clubPosCount.get(oppPosKey) ?? 0) > 0) continue;
+
+        // Cross constraint: ATA blocks opposing GOL/ZAG/LAT and vice versa
+        const DEF = ["GOL", "ZAG", "LAT"];
+        if (c.position === "ATA") {
+          if (DEF.some((p) => (clubPosCount.get(`${oppId}_${p}`) ?? 0) > 0)) continue;
+        } else if (DEF.includes(c.position)) {
+          if ((clubPosCount.get(`${oppId}_ATA`) ?? 0) > 0) continue;
+        }
       }
 
       if (totalCost + c.price > budgetLimit) continue;
@@ -221,6 +229,98 @@ describe("ILP Optimizer — solveLineupILP", () => {
 
     // Must NOT have both ZAGs from the same match
     expect(hasZagClub10 && hasZagClub11).toBe(false);
+  });
+
+  test("cross constraint prevents ATA + opposing defender; keeps higher-score side", () => {
+    // Clubs 10 vs 11 play each other. ATA of 10 (score 9) conflicts with
+    // ZAG of 11 (score 8). Alternatives exist from unrelated clubs.
+    const opponentMap = new Map([[10, 11], [11, 10]]);
+    const candidates: IlpCandidate[] = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 14, score: 5, price: 8 }),
+      makeCandidate({ id: 2, position: "ATA", clubId: 10, score: 9, price: 10 }),
+      makeCandidate({ id: 3, position: "ZAG", clubId: 11, score: 8, price: 8 }), // opposing defender
+      makeCandidate({ id: 4, position: "ZAG", clubId: 12, score: 4, price: 7 }), // fallback ZAG
+      makeCandidate({ id: 5, position: "ATA", clubId: 13, score: 3, price: 9 }), // fallback ATA
+      makeCandidate({ id: 6, position: "TEC", clubId: 15, score: 3, price: 5, isFieldPlayer: false }),
+    ];
+    const constraints: IlpConstraints = {
+      slots: [
+        { position: "GOL", count: 1 },
+        { position: "ZAG", count: 1 },
+        { position: "ATA", count: 1 },
+        { position: "TEC", count: 1 },
+      ],
+      budgetLimit: 100,
+      maxPlayersPerClub: 5,
+      opponentMap,
+    };
+
+    const result = solveLineupILP(candidates, constraints);
+    expect(result.feasible).toBe(true);
+
+    const hasAta10 = result.selectedIds.has(2);
+    const hasZag11 = result.selectedIds.has(3);
+    // Never both sides of the matchup
+    expect(hasAta10 && hasZag11).toBe(false);
+    // Objective picks the higher-score combination: ATA(9)+fallback ZAG(4)=13
+    // beats ZAG(8)+fallback ATA(3)=11.
+    expect(hasAta10).toBe(true);
+    expect(result.selectedIds.has(4)).toBe(true);
+  });
+
+  test("cross constraint allows ATA + defenders of the SAME club", () => {
+    const opponentMap = new Map([[10, 11], [11, 10]]);
+    const candidates: IlpCandidate[] = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 10, score: 7, price: 8 }),
+      makeCandidate({ id: 2, position: "ZAG", clubId: 10, score: 6, price: 8 }),
+      makeCandidate({ id: 3, position: "ATA", clubId: 10, score: 9, price: 10 }),
+      makeCandidate({ id: 4, position: "TEC", clubId: 12, score: 3, price: 5, isFieldPlayer: false }),
+    ];
+    const constraints: IlpConstraints = {
+      slots: [
+        { position: "GOL", count: 1 },
+        { position: "ZAG", count: 1 },
+        { position: "ATA", count: 1 },
+        { position: "TEC", count: 1 },
+      ],
+      budgetLimit: 100,
+      maxPlayersPerClub: 5,
+      opponentMap,
+    };
+
+    const result = solveLineupILP(candidates, constraints);
+    expect(result.feasible).toBe(true);
+    // ATA + GOL + ZAG all from club 10 is allowed (same team, no conflict)
+    expect(result.selectedIds.has(1)).toBe(true);
+    expect(result.selectedIds.has(2)).toBe(true);
+    expect(result.selectedIds.has(3)).toBe(true);
+  });
+
+  test("cross constraint does not apply when clubs are not opponents", () => {
+    // No match between 10 and 11 this round (e.g. postponed → not in opponentMap)
+    const opponentMap = new Map<number, number>();
+    const candidates: IlpCandidate[] = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 12, score: 5, price: 8 }),
+      makeCandidate({ id: 2, position: "ATA", clubId: 10, score: 9, price: 10 }),
+      makeCandidate({ id: 3, position: "ZAG", clubId: 11, score: 8, price: 8 }),
+      makeCandidate({ id: 4, position: "TEC", clubId: 13, score: 3, price: 5, isFieldPlayer: false }),
+    ];
+    const constraints: IlpConstraints = {
+      slots: [
+        { position: "GOL", count: 1 },
+        { position: "ZAG", count: 1 },
+        { position: "ATA", count: 1 },
+        { position: "TEC", count: 1 },
+      ],
+      budgetLimit: 100,
+      maxPlayersPerClub: 5,
+      opponentMap,
+    };
+
+    const result = solveLineupILP(candidates, constraints);
+    expect(result.feasible).toBe(true);
+    expect(result.selectedIds.has(2)).toBe(true);
+    expect(result.selectedIds.has(3)).toBe(true);
   });
 
   test("captain eligibility: eligible players (gamesPlayed ≥ 3) preferred as captain", () => {

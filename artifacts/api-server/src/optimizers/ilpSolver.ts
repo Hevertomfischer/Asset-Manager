@@ -61,6 +61,9 @@ const TOP_BY_SCORE = 25;
 const CHEAP_BUFFER = 5;
 
 const CAPTAIN_EPSILON = 1e-3;
+
+/** Positions blocked from pairing with an opposing ATA (cross-matchup rule). */
+const DEFENSIVE_POSITIONS = new Set(["GOL", "ZAG", "LAT"]);
 const CAPTAIN_ELIGIBILITY_BONUS = 1_000_000;
 export const CAPTAIN_MIN_GAMES = 3;
 
@@ -205,6 +208,25 @@ export function solveLineupILP(
     for (const pos of posSet) {
       modelConstraints[`opp_${pairKey}_${pos}`] = { max: 1 };
     }
+
+    // Cross-position: an ATA must not be paired with a defender (GOL/ZAG/LAT)
+    // from the opposing club. One directional row per attacking side:
+    //   3·Σ(ATA of attackClub) + Σ(defenders of otherClub) ≤ 3
+    // Since clubpos caps ATA at 1 per club and defenders at 3 per club
+    // (1 GOL + 1 ZAG + 1 LAT), selecting an ATA forces opposing defenders to 0,
+    // while defenders alone remain unconstrained.
+    for (const [attackClub, defendClub] of [
+      [clubA, clubB],
+      [clubB, clubA],
+    ]) {
+      const hasAta = filtered.some((c) => c.clubId === attackClub && c.position === "ATA");
+      const hasDef = filtered.some(
+        (c) => c.clubId === defendClub && DEFENSIVE_POSITIONS.has(c.position)
+      );
+      if (hasAta && hasDef) {
+        modelConstraints[`oppcross_${pairKey}_${attackClub}`] = { max: 3 };
+      }
+    }
   }
 
   // ── Variables ─────────────────────────────────────────────────────────────
@@ -232,6 +254,15 @@ export function solveLineupILP(
       const pairKey = `${Math.min(c.clubId, oppId)}_${Math.max(c.clubId, oppId)}`;
       const oppKey = `opp_${pairKey}_${c.position}`;
       if (modelConstraints[oppKey]) varX[oppKey] = 1;
+
+      // Cross-position ATA × opposing-defense contribution
+      if (c.position === "ATA") {
+        const crossKey = `oppcross_${pairKey}_${c.clubId}`;
+        if (modelConstraints[crossKey]) varX[crossKey] = 3;
+      } else if (DEFENSIVE_POSITIONS.has(c.position)) {
+        const crossKey = `oppcross_${pairKey}_${oppId}`;
+        if (modelConstraints[crossKey]) varX[crossKey] = 1;
+      }
     }
 
     // c_i ≤ x_i encoded as c_i − x_i ≤ 0 via shared row `cx_{id}`
