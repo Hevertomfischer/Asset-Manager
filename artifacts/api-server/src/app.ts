@@ -8,6 +8,7 @@ import passport from "passport";
 import cors from "cors";
 import { eq, sql as drizzleSql } from "drizzle-orm";
 import router from "./routes";
+import mcpRouter from "./routes/mcp";
 import { configurePassport } from "./auth/passport";
 import { attachUser } from "./middlewares/attachUser";
 import { startSyncJob } from "./jobs/syncJob";
@@ -68,6 +69,9 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   rootLogger.debug(`${req.method} ${req.path}`);
   next();
 });
+
+// ── MCP HTTP endpoint (Streamable HTTP Transport) ────────────────────────────
+app.use(mcpRouter);
 
 app.use("/api", router);
 
