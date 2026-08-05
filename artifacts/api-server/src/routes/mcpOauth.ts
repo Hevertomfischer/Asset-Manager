@@ -374,7 +374,7 @@ mcpOauthRouter.post("/authorize", async (req: Request, res: Response) => {
 
 mcpOauthRouter.post("/token", async (req: Request, res: Response) => {
   // Aceita application/json E application/x-www-form-urlencoded
-  const body = req.body as Record<string, string | undefined>;
+  const body = (req.body ?? {}) as Record<string, string | undefined>;
 
   const { grant_type, code, redirect_uri, code_verifier } = body;
 
