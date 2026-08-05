@@ -27,7 +27,7 @@ Edite `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) ou
   "mcpServers": {
     "mitometro": {
       "type": "http",
-      "url": "https://SEU_DOMINIO_PUBLICADO/mcp"
+      "url": "https://SEU_DOMINIO_PUBLICADO/api/mcp"
     }
   }
 }
@@ -44,7 +44,7 @@ Se o servidor exigir token (variável `MCP_ACCESS_TOKEN` definida no deploy), ad
   "mcpServers": {
     "mitometro": {
       "type": "http",
-      "url": "https://SEU_DOMINIO_PUBLICADO/mcp",
+      "url": "https://SEU_DOMINIO_PUBLICADO/api/mcp",
       "headers": {
         "Authorization": "Bearer SEU_TOKEN"
       }

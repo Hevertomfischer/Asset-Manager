@@ -16,6 +16,7 @@ import statsRouter from "./stats";
 import syncRouter from "./sync";
 import userTeamsRouter from "./userTeams";
 import feedbackRouter from "./feedback";
+import mcpRouter from "./mcp";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
@@ -36,6 +37,7 @@ router.use(lineupRouter);
 router.use(historyRouter);
 router.use(userTeamsRouter);
 router.use(feedbackRouter);
+router.use(mcpRouter);
 router.use(adminAuthMiddleware, adminRouter);
 
 export default router;
