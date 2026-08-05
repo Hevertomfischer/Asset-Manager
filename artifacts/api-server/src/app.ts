@@ -8,6 +8,8 @@ import passport from "passport";
 import cors from "cors";
 import { eq, sql as drizzleSql } from "drizzle-orm";
 import router from "./routes";
+import mcpOauthRouter from "./routes/mcpOauth";
+import { verifyInternalUserId } from "./lib/mcpInternalAuth";
 import { configurePassport } from "./auth/passport";
 import { attachUser } from "./middlewares/attachUser";
 import { startSyncJob } from "./jobs/syncJob";
@@ -69,12 +71,50 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
+// ── Middleware: propaga identidade de usuário OAuth em chamadas internas do MCP ─
+// Chamadas internas do endpoint /api/mcp incluem X-Mcp-Internal-User assinado
+// quando o usuário autenticou via OAuth (sem cookie de sessão). Este middleware
+// verifica a assinatura HMAC e cria req.user sintético (session: false) para que
+// middlewares como requirePro funcionem normalmente.
+// Apenas requests de localhost com assinatura válida são aceitos.
+app.use("/api", async (req: Request, _res: Response, next: NextFunction) => {
+  const internalHeader = req.headers["x-mcp-internal-user"] as string | undefined;
+  if (internalHeader && !req.isAuthenticated()) {
+    // Só aceita de loopback — rejeita silenciosamente de qualquer outra origem
+    const remoteIp = (req.ip ?? req.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
+    const isLoopback = remoteIp === "127.0.0.1" || remoteIp === "::1" || remoteIp === "localhost";
+    if (isLoopback) {
+      const userId = verifyInternalUserId(internalHeader);
+      if (userId) {
+        try {
+          const [user] = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.id, userId))
+            .limit(1);
+          if (user) {
+            req.logIn(user, { session: false }, next);
+            return;
+          }
+        } catch {
+          // fall through — sem autenticação sintética se o DB falhar
+        }
+      }
+    }
+  }
+  next();
+});
+
 app.use("/api", router);
 
 // ── 404 para rotas /api/* não tratadas ────────────────────────────────────────
 app.use("/api", (_req: Request, res: Response) => {
   res.status(404).json({ error: "Not found" });
 });
+
+// ── OAuth 2.0 AS para MCP (montado ANTES do SPA fallback) ────────────────────
+// Endpoints: /.well-known/oauth-authorization-server, /authorize, /token
+app.use(mcpOauthRouter);
 
 // ── Frontend estático (build do Vite) ────────────────────────────────────────
 // Em dev sem build, o bloco inteiro é pulado e o Vite dev server toma conta.

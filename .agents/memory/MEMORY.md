@@ -7,3 +7,4 @@
 - [Prod DB separate; mutating prod](prod-db-and-admin-writes.md) — dev and prod are SEPARATE Postgres DBs; prod executeSql is read-only; mutate prod via deployed API; never put secrets in setEnvVars(production) — it lands plaintext in .replit.
 - [Club badge assets](club-badge-assets.md) — stylized jersey images ONLY in FieldView (public/jerseys + allowlist); cards use official API badgeUrl; AI uploads need floodfill + alpha-threshold bbox crop.
 - [Public pages pattern](public-pages-seo.md) — /rodada/:n and /jogador/:slug are standalone (no AppLayout); slug format is "name-id" (playerSlug fn in stats.ts); ogInjector has createDynamicOgMiddleware for prefix patterns; sitemap is async via getSitemapData().
+- [MCP OAuth 2.0 AS](mcp-oauth-server.md) — OAuth AS para MCP montado fora de /api; session.mcpOauthPending preserva params OAuth através do Google login; 401 com resource_metadata faz Claude descobrir o AS automaticamente.

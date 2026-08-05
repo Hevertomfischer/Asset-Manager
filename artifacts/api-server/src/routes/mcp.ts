@@ -21,6 +21,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { createLogger } from "../lib/logger";
+import { validateMcpBearerToken } from "./mcpOauth";
+import { signInternalUserId } from "../lib/mcpInternalAuth";
 
 const log = createLogger("mcp-http");
 
@@ -63,13 +65,19 @@ function internalApiBase(): string {
 async function callApi<T>(
   path: string,
   sessionCookie: string | undefined,
+  mcpUserId?: number,
   init?: RequestInit,
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (sessionCookie) headers["Cookie"] = `connect.sid=${sessionCookie}`;
+  if (sessionCookie) {
+    headers["Cookie"] = `connect.sid=${sessionCookie}`;
+  } else if (mcpUserId) {
+    // Propagação interna de identidade para requests sem cookie de sessão
+    headers["X-Mcp-Internal-User"] = signInternalUserId(mcpUserId);
+  }
 
   const url = `${internalApiBase()}${path}`;
   const res = await fetch(url, { ...init, headers });
@@ -101,8 +109,13 @@ function fail(err: unknown) {
 
 const POSITIONS = ["GOL", "ZAG", "LAT", "MEI", "ATA", "TEC"] as const;
 
-function buildMcpServer(sessionCookie: string | undefined): McpServer {
+function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): McpServer {
   const server = new McpServer({ name: "mitometro", version: "0.1.0" });
+
+  // Closure que injeta automaticamente identidade (sessionCookie OU mcpUserId) em
+  // todas as chamadas internas à API — garante que Pro checks funcionam via OAuth.
+  const api = <T>(path: string, init?: RequestInit): Promise<T> =>
+    callApi<T>(path, sessionCookie, mcpUserId, init);
 
   // ── get_round_projections ───────────────────────────────────────────────────
   server.registerTool(
@@ -125,11 +138,11 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
       try {
         let effectiveRound = round;
         if (!effectiveRound) {
-          const r = await callApi<{ round: number }>("/round/current", sessionCookie);
+          const r = await api<{ round: number }>("/round/current");
           effectiveRound = r.round ?? 1;
         }
 
-        const data = await callApi<{
+        const data = await api<{
           round: number;
           isClosed: boolean;
           players: Array<{
@@ -139,7 +152,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
             club: { abbreviation: string | null; name: string | null };
             actualPoints?: number | null;
           }>;
-        }>(`/stats/rodada/${effectiveRound}`, sessionCookie);
+        }>(`/stats/rodada/${effectiveRound}`);
 
         let players = data.players;
         if (position) players = players.filter((p) => p.position === position);
@@ -191,7 +204,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
     },
     async ({ budget, formation, strategy, round }) => {
       try {
-        const data = await callApi<{
+        const data = await api<{
           lineup: {
             round: number; formation: string; totalCost: number; expectedPoints: number;
             captainPlayerId: number | null;
@@ -205,7 +218,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
               price: number | null; expectedPoints: number | null;
             }>;
           };
-        }>("/lineup/generate", sessionCookie, {
+        }>("/lineup/generate", {
           method: "POST",
           body: JSON.stringify({ budget, formation, strategy, round }),
         });
@@ -253,7 +266,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
     },
     async ({ slug }) => {
       try {
-        const data = await callApi<unknown>(`/stats/jogador/${encodeURIComponent(slug)}`, sessionCookie);
+        const data = await api<unknown>(`/stats/jogador/${encodeURIComponent(slug)}`);
         return ok(data);
       } catch (err) {
         return fail(err);
@@ -274,7 +287,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
     },
     async () => {
       try {
-        const data = await callApi<{
+        const data = await api<{
           round: number;
           confrontos: Array<{
             matchDate: string | null; stadium: string | null;
@@ -286,7 +299,7 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
             awayStats: { offensiveStrength: number; defensiveStrength: number };
             recommendedPositionsHome: string[]; recommendedPositionsAway: string[];
           }>;
-        }>("/matches/confrontos", sessionCookie);
+        }>("/matches/confrontos");
 
         return ok({
           round: data.round,
@@ -318,8 +331,8 @@ function buildMcpServer(sessionCookie: string | undefined): McpServer {
 
 const mcpRouter = Router();
 
-// Middleware: rate limit + auth
-mcpRouter.use("/mcp", (req: Request, res: Response, next) => {
+// Middleware: rate limit + auth (suporta OAuth Bearer tokens do AS + token estático legado)
+mcpRouter.use("/mcp", async (req: Request, res: Response, next) => {
   const ip = (req.ip ?? req.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
 
   if (!checkRate(ip)) {
@@ -328,30 +341,82 @@ mcpRouter.use("/mcp", (req: Request, res: Response, next) => {
     return;
   }
 
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  // Helper: URL base do issuer OAuth para o cabeçalho WWW-Authenticate
+  const oauthIssuer =
+    process.env["APP_URL"]?.replace(/\/$/, "") ??
+    (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : "");
+  const wwwAuthenticate401 = `Bearer realm="mitometro-mcp", resource_metadata="${oauthIssuer}/.well-known/oauth-authorization-server"`;
+
+  // Prioridade 1: token estático legado (MCP_ACCESS_TOKEN)
   if (MCP_TOKEN) {
-    const auth = req.headers.authorization;
-    const provided = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (provided !== MCP_TOKEN) {
-      log.warn("MCP auth falhou", { ip });
+    if (bearerToken === MCP_TOKEN) {
+      (req as Request & { mcpUserId?: number }).mcpUserId = undefined;
+      next();
+      return;
+    }
+    // Token não coincide com o estático — tenta como OAuth token emitido pelo AS
+    if (bearerToken) {
+      const userId = await validateMcpBearerToken(bearerToken);
+      if (userId) {
+        (req as Request & { mcpUserId?: number }).mcpUserId = userId;
+        next();
+        return;
+      }
+      // Token inválido — inclui discovery header para o Claude saber re-autenticar
+      res.set("WWW-Authenticate", `${wwwAuthenticate401}, error="invalid_token"`);
       res.status(401).json({ error: "Token MCP inválido ou ausente." });
       return;
     }
+    // Sem token — discovery header garante bootstrap OAuth mesmo em modo legado
+    log.warn("MCP auth: sem token", { ip });
+    res.set("WWW-Authenticate", wwwAuthenticate401);
+    res.status(401).json({ error: "Token MCP ausente." });
+    return;
   }
 
-  next();
+  // Prioridade 2: OAuth Bearer token emitido pelo AS
+  if (bearerToken) {
+    const userId = await validateMcpBearerToken(bearerToken);
+    if (userId) {
+      (req as Request & { mcpUserId?: number }).mcpUserId = userId;
+      next();
+      return;
+    }
+    // Token inválido/expirado — inclui resource_metadata para o Claude re-descobrir o AS
+    res.set("WWW-Authenticate", `${wwwAuthenticate401}, error="invalid_token"`);
+    res.status(401).json({ error: "Token inválido ou expirado. Re-autentique via OAuth." });
+    return;
+  }
+
+  // Sem token — retorna 401 com cabeçalho de discovery para que o Claude Desktop
+  // inicie o fluxo OAuth automaticamente
+  res.set("WWW-Authenticate", wwwAuthenticate401);
+  res.status(401).json({ error: "Autenticação necessária. Use OAuth 2.0." });
 });
 
 // Handler: GET (SSE) + POST (JSON-RPC)
 mcpRouter.all("/mcp", async (req: Request, res: Response) => {
-  // Resolve sessão Pro: env MCP_PRO_SESSION tem prioridade; depois Authorization header (quando sem token-gate)
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
-  const sessionCookie = MCP_PRO_SESSION ?? (MCP_TOKEN ? undefined : bearerToken);
+  const mcpUserId = (req as Request & { mcpUserId?: number }).mcpUserId;
 
-  log.debug("MCP request", { method: req.method, hasCookie: !!sessionCookie });
+  // Resolve sessão Pro para chamadas internas à API
+  // Prioridade: env MCP_PRO_SESSION > userId autenticado via OAuth > sem sessão
+  let sessionCookie: string | undefined = MCP_PRO_SESSION;
+  if (!sessionCookie && mcpUserId) {
+    // Verifica Pro pelo userId do token OAuth — injeta via cookie de sessão ativo se houver,
+    // senão usa isPro() direto no buildMcpServer (passado como flag)
+    // Para manter compatibilidade com callApi(), precisamos de uma sessão válida.
+    // Como não temos o cookie, passamos undefined e deixamos as rotas internas sem auth
+    // para endpoints públicos; para generate_lineup (Pro), o isPro() é consultado por dentro.
+    sessionCookie = undefined;
+  }
+
+  log.debug("MCP request", { method: req.method, mcpUserId: mcpUserId ?? "anon" });
 
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  const server = buildMcpServer(sessionCookie);
+  const server = buildMcpServer(sessionCookie, mcpUserId);
 
   try {
     await server.connect(transport);

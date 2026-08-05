@@ -1,0 +1,35 @@
+import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+
+/**
+ * Authorization codes emitidos pelo OAuth AS do MCP.
+ * Expiram em 5 minutos e são de uso único.
+ */
+export const mcpAuthCodesTable = pgTable("mcp_auth_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  userId: integer("user_id").references(() => usersTable.id).notNull(),
+  codeChallenge: text("code_challenge").notNull(),
+  codeChallengeMethod: text("code_challenge_method").notNull().default("S256"),
+  redirectUri: text("redirect_uri").notNull(),
+  state: text("state"),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type McpAuthCode = typeof mcpAuthCodesTable.$inferSelect;
+
+/**
+ * Access tokens emitidos ao final do fluxo OAuth.
+ * Expiram em 1 hora (TTL configurável via MCP_TOKEN_TTL_SECONDS).
+ */
+export const mcpAccessTokensTable = pgTable("mcp_access_tokens", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  userId: integer("user_id").references(() => usersTable.id).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type McpAccessToken = typeof mcpAccessTokensTable.$inferSelect;

@@ -104,6 +104,10 @@ router.get(
           log.warn("Google OAuth falhou — sem usuário", { info: JSON.stringify(info) });
           return res.redirect("/api/auth/error");
         }
+        // Captura mcpOauthPending ANTES do req.login: o Passport regenera a sessão
+        // por session-fixation protection, o que apagaria os dados salvos.
+        const mcpOauthPending = req.session.mcpOauthPending;
+
         req.login(user, (loginErr) => {
           if (loginErr) {
             log.error("Erro ao criar sessão após OAuth", { error: loginErr.message });
@@ -111,7 +115,15 @@ router.get(
           }
           log.info("Login via Google bem-sucedido", { userId: (user as { id: number }).id });
           triggerFullSyncIfStale();
-          res.redirect("/");
+
+          // Se o login foi iniciado pelo fluxo OAuth do MCP, restaura os params e
+          // redireciona para /authorize (agora autenticado → mostra tela de consentimento)
+          if (mcpOauthPending) {
+            req.session.mcpOauthPending = mcpOauthPending;
+            req.session.save(() => res.redirect("/authorize"));
+          } else {
+            res.redirect("/");
+          }
         });
       }
     )(req, res, next);
@@ -204,12 +216,16 @@ router.post("/auth/dev-login", async (req, res, next) => {
       });
     }
 
+    // Preserva mcpOauthPending se o dev-login está substituindo o Google OAuth no fluxo MCP
+    const mcpOauthPending = req.session.mcpOauthPending;
+
     req.login(user, (err) => {
       if (err) {
         log.error("Dev login session error", { error: err.message });
         return next(err);
       }
       log.info("Dev login bem-sucedido", { userId: user.id, email: user.email, plan });
+      if (mcpOauthPending) req.session.mcpOauthPending = mcpOauthPending;
       res.json({ ok: true, userId: user.id, email: user.email, plan });
     });
   } catch (err) {
