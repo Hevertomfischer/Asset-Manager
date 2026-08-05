@@ -46,7 +46,10 @@ const TOKEN_TTL_MS = TOKEN_TTL_S * 1000;
 
 function buildIssuer(req: Request): string {
   if (process.env["APP_URL"]) return process.env["APP_URL"].replace(/\/$/, "");
-  if (process.env["REPLIT_DEV_DOMAIN"]) return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  // Em deployment, nunca usar o domínio de desenvolvimento — derivar do host da requisição.
+  if (!process.env["REPLIT_DEPLOYMENT"] && process.env["REPLIT_DEV_DOMAIN"]) {
+    return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  }
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
   const host = req.get("x-forwarded-host") ?? req.get("host") ?? "localhost";
   return `${proto}://${host}`;

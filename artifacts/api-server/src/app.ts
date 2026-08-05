@@ -381,7 +381,9 @@ if (FIRST_ADMIN_EMAIL) {
 // ── Utilitário: URL pública da aplicação ─────────────────────────────────────
 function buildAppUrl(): string {
   if (process.env["APP_URL"]) return process.env["APP_URL"].replace(/\/$/, "");
-  if (process.env["REPLIT_DEV_DOMAIN"]) return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  if (!process.env["REPLIT_DEPLOYMENT"] && process.env["REPLIT_DEV_DOMAIN"]) {
+    return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
+  }
   const port = process.env["PORT"] ?? "8080";
   return `http://localhost:${port}`;
 }

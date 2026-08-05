@@ -347,7 +347,9 @@ mcpRouter.use("/mcp", async (req: Request, res: Response, next) => {
   // Helper: URL base do issuer OAuth para o cabeçalho WWW-Authenticate
   const oauthIssuer =
     process.env["APP_URL"]?.replace(/\/$/, "") ??
-    (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : "");
+    (!process.env["REPLIT_DEPLOYMENT"] && process.env["REPLIT_DEV_DOMAIN"]
+      ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
+      : `https://${req.get("x-forwarded-host") ?? req.get("host") ?? "localhost"}`);
   const wwwAuthenticate401 = `Bearer realm="mitometro-mcp", resource_metadata="${oauthIssuer}/.well-known/oauth-authorization-server"`;
 
   // Prioridade 1: token estático legado (MCP_ACCESS_TOKEN)
