@@ -207,19 +207,33 @@ function escapeHtml(s: string): string {
 
 const mcpOauthRouter = Router();
 
+// ── GET /.well-known/oauth-protected-resource (RFC 9728) ─────────────────────
+// Claude usa este endpoint para descobrir o Authorization Server associado ao
+// recurso protegido. Deve retornar JSON — nunca HTML.
+
+mcpOauthRouter.get("/.well-known/oauth-protected-resource", (req: Request, res: Response) => {
+  const issuer = buildIssuer(req);
+  res.set("Content-Type", "application/json").json({
+    resource: `${issuer}/api/mcp`,
+    authorization_servers: [issuer],
+    scopes_supported: ["mcp:read", "mcp:pro"],
+    bearer_methods_supported: ["header"],
+  });
+});
+
 // ── GET /.well-known/oauth-authorization-server ───────────────────────────────
 
 mcpOauthRouter.get("/.well-known/oauth-authorization-server", (req: Request, res: Response) => {
   const issuer = buildIssuer(req);
-  res.json({
+  res.set("Content-Type", "application/json").json({
     issuer,
     authorization_endpoint: `${issuer}/authorize`,
     token_endpoint: `${issuer}/token`,
     registration_endpoint: `${issuer}/register`,
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
-    token_endpoint_auth_methods_supported: ["none"],
+    token_endpoint_auth_methods_supported: ["none", "client_secret_post"],
   });
 });
 

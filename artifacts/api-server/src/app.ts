@@ -42,7 +42,9 @@ const app: Express = express();
 app.set("trust proxy", 1);
 
 app.use(cookieParser());
-app.use(cors());
+// CORS global: permite todas as origens e expõe WWW-Authenticate para que
+// clientes OAuth (Claude, browsers) possam ler o cabeçalho de discovery.
+app.use(cors({ exposedHeaders: ["WWW-Authenticate"] }));
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
