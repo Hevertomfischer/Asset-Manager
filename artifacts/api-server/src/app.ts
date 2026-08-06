@@ -1,5 +1,6 @@
 import path from "path";
 import fs, { existsSync } from "fs";
+import { fileURLToPath } from "url";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -118,9 +119,16 @@ app.use(mcpOauthRouter);
 
 // ── Frontend estático (build do Vite) ────────────────────────────────────────
 // Em dev sem build, o bloco inteiro é pulado e o Vite dev server toma conta.
+// Usamos __dirname (disponível no bundle CJS de produção) ou import.meta.url
+// (disponível no tsx/ESM em dev) para um caminho estável independente do CWD.
+declare const __dirname: string | undefined;
+const _currentDir =
+  typeof __dirname !== "undefined"
+    ? __dirname // bundle CJS — artifacts/api-server/dist
+    : path.dirname(fileURLToPath(import.meta.url)); // dev tsx — artifacts/api-server/src
 const FRONTEND_DIST =
   process.env["FRONTEND_DIST_PATH"] ??
-  path.resolve(process.cwd(), "../cartola-intel/dist/public");
+  path.resolve(_currentDir, "../../cartola-intel/dist/public");
 
 const INDEX_HTML = path.join(FRONTEND_DIST, "index.html");
 const hasFrontendBuild = existsSync(INDEX_HTML);
