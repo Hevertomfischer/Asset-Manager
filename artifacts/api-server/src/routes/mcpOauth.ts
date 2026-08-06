@@ -13,8 +13,8 @@
 import { Router, type Request, type Response } from "express";
 import { createHash, randomBytes } from "crypto";
 import { db } from "@workspace/db";
-import { mcpAuthCodesTable, mcpAccessTokensTable } from "@workspace/db/schema";
-import { eq, and, gt, lt } from "drizzle-orm";
+import { mcpAuthCodesTable, mcpAccessTokensTable, mcpClientsTable } from "@workspace/db/schema";
+import { eq, and, gt, lt, sql } from "drizzle-orm";
 import { isPro } from "../services/accessService";
 import { createLogger } from "../lib/logger";
 
@@ -215,6 +215,7 @@ mcpOauthRouter.get("/.well-known/oauth-authorization-server", (req: Request, res
     issuer,
     authorization_endpoint: `${issuer}/authorize`,
     token_endpoint: `${issuer}/token`,
+    registration_endpoint: `${issuer}/register`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
     code_challenge_methods_supported: ["S256"],
@@ -222,9 +223,144 @@ mcpOauthRouter.get("/.well-known/oauth-authorization-server", (req: Request, res
   });
 });
 
+// ── POST /register (Dynamic Client Registration — RFC 7591) ──────────────────
+// Clientes públicos (PKCE, sem client_secret). redirect_uris https obrigatórios.
+
+const MAX_REDIRECT_URIS = 10;
+const REGISTER_RATE_LIMIT = parseInt(process.env["MCP_REGISTER_RATE_LIMIT"] ?? "5", 10); // por IP/hora
+const MAX_DYNAMIC_CLIENTS = parseInt(process.env["MCP_MAX_DYNAMIC_CLIENTS"] ?? "500", 10);
+
+// Rate limit em memória por IP (janela de 1h)
+const registerRateMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRegisterRateLimit(ip: string): boolean {
+  const now = Date.now();
+  let e = registerRateMap.get(ip);
+  if (!e || e.resetAt < now) {
+    e = { count: 0, resetAt: now + 60 * 60 * 1000 };
+    registerRateMap.set(ip, e);
+  }
+  e.count++;
+  // Limpeza oportunista
+  if (registerRateMap.size > 10_000) {
+    for (const [k, v] of registerRateMap) if (v.resetAt < now) registerRateMap.delete(k);
+  }
+  return e.count <= REGISTER_RATE_LIMIT;
+}
+
+function isValidRedirectUri(uri: string): boolean {
+  try {
+    const u = new URL(uri);
+    if (u.protocol === "https:") return true;
+    // http só para loopback (clientes nativos — RFC 8252)
+    return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
+}
+
+mcpOauthRouter.post("/register", async (req: Request, res: Response) => {
+  const ip = req.ip ?? "unknown";
+  if (!checkRegisterRateLimit(ip)) {
+    log.warn("MCP OAuth /register: rate limit excedido", { ip });
+    res.status(429).json({ error: "invalid_client_metadata", error_description: "Muitas tentativas de registro. Tente novamente mais tarde." });
+    return;
+  }
+
+  const body = (req.body ?? {}) as {
+    redirect_uris?: unknown;
+    client_name?: unknown;
+    token_endpoint_auth_method?: unknown;
+    grant_types?: unknown;
+  };
+
+  const redirectUris = body.redirect_uris;
+  if (!Array.isArray(redirectUris) || redirectUris.length === 0) {
+    res.status(400).json({ error: "invalid_client_metadata", error_description: "redirect_uris é obrigatório (array não vazio)" });
+    return;
+  }
+  if (redirectUris.length > MAX_REDIRECT_URIS) {
+    res.status(400).json({ error: "invalid_client_metadata", error_description: `máximo de ${MAX_REDIRECT_URIS} redirect_uris` });
+    return;
+  }
+  const uris: string[] = [];
+  for (const u of redirectUris) {
+    if (typeof u !== "string" || !isValidRedirectUri(u)) {
+      res.status(400).json({ error: "invalid_redirect_uri", error_description: `redirect_uri inválido: ${String(u)}` });
+      return;
+    }
+    uris.push(u);
+  }
+
+  const clientName = typeof body.client_name === "string" ? body.client_name.slice(0, 200) : null;
+  const clientId = `mcp_${base64url(randomBytes(24))}`;
+
+  try {
+    await db.insert(mcpClientsTable).values({
+      clientId,
+      clientName,
+      redirectUris: JSON.stringify(uris),
+    });
+
+    log.info("MCP OAuth /register: cliente dinâmico registrado", { clientId, clientName, uris });
+
+    // Cap global: remove os registros mais antigos além do limite (controle de crescimento)
+    try {
+      const excess = await db.execute(
+        sql`DELETE FROM mcp_clients WHERE id IN (
+              SELECT id FROM mcp_clients ORDER BY id DESC OFFSET ${MAX_DYNAMIC_CLIENTS}
+            )`
+      );
+      void excess;
+    } catch {
+      // não crítico
+    }
+
+    res.status(201).json({
+      client_id: clientId,
+      client_name: clientName ?? undefined,
+      redirect_uris: uris,
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+      client_id_issued_at: Math.floor(Date.now() / 1000),
+    });
+  } catch (err) {
+    log.error("MCP OAuth /register: erro ao registrar cliente", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+/**
+ * Verifica se o redirect_uri é permitido para o client_id informado:
+ * cliente registrado dinamicamente → confere seus redirect_uris;
+ * caso contrário → allowlist estática (compatibilidade com conexões existentes).
+ */
+async function isRedirectUriAllowed(clientId: string, redirectUri: string): Promise<boolean> {
+  if (clientId.startsWith("mcp_")) {
+    try {
+      const [client] = await db
+        .select({ redirectUris: mcpClientsTable.redirectUris })
+        .from(mcpClientsTable)
+        .where(eq(mcpClientsTable.clientId, clientId))
+        .limit(1);
+      if (client) {
+        const uris = JSON.parse(client.redirectUris) as string[];
+        return uris.includes(redirectUri);
+      }
+      // client_id com prefixo mcp_ mas não registrado → rejeita
+      return false;
+    } catch {
+      return false;
+    }
+  }
+  // Fallback: allowlist estática (Claude sem DCR / conexões antigas)
+  return getAllowedRedirectUris().has(redirectUri);
+}
+
 // ── GET /authorize ────────────────────────────────────────────────────────────
 
-mcpOauthRouter.get("/authorize", (req: Request, res: Response) => {
+mcpOauthRouter.get("/authorize", async (req: Request, res: Response) => {
   const q = req.query as Record<string, string | undefined>;
   const fromQuery = q["response_type"] != null;
 
@@ -265,10 +401,10 @@ mcpOauthRouter.get("/authorize", (req: Request, res: Response) => {
       return;
     }
 
-    // Valida redirect_uri contra allowlist (previne exfiltração de auth code)
-    const allowedUris = getAllowedRedirectUris();
-    if (!allowedUris.has(redirectUri)) {
-      log.warn("MCP OAuth /authorize: redirect_uri não permitido", { redirect_uri: redirectUri });
+    // Valida redirect_uri: cliente registrado (DCR) ou allowlist estática
+    // (previne exfiltração de auth code)
+    if (!(await isRedirectUriAllowed(clientId, redirectUri))) {
+      log.warn("MCP OAuth /authorize: redirect_uri não permitido", { client_id: clientId, redirect_uri: redirectUri });
       res.status(400).send("redirect_uri não permitido. Apenas clientes registrados são aceitos.");
       return;
     }
@@ -356,6 +492,7 @@ mcpOauthRouter.post("/authorize", async (req: Request, res: Response) => {
       codeChallenge,
       codeChallengeMethod,
       redirectUri,
+      clientId,
       state: state ?? null,
       expiresAt,
     });
@@ -379,7 +516,7 @@ mcpOauthRouter.post("/token", async (req: Request, res: Response) => {
   // Aceita application/json E application/x-www-form-urlencoded
   const body = (req.body ?? {}) as Record<string, string | undefined>;
 
-  const { grant_type, code, redirect_uri, code_verifier } = body;
+  const { grant_type, code, redirect_uri, code_verifier, client_id } = body;
 
   res.set("Cache-Control", "no-store");
   res.set("Pragma", "no-cache");
@@ -419,8 +556,19 @@ mcpOauthRouter.post("/token", async (req: Request, res: Response) => {
       return;
     }
 
-    // Valida redirect_uri
-    if (redirect_uri && authCode.redirectUri !== redirect_uri) {
+    // Valida client_id para clientes registrados dinamicamente (DCR)
+    if (authCode.clientId?.startsWith("mcp_") && client_id !== authCode.clientId) {
+      log.warn("MCP OAuth /token: client_id não coincide", { stored: authCode.clientId });
+      res.status(400).json({ error: "invalid_grant", error_description: "client_id não coincide" });
+      return;
+    }
+
+    // Valida redirect_uri — obrigatório e deve coincidir exatamente com o usado no /authorize
+    if (!redirect_uri) {
+      res.status(400).json({ error: "invalid_request", error_description: "redirect_uri é obrigatório" });
+      return;
+    }
+    if (authCode.redirectUri !== redirect_uri) {
       log.warn("MCP OAuth /token: redirect_uri não coincide", {
         stored: authCode.redirectUri,
         provided: redirect_uri,
