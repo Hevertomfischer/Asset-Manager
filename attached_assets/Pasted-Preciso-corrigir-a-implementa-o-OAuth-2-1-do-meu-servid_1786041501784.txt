@@ -1,0 +1,68 @@
+Preciso corrigir a implementação OAuth 2.1 do meu servidor MCP para que ele funcione
+como conector do Claude (claude.ai). Hoje funciona no ChatGPT, mas falha no Claude.
+
+DIAGNÓSTICO JÁ FEITO:
+Um GET em https://mitometro.com.br/.well-known/oauth-protected-resource retorna
+HTTP 200 com o index.html do frontend React, em vez de JSON. O catch-all da SPA
+(app.get('*')) está capturando as rotas /.well-known/. Além disso, a URL de
+authorize que o Claude recebe aponta para o domínio de dev (*.picard.replit.dev),
+o que indica que a base URL do metadata está vindo de env var de desenvolvimento.
+
+TAREFAS:
+
+1. Registrar as rotas /.well-known/* ANTES de qualquer middleware de arquivos
+   estáticos e ANTES do catch-all da SPA. Garantir Content-Type application/json.
+
+2. Criar GET /.well-known/oauth-protected-resource (RFC 9728) retornando:
+   {
+     "resource": "https://mitometro.com.br/api/mcp",
+     "authorization_servers": ["https://mitometro.com.br"],
+     "scopes_supported": ["mcp"],
+     "bearer_methods_supported": ["header"]
+   }
+
+3. Criar/corrigir GET /.well-known/oauth-authorization-server (RFC 8414) com
+   issuer, authorization_endpoint, token_endpoint, registration_endpoint,
+   response_types_supported: ["code"],
+   grant_types_supported: ["authorization_code","refresh_token"],
+   code_challenge_methods_supported: ["S256"],
+   token_endpoint_auth_methods_supported: ["none","client_secret_post"].
+
+4. IMPORTANTE: derivar a base URL do host da requisição
+   (req.protocol + '://' + req.get('host')), respeitando o header
+   x-forwarded-proto. NÃO usar REPLIT_DEV_DOMAIN nem URL hardcoded. Nenhum campo
+   dos metadados pode conter "replit.dev".
+
+5. Implementar POST /register (Dynamic Client Registration, RFC 7591). O Claude
+   não permite colar client_id manualmente — ele depende do registro dinâmico.
+   Aceitar redirect_uris, client_name, grant_types, response_types e
+   token_endpoint_auth_method. Retornar 201 com client_id gerado pelo servidor.
+   Aceitar token_endpoint_auth_method "none" (cliente público com PKCE).
+
+6. Aceitar o redirect_uri https://claude.ai/api/mcp/auth_callback. Se houver
+   allowlist fixa de redirect URIs, incluir esse valor.
+
+7. Suportar PKCE com code_challenge_method=S256 (obrigatório) e aceitar o
+   parâmetro "resource" no /authorize e no /token sem quebrar.
+
+8. No endpoint /api/mcp, quando não houver Bearer token válido, retornar 401 com
+   o header:
+   WWW-Authenticate: Bearer resource_metadata="https://mitometro.com.br/.well-known/oauth-protected-resource"
+
+9. Configurar CORS liberando origem https://claude.ai nas rotas /.well-known/*,
+   /register, /token e /api/mcp, incluindo resposta a OPTIONS (preflight) e
+   expondo o header WWW-Authenticate.
+
+10. Publicar via Deploy (não deixar dependente do workspace de dev) e confirmar
+    que mitometro.com.br aponta para o deployment.
+
+VALIDAÇÃO — todos devem retornar JSON, nunca HTML:
+  curl -i https://mitometro.com.br/.well-known/oauth-protected-resource
+  curl -i https://mitometro.com.br/.well-known/oauth-authorization-server
+  curl -i -X POST https://mitometro.com.br/register \
+    -H "Content-Type: application/json" \
+    -d '{"client_name":"Claude","redirect_uris":["https://claude.ai/api/mcp/auth_callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}'
+  curl -i https://mitometro.com.br/api/mcp
+
+Não altere o fluxo OAuth que já funciona com o ChatGPT — apenas adicione o que
+falta e corrija a origem da base URL.
