@@ -115,8 +115,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           priceVariation: player.priceVariation,
           playedLastRound: player.playedLastRound,
           gamesPlayed: player.gamesPlayed,
-          // minimoParaValorizar is never taken from the API — always computed
-          // by the formula in Step 2b (applyMpvToDatabase).
+          // Use official value from Cartola API when available; formula fallback
+          // in Step 2b will only fill players where this is still NULL.
+          minimoParaValorizar: player.minimoParaValorizar,
           cumulativeScouts: player.cumulativeScouts,
         });
         playersUpserted++;
@@ -189,9 +190,9 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
     await logETL("etl", "scouts", "degraded", msg);
   }
 
-  // === Step 2b: Compute MPV via formula (fills NULL values only) ===
+  // === Step 2b: Compute MPV via formula (fallback for players without API value) ===
   try {
-    const mpvUpdated = await applyMpvToDatabase(true);
+    const mpvUpdated = await applyMpvToDatabase(false); // overwrite=false: only fills NULLs
     await logETL("etl", "mpv", "success", `MPV formula applied to ${mpvUpdated} players for round ${round}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
