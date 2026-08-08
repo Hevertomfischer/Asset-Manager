@@ -104,6 +104,11 @@ function JerseyCard({
 
   const inner = (
     <>
+      {player.position && (
+        <span className="bg-black/60 text-white text-[8px] sm:text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-px leading-none">
+          {player.position}
+        </span>
+      )}
       <Jersey
         abbr={player.clubAbbr}
         isCaptain={isCaptain}
@@ -151,6 +156,11 @@ function ReserveJerseyCard({ reserve, onClick }: { reserve: LineupReservePlayer;
       {...(onClick ? { type: "button" as const, onClick: () => onClick(reserve) } : {})}
       className={`flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 transition-opacity${onClick ? " cursor-pointer active:scale-95 transition-transform duration-100 focus:outline-none" : ""}`}
     >
+      {reserve.position && (
+        <span className="bg-black/60 text-white text-[7px] sm:text-[8px] font-bold uppercase tracking-wide rounded-full px-1.5 py-px leading-none">
+          {reserve.position}
+        </span>
+      )}
       <div className="relative inline-block">
         {reserve.isLuxuryReserve && (
           <div className="absolute -top-1.5 -right-1 z-10 w-4 h-4 rounded-full bg-purple-400 text-white text-[8px] font-black flex items-center justify-center shadow ring-1 ring-purple-300">
