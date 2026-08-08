@@ -150,12 +150,19 @@ export async function computeMpvForAllPlayers(): Promise<MpvEntry[]> {
       ORDER BY
         player_id,
         round,
-        -- source priority: csv_2026 first, then cartola_api, then historical_cartola
+        -- Prefer rows with confirmed non-zero points FIRST, so that a live
+        -- cartola_api snapshot (points=0 captured during a match) never
+        -- shadows historical_cartola which has the final confirmed score.
+        -- Use <> 0 (not > 0) so valid negative Cartola scores are also preferred.
+        CASE WHEN points <> 0 THEN 0 ELSE 1 END,
+        -- source priority: csv_2026 authoritative; historical data beats
+        -- live API snapshots that may carry partial/zero points mid-round
         CASE source
-          WHEN 'csv_2026'          THEN 1
-          WHEN 'cartola_api'       THEN 2
-          WHEN 'cartola_api_scouts'THEN 3
-          ELSE                          4
+          WHEN 'csv_2026'           THEN 1
+          WHEN 'historical_cartola' THEN 2
+          WHEN 'cartola_api'        THEN 3
+          WHEN 'cartola_api_scouts' THEN 4
+          ELSE                           5
         END
     ) deduped
     ORDER BY player_id, round DESC
