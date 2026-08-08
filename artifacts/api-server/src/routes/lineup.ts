@@ -455,6 +455,16 @@ router.post("/lineup/simulate", requirePro, async (req, res) => {
       return;
     }
 
+    // Rejeitar troca se o jogador entrante está indisponível (Suspenso, Nulo, Contundido).
+    const UNAVAILABLE_STATUSES = new Set(["Suspenso", "Nulo", "Contundido"]);
+    const inPlayer = playerMap.get(swap.inId);
+    if (inPlayer?.status && UNAVAILABLE_STATUSES.has(inPlayer.status)) {
+      res.status(422).json({
+        error: `Jogador indisponível (${inPlayer.status}) e não pode ser escalado.`,
+      });
+      return;
+    }
+
     log.info("Simulando troca", {
       round: effectiveRound,
       budget: effectiveBudget,
