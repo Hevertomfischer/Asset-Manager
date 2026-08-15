@@ -1,192 +1,254 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
-const tagChars = 'MITOMETRO'.split('');
+function AnimatedCount({
+  target,
+  suffix = '',
+  delay,
+  decimals = 0,
+}: {
+  target: number;
+  suffix?: string;
+  delay: number;
+  decimals?: number;
+}) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const steps = 32;
+      let i = 0;
+      const id = setInterval(() => {
+        i++;
+        setVal(parseFloat(((target * i) / steps).toFixed(decimals)));
+        if (i >= steps) clearInterval(id);
+      }, 40);
+      return () => clearInterval(id);
+    }, delay * 1000);
+    return () => clearTimeout(t);
+  }, [target, delay, decimals]);
+  return (
+    <span>
+      {decimals > 0 ? val.toFixed(decimals) : Math.round(val)}
+      {suffix}
+    </span>
+  );
+}
+
+/**
+ * Métricas reais extraídas de /api/stats/performance (Série A 2026):
+ *   totalRounds: 15   — rodadas com dados de projeção vs real
+ *   mae: 2.85         — erro médio absoluto por jogador/rodada
+ *   hitRate: 64.4     — % do quartil superior de projeções que superou
+ *                        a mediana global de pontuação real da rodada
+ */
+const metrics = [
+  {
+    value: 15,
+    suffix: '',
+    label: 'rodadas\nanalisadas',
+    sublabel: 'Série A 2026',
+    color: '#10b981',
+    delay: 0.5,
+    decimals: 0,
+  },
+  {
+    value: 2.85,
+    suffix: ' pts',
+    label: 'erro médio\nabsoluto (MAE)',
+    sublabel: 'por jogador · temporada',
+    color: '#f59e0b',
+    delay: 0.72,
+    decimals: 2,
+  },
+  {
+    value: 64.4,
+    suffix: '%',
+    label: 'acerto nos\ndiferenciais',
+    sublabel: 'top quartil × mediana da rodada',
+    color: '#8b5cf6',
+    delay: 0.94,
+    decimals: 1,
+  },
+];
 
 export default function Scene5() {
   return (
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center"
-      style={{ background: '#080d1a' }}
+      style={{ background: '#060b16' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 0.92, filter: 'blur(16px)' }}
-      transition={{ duration: 0.6 }}
+      exit={{ opacity: 0, scale: 1.04, filter: 'blur(10px)' }}
+      transition={{ duration: 0.55 }}
     >
-      {/* Radial glow */}
-      <div
-        style={{
-          position: 'absolute',
-          width: 700,
-          height: 700,
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(16,185,129,0.22) 0%, rgba(139,92,246,0.08) 40%, transparent 70%)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          pointerEvents: 'none',
-        }}
-      />
-
       {/* Grid bg */}
       <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }}
+      />
+
+      {/* Subtle center glow */}
+      <div
         style={{
           position: 'absolute',
-          inset: 0,
-          backgroundImage:
-            'linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+          width: 600,
+          height: 400,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Outer orbit ring */}
+      {/* Section label */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.6 }}
-        animate={{ opacity: 0.25, scale: 1 }}
-        transition={{ delay: 0.2, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          position: 'absolute',
-          width: 420,
-          height: 420,
-          borderRadius: '50%',
-          border: '1.5px solid #10b981',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        }}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.4 }}
-        animate={{ opacity: 0.15, scale: 1 }}
-        transition={{ delay: 0.35, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          position: 'absolute',
-          width: 560,
-          height: 560,
-          borderRadius: '50%',
-          border: '1px solid #8b5cf6',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-        }}
-      />
-
-      {/* Tagline above */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.5, ease: 'circOut' }}
+        transition={{ delay: 0.1, duration: 0.45 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.8rem',
-          color: '#10b981',
+          fontSize: '0.75rem',
+          color: '#f59e0b',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 18,
+          marginBottom: 16,
           position: 'relative',
           zIndex: 2,
         }}
       >
-        Inteligência para o Cartola FC
+        Transparência total
       </motion.div>
 
-      {/* MITOMETRO char-by-char */}
+      {/* Main headline */}
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 40 }}>
+        <motion.h2
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18, duration: 0.5, ease: 'circOut' }}
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 700,
+            fontSize: '2.8rem',
+            color: '#ffffff',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+            margin: 0,
+          }}
+        >
+          Todo modelo erra.
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.45, ease: 'circOut' }}
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '1.15rem',
+            color: '#64748b',
+            marginTop: 10,
+          }}
+        >
+          A diferença é saber{' '}
+          <span style={{ color: '#f59e0b', fontWeight: 600 }}>exatamente quanto</span>.
+        </motion.p>
+      </div>
+
+      {/* Metrics row */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          gap: 20,
+          maxWidth: 800,
+          width: '100%',
+          padding: '0 40px',
           position: 'relative',
           zIndex: 2,
-          overflow: 'hidden',
         }}
       >
-        {tagChars.map((ch, i) => {
-          const isEmerald = i >= 4; // "METRO" in emerald
-          return (
-            <motion.span
-              key={i}
-              initial={{ y: '120%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{
-                delay: 0.4 + i * 0.055,
-                duration: 0.55,
-                ease: [0.16, 1, 0.3, 1],
-              }}
+        {metrics.map((m) => (
+          <motion.div
+            key={m.label}
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: m.delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              flex: 1,
+              borderRadius: 16,
+              border: `1.5px solid ${m.color}30`,
+              background: `linear-gradient(135deg, ${m.color}0d 0%, #0b1120 100%)`,
+              padding: '24px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 8,
+              textAlign: 'center',
+            }}
+          >
+            <div
               style={{
-                fontFamily: 'var(--font-display)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '2.6rem',
                 fontWeight: 700,
-                fontSize: '6rem',
+                color: m.color,
                 lineHeight: 1,
-                color: isEmerald ? '#10b981' : '#ffffff',
-                letterSpacing: '-0.03em',
-                display: 'inline-block',
-                textShadow: isEmerald ? '0 0 40px rgba(16,185,129,0.6)' : 'none',
+                textShadow: `0 0 24px ${m.color}44`,
               }}
             >
-              {ch}
-            </motion.span>
-          );
-        })}
+              <AnimatedCount
+                target={m.value}
+                suffix={m.suffix}
+                delay={m.delay}
+                decimals={m.decimals}
+              />
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.82rem',
+                color: '#94a3b8',
+                lineHeight: 1.4,
+                whiteSpace: 'pre-line',
+              }}
+            >
+              {m.label}
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.65rem',
+                color: '#475569',
+                marginTop: 2,
+              }}
+            >
+              {m.sublabel}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Tagline below */}
+      {/* Footer note */}
       <motion.p
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.15, duration: 0.5, ease: 'circOut' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.35, duration: 0.5 }}
         style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: '1.35rem',
-          color: '#94a3b8',
-          marginTop: 18,
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.7rem',
+          color: '#334155',
+          marginTop: 28,
+          letterSpacing: '0.05em',
           position: 'relative',
           zIndex: 2,
-          letterSpacing: '0.04em',
         }}
       >
-        Escale com{' '}
-        <span style={{ color: '#ffffff', fontWeight: 600 }}>inteligência</span>.
+        Histórico completo em mitometro.com.br/desempenho
       </motion.p>
-
-      {/* CTA pill */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.85, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 1.45, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          marginTop: 32,
-          position: 'relative',
-          zIndex: 2,
-          padding: '12px 36px',
-          borderRadius: 100,
-          background: 'linear-gradient(135deg, #10b981, #059669)',
-          fontFamily: 'var(--font-display)',
-          fontWeight: 600,
-          fontSize: '1rem',
-          color: '#080d1a',
-          letterSpacing: '0.04em',
-          boxShadow: '0 0 30px rgba(16,185,129,0.4)',
-        }}
-      >
-        mitometro.com.br
-      </motion.div>
-
-      {/* Bottom gradient bar */}
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ delay: 1.65, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: 'linear-gradient(90deg, transparent, #10b981, #8b5cf6, transparent)',
-          transformOrigin: 'center',
-        }}
-      />
     </motion.div>
   );
 }

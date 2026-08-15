@@ -6,13 +6,15 @@ import Scene2 from './video_scenes/Scene2';
 import Scene3 from './video_scenes/Scene3';
 import Scene4 from './video_scenes/Scene4';
 import Scene5 from './video_scenes/Scene5';
+import Scene6 from './video_scenes/Scene6';
 
 export const SCENE_DURATIONS = {
   scene1: 4000,
   scene2: 4000,
   scene3: 4500,
   scene4: 4500,
-  scene5: 5000,
+  scene5: 4500,
+  scene6: 5000,
 };
 
 const SCENE_COMPONENTS: Record<string, React.ComponentType> = {
@@ -21,6 +23,7 @@ const SCENE_COMPONENTS: Record<string, React.ComponentType> = {
   scene3: Scene3,
   scene4: Scene4,
   scene5: Scene5,
+  scene6: Scene6,
 };
 
 export default function VideoTemplate({

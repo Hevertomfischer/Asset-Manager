@@ -38,7 +38,7 @@ export default function Scene1() {
         }}
       />
 
-      {/* Tag line */}
+      {/* Live badge */}
       <motion.div
         className="mb-6 overflow-hidden"
         initial={{ opacity: 0, y: -16 }}
@@ -54,7 +54,7 @@ export default function Scene1() {
             textTransform: 'uppercase',
           }}
         >
-          ● Ao vivo na Série A
+          ● Ao vivo — Série A 2026
         </span>
       </motion.div>
 
@@ -119,7 +119,7 @@ export default function Scene1() {
           letterSpacing: '0.04em',
         }}
       >
-        Mas poucos escapam do achismo.
+        Escalar no feeling tem limite.
       </motion.p>
 
       {/* Bottom accent line */}
