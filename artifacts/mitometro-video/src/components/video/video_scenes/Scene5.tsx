@@ -45,7 +45,7 @@ const metrics = [
   {
     value: 15,
     suffix: '',
-    label: 'rodadas\nanalisadas',
+    label: 'rodadas analisadas',
     sublabel: 'Série A 2026',
     color: '#10b981',
     delay: 0.5,
@@ -54,7 +54,7 @@ const metrics = [
   {
     value: 2.85,
     suffix: ' pts',
-    label: 'erro médio\nabsoluto (MAE)',
+    label: 'erro médio absoluto (MAE)',
     sublabel: 'por jogador · temporada',
     color: '#f59e0b',
     delay: 0.72,
@@ -63,7 +63,7 @@ const metrics = [
   {
     value: 64.4,
     suffix: '%',
-    label: 'acerto nos\ndiferenciais',
+    label: 'acerto nos diferenciais',
     sublabel: 'top quartil × mediana da rodada',
     color: '#8b5cf6',
     delay: 0.94,
@@ -87,16 +87,16 @@ export default function Scene5() {
         style={{
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+          backgroundSize: '40px 40px',
         }}
       />
 
-      {/* Subtle center glow */}
+      {/* Glow */}
       <div
         style={{
           position: 'absolute',
-          width: 600,
-          height: 400,
+          width: '80vw',
+          height: '80vw',
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)',
           top: '50%',
@@ -113,11 +113,11 @@ export default function Scene5() {
         transition={{ delay: 0.1, duration: 0.45 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.75rem',
+          fontSize: '0.72rem',
           color: '#f59e0b',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 16,
+          marginBottom: 14,
           position: 'relative',
           zIndex: 2,
         }}
@@ -126,7 +126,7 @@ export default function Scene5() {
       </motion.div>
 
       {/* Main headline */}
-      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 40 }}>
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 32, padding: '0 24px' }}>
         <motion.h2
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,7 +134,7 @@ export default function Scene5() {
           style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
-            fontSize: '2.8rem',
+            fontSize: 'clamp(1.8rem, 8vw, 2.8rem)',
             color: '#ffffff',
             letterSpacing: '-0.02em',
             lineHeight: 1.1,
@@ -149,7 +149,7 @@ export default function Scene5() {
           transition={{ delay: 0.3, duration: 0.45, ease: 'circOut' }}
           style={{
             fontFamily: 'var(--font-body)',
-            fontSize: '1.15rem',
+            fontSize: 'clamp(0.95rem, 4vw, 1.15rem)',
             color: '#64748b',
             marginTop: 10,
           }}
@@ -159,14 +159,14 @@ export default function Scene5() {
         </motion.p>
       </div>
 
-      {/* Metrics row */}
+      {/* Metrics stacked */}
       <div
         style={{
           display: 'flex',
-          gap: 20,
-          maxWidth: 800,
+          flexDirection: 'column',
+          gap: 12,
           width: '100%',
-          padding: '0 40px',
+          padding: '0 20px',
           position: 'relative',
           zIndex: 2,
         }}
@@ -174,59 +174,60 @@ export default function Scene5() {
         {metrics.map((m) => (
           <motion.div
             key={m.label}
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{ opacity: 0, x: 24, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ delay: m.delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
-              flex: 1,
-              borderRadius: 16,
+              borderRadius: 14,
               border: `1.5px solid ${m.color}30`,
               background: `linear-gradient(135deg, ${m.color}0d 0%, #0b1120 100%)`,
-              padding: '24px 20px',
+              padding: '16px 22px',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: 8,
-              textAlign: 'center',
+              gap: 20,
             }}
           >
+            {/* Number */}
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '2.6rem',
+                fontSize: '2.2rem',
                 fontWeight: 700,
                 color: m.color,
                 lineHeight: 1,
-                textShadow: `0 0 24px ${m.color}44`,
+                textShadow: `0 0 20px ${m.color}44`,
+                flexShrink: 0,
+                minWidth: 90,
+                textAlign: 'right',
               }}
             >
-              <AnimatedCount
-                target={m.value}
-                suffix={m.suffix}
-                delay={m.delay}
-                decimals={m.decimals}
-              />
+              <AnimatedCount target={m.value} suffix={m.suffix} delay={m.delay} decimals={m.decimals} />
             </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.82rem',
-                color: '#94a3b8',
-                lineHeight: 1.4,
-                whiteSpace: 'pre-line',
-              }}
-            >
-              {m.label}
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.65rem',
-                color: '#475569',
-                marginTop: 2,
-              }}
-            >
-              {m.sublabel}
+
+            <div style={{ width: 1, alignSelf: 'stretch', background: `${m.color}25` }} />
+
+            {/* Label */}
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '0.85rem',
+                  color: '#94a3b8',
+                  lineHeight: 1.4,
+                }}
+              >
+                {m.label}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.62rem',
+                  color: '#475569',
+                  marginTop: 3,
+                }}
+              >
+                {m.sublabel}
+              </div>
             </div>
           </motion.div>
         ))}
@@ -239,12 +240,14 @@ export default function Scene5() {
         transition={{ delay: 1.35, duration: 0.5 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.7rem',
+          fontSize: '0.65rem',
           color: '#334155',
-          marginTop: 28,
+          marginTop: 24,
           letterSpacing: '0.05em',
           position: 'relative',
           zIndex: 2,
+          textAlign: 'center',
+          padding: '0 24px',
         }}
       >
         Histórico completo em mitometro.com.br/desempenho

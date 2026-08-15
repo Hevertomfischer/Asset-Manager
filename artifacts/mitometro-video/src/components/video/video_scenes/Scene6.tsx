@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 
-const tagChars = 'MITOMETRO'.split('');
+const chars = 'MITO'.split('');
+const charsGreen = 'METRO'.split('');
 
 export default function Scene6() {
   return (
@@ -16,8 +17,8 @@ export default function Scene6() {
       <div
         style={{
           position: 'absolute',
-          width: 700,
-          height: 700,
+          width: '120vw',
+          height: '120vw',
           borderRadius: '50%',
           background:
             'radial-gradient(circle, rgba(16,185,129,0.22) 0%, rgba(139,92,246,0.08) 40%, transparent 70%)',
@@ -35,20 +36,20 @@ export default function Scene6() {
           inset: 0,
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+          backgroundSize: '40px 40px',
           pointerEvents: 'none',
         }}
       />
 
-      {/* Outer orbit rings */}
+      {/* Orbit rings */}
       <motion.div
         initial={{ opacity: 0, scale: 0.6 }}
-        animate={{ opacity: 0.25, scale: 1 }}
+        animate={{ opacity: 0.2, scale: 1 }}
         transition={{ delay: 0.2, duration: 1, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          width: 420,
-          height: 420,
+          width: '60vw',
+          height: '60vw',
           borderRadius: '50%',
           border: '1.5px solid #10b981',
           top: '50%',
@@ -58,12 +59,12 @@ export default function Scene6() {
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.4 }}
-        animate={{ opacity: 0.15, scale: 1 }}
+        animate={{ opacity: 0.12, scale: 1 }}
         transition={{ delay: 0.35, duration: 1, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          width: 560,
-          height: 560,
+          width: '80vw',
+          height: '80vw',
           borderRadius: '50%',
           border: '1px solid #8b5cf6',
           top: '50%',
@@ -79,70 +80,82 @@ export default function Scene6() {
         transition={{ delay: 0.25, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
           color: '#10b981',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 18,
+          marginBottom: 20,
           position: 'relative',
           zIndex: 2,
+          textAlign: 'center',
         }}
       >
         Sua escalação. Com razões.
       </motion.div>
 
-      {/* MITOMETRO char-by-char */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          position: 'relative',
-          zIndex: 2,
-          overflow: 'hidden',
-        }}
-      >
-        {tagChars.map((ch, i) => {
-          const isEmerald = i >= 4; // "METRO" in emerald
-          return (
+      {/* MITOMETRO char-by-char — two rows for portrait */}
+      <div style={{ position: 'relative', zIndex: 2, overflow: 'hidden', textAlign: 'center' }}>
+        {/* MITO */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {chars.map((ch, i) => (
             <motion.span
-              key={i}
+              key={`mito-${i}`}
               initial={{ y: '120%', opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{
-                delay: 0.4 + i * 0.055,
-                duration: 0.55,
-                ease: [0.16, 1, 0.3, 1],
-              }}
+              transition={{ delay: 0.4 + i * 0.06, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
-                fontSize: '6rem',
-                lineHeight: 1,
-                color: isEmerald ? '#10b981' : '#ffffff',
+                fontSize: 'clamp(3.5rem, 18vw, 6rem)',
+                lineHeight: 0.95,
+                color: '#ffffff',
                 letterSpacing: '-0.03em',
                 display: 'inline-block',
-                textShadow: isEmerald ? '0 0 40px rgba(16,185,129,0.6)' : 'none',
               }}
             >
               {ch}
             </motion.span>
-          );
-        })}
+          ))}
+        </div>
+        {/* METRO */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {charsGreen.map((ch, i) => (
+            <motion.span
+              key={`metro-${i}`}
+              initial={{ y: '120%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.64 + i * 0.06, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 'clamp(3.5rem, 18vw, 6rem)',
+                lineHeight: 0.95,
+                color: '#10b981',
+                letterSpacing: '-0.03em',
+                display: 'inline-block',
+                textShadow: '0 0 40px rgba(16,185,129,0.6)',
+              }}
+            >
+              {ch}
+            </motion.span>
+          ))}
+        </div>
       </div>
 
       {/* Tagline below */}
       <motion.p
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.15, duration: 0.5, ease: 'circOut' }}
+        transition={{ delay: 1.2, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: '1.35rem',
+          fontSize: 'clamp(1.1rem, 5vw, 1.35rem)',
           color: '#94a3b8',
-          marginTop: 18,
+          marginTop: 20,
           position: 'relative',
           zIndex: 2,
           letterSpacing: '0.04em',
+          textAlign: 'center',
         }}
       >
         Escale com{' '}
@@ -153,20 +166,20 @@ export default function Scene6() {
       <motion.div
         initial={{ opacity: 0, scale: 0.85, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 1.45, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ delay: 1.5, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         style={{
           marginTop: 32,
           position: 'relative',
           zIndex: 2,
-          padding: '12px 36px',
+          padding: '14px 44px',
           borderRadius: 100,
           background: 'linear-gradient(135deg, #10b981, #059669)',
           fontFamily: 'var(--font-display)',
           fontWeight: 600,
-          fontSize: '1rem',
+          fontSize: 'clamp(0.95rem, 4vw, 1.1rem)',
           color: '#080d1a',
           letterSpacing: '0.04em',
-          boxShadow: '0 0 30px rgba(16,185,129,0.4)',
+          boxShadow: '0 0 36px rgba(16,185,129,0.45)',
         }}
       >
         mitometro.com.br
@@ -176,7 +189,7 @@ export default function Scene6() {
       <motion.div
         initial={{ scaleX: 0 }}
         animate={{ scaleX: 1 }}
-        transition={{ delay: 1.65, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ delay: 1.75, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
           bottom: 0,

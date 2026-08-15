@@ -19,8 +19,7 @@ export default function Scene1() {
         style={{
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.06) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-          animation: 'gridPulse 4s ease-in-out infinite',
+          backgroundSize: '40px 40px',
         }}
       />
 
@@ -28,8 +27,8 @@ export default function Scene1() {
       <div
         className="absolute"
         style={{
-          width: 500,
-          height: 500,
+          width: '80vw',
+          height: '80vw',
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)',
           top: '50%',
@@ -40,7 +39,7 @@ export default function Scene1() {
 
       {/* Live badge */}
       <motion.div
-        className="mb-6 overflow-hidden"
+        className="mb-8 overflow-hidden"
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5, ease: 'circOut' }}
@@ -48,7 +47,7 @@ export default function Scene1() {
         <span
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             color: '#10b981',
             letterSpacing: '0.25em',
             textTransform: 'uppercase',
@@ -69,10 +68,10 @@ export default function Scene1() {
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
-              fontSize: '5rem',
+              fontSize: 'clamp(2.2rem, 11vw, 5rem)',
               lineHeight: 1,
               color: '#ffffff',
-              letterSpacing: ch === ' ' ? '0.5rem' : '-0.02em',
+              letterSpacing: ch === ' ' ? '0.4rem' : '-0.02em',
               display: 'inline-block',
               whiteSpace: 'pre',
             }}
@@ -93,10 +92,10 @@ export default function Scene1() {
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
-              fontSize: '5rem',
+              fontSize: 'clamp(2.2rem, 11vw, 5rem)',
               lineHeight: 1,
               color: '#10b981',
-              letterSpacing: ch === ' ' ? '0.5rem' : '-0.02em',
+              letterSpacing: ch === ' ' ? '0.4rem' : '-0.02em',
               display: 'inline-block',
               whiteSpace: 'pre',
             }}
@@ -113,10 +112,12 @@ export default function Scene1() {
         transition={{ delay: 1.4, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: '1.25rem',
+          fontSize: 'clamp(1rem, 4vw, 1.25rem)',
           color: '#94a3b8',
           marginTop: '1.5rem',
           letterSpacing: '0.04em',
+          textAlign: 'center',
+          padding: '0 24px',
         }}
       >
         Escalar no feeling tem limite.

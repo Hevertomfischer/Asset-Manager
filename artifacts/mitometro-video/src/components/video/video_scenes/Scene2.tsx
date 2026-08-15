@@ -19,22 +19,22 @@ export default function Scene2() {
         style={{
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+          backgroundSize: '40px 40px',
         }}
       />
 
-      {/* Center divider line */}
+      {/* Horizontal divider line */}
       <motion.div
-        initial={{ scaleY: 0, opacity: 0 }}
-        animate={{ scaleY: 1, opacity: 1 }}
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: 1, opacity: 1 }}
         transition={{ delay: 0.3, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          top: '10%',
-          bottom: '10%',
-          left: '50%',
-          width: 1,
-          background: 'linear-gradient(to bottom, transparent, #334155, transparent)',
+          left: '8%',
+          right: '8%',
+          top: '50%',
+          height: 1,
+          background: 'linear-gradient(to right, transparent, #334155, transparent)',
           transformOrigin: 'center',
           zIndex: 1,
         }}
@@ -43,27 +43,25 @@ export default function Scene2() {
       <div
         style={{
           display: 'flex',
-          gap: 0,
-          alignItems: 'stretch',
+          flexDirection: 'column',
           width: '100%',
-          maxWidth: 900,
+          padding: '0 28px',
           position: 'relative',
           zIndex: 2,
-          padding: '0 48px',
+          gap: 0,
         }}
       >
-        {/* Left — Palpite */}
+        {/* Top — Palpite */}
         <motion.div
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'flex-end',
-            paddingRight: 48,
-            gap: 20,
+            alignItems: 'center',
+            paddingBottom: 28,
+            gap: 16,
           }}
         >
           {/* Badge */}
@@ -72,7 +70,7 @@ export default function Scene2() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '8px 18px',
+              padding: '8px 20px',
               borderRadius: 100,
               background: 'rgba(239,68,68,0.12)',
               border: '1.5px solid rgba(239,68,68,0.35)',
@@ -83,7 +81,7 @@ export default function Scene2() {
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
-                fontSize: '1.1rem',
+                fontSize: '1.15rem',
                 color: '#ef4444',
               }}
             >
@@ -91,22 +89,22 @@ export default function Scene2() {
             </span>
           </div>
 
-          {/* Items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+          {/* Items row */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             {leftItems.map((item, i) => (
               <motion.div
                 key={item}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 0.7, x: 0 }}
-                transition={{ delay: 0.4 + i * 0.12, duration: 0.4, ease: 'circOut' }}
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 0.75, y: 0 }}
+                transition={{ delay: 0.4 + i * 0.1, duration: 0.4, ease: 'circOut' }}
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   color: '#94a3b8',
                   padding: '8px 16px',
                   borderRadius: 8,
                   background: 'rgba(239,68,68,0.06)',
-                  border: '1px solid rgba(239,68,68,0.15)',
+                  border: '1px solid rgba(239,68,68,0.18)',
                 }}
               >
                 {item}
@@ -115,18 +113,17 @@ export default function Scene2() {
           </div>
         </motion.div>
 
-        {/* Right — Escalação com explicação */}
+        {/* Bottom — Escalação com explicação */}
         <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'flex-start',
-            paddingLeft: 48,
-            gap: 20,
+            alignItems: 'center',
+            paddingTop: 28,
+            gap: 16,
           }}
         >
           {/* Badge */}
@@ -135,7 +132,7 @@ export default function Scene2() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '8px 18px',
+              padding: '8px 20px',
               borderRadius: 100,
               background: 'rgba(16,185,129,0.12)',
               border: '1.5px solid rgba(16,185,129,0.4)',
@@ -154,22 +151,22 @@ export default function Scene2() {
             </span>
           </div>
 
-          {/* Items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+          {/* Items row */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             {rightItems.map((item, i) => (
               <motion.div
                 key={item}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + i * 0.12, duration: 0.4, ease: 'circOut' }}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + i * 0.1, duration: 0.4, ease: 'circOut' }}
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   color: '#e2e8f0',
                   padding: '8px 16px',
                   borderRadius: 8,
                   background: 'rgba(16,185,129,0.08)',
-                  border: '1px solid rgba(16,185,129,0.2)',
+                  border: '1px solid rgba(16,185,129,0.22)',
                 }}
               >
                 {item}
@@ -187,13 +184,14 @@ export default function Scene2() {
         style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
-          fontSize: '1.6rem',
+          fontSize: 'clamp(1.3rem, 5.5vw, 1.65rem)',
           color: '#ffffff',
-          marginTop: 44,
+          marginTop: 36,
           textAlign: 'center',
           position: 'relative',
           zIndex: 2,
           letterSpacing: '-0.01em',
+          padding: '0 24px',
         }}
       >
         Não é achismo.{' '}

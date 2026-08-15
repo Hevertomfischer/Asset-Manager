@@ -22,8 +22,8 @@ const analysisCards = [
     club: 'São Paulo',
     pts: '6.1',
     reason: 'Muito escalado, queda de forma',
-    detail: '73% escalação · -2.1 pts/jogo',
-    delay: 0.45,
+    detail: '73% escalação · −2.1 pts/jogo',
+    delay: 0.42,
   },
   {
     badge: '✅ Confronto favorável',
@@ -35,7 +35,7 @@ const analysisCards = [
     pts: '8.1',
     reason: 'Em casa · índice 1.4×',
     detail: 'Adversário: Fortaleza',
-    delay: 0.7,
+    delay: 0.64,
   },
 ];
 
@@ -53,8 +53,8 @@ export default function Scene4() {
       <div
         style={{
           position: 'absolute',
-          width: 700,
-          height: 500,
+          width: '90vw',
+          height: '90vw',
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%)',
           top: '50%',
@@ -71,11 +71,11 @@ export default function Scene4() {
         transition={{ delay: 0.05, duration: 0.45 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.75rem',
+          fontSize: '0.72rem',
           color: '#10b981',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 14,
+          marginBottom: 10,
           position: 'relative',
           zIndex: 2,
         }}
@@ -90,27 +90,28 @@ export default function Scene4() {
         style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
-          fontSize: '2.4rem',
+          fontSize: 'clamp(1.6rem, 7vw, 2.4rem)',
           color: '#ffffff',
-          marginBottom: 36,
+          marginBottom: 28,
           letterSpacing: '-0.02em',
           textAlign: 'center',
           position: 'relative',
           zIndex: 2,
+          padding: '0 24px',
         }}
       >
         Cada jogador tem{' '}
         <span style={{ color: '#10b981' }}>um motivo</span>.
       </motion.h2>
 
-      {/* Cards */}
+      {/* Cards stacked vertically */}
       <div
         style={{
           display: 'flex',
-          gap: 20,
-          maxWidth: 900,
+          flexDirection: 'column',
+          gap: 12,
           width: '100%',
-          padding: '0 32px',
+          padding: '0 20px',
           position: 'relative',
           zIndex: 2,
         }}
@@ -118,102 +119,98 @@ export default function Scene4() {
         {analysisCards.map((card) => (
           <motion.div
             key={card.player}
-            initial={{ opacity: 0, y: 28, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{ opacity: 0, x: -28, scale: 0.97 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ delay: card.delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
-              flex: 1,
-              borderRadius: 16,
+              borderRadius: 14,
               border: `1.5px solid ${card.badgeBorder}`,
               background: card.badgeBg,
-              padding: '20px 20px',
+              padding: '14px 18px',
               display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
+              alignItems: 'center',
+              gap: 16,
             }}
           >
-            {/* Badge */}
+            {/* Points — left */}
             <div
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '5px 12px',
-                borderRadius: 100,
-                background: card.badgeBg,
-                border: `1px solid ${card.badgeBorder}`,
-                alignSelf: 'flex-start',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '1.8rem',
+                fontWeight: 700,
+                color: card.badgeColor,
+                lineHeight: 1,
+                textShadow: `0 0 16px ${card.badgeColor}44`,
+                flexShrink: 0,
+                width: 58,
+                textAlign: 'center',
               }}
             >
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 600,
-                  fontSize: '0.78rem',
-                  color: card.badgeColor,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {card.badge}
-              </span>
+              {card.pts}
+              <div style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 400, marginTop: 2 }}>
+                pts proj.
+              </div>
             </div>
 
-            {/* Player info */}
-            <div>
+            {/* Divider */}
+            <div style={{ width: 1, alignSelf: 'stretch', background: `${card.badgeBorder}` }} />
+
+            {/* Info — right */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '3px 10px',
+                  borderRadius: 100,
+                  background: card.badgeBg,
+                  border: `1px solid ${card.badgeBorder}`,
+                  marginBottom: 6,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    color: card.badgeColor,
+                  }}
+                >
+                  {card.badge}
+                </span>
+              </div>
+
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,
-                  fontSize: '1.25rem',
+                  fontSize: '1rem',
                   color: '#ffffff',
                   letterSpacing: '-0.01em',
                 }}
               >
                 {card.player}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.72rem',
+                    color: '#475569',
+                    fontWeight: 400,
+                    marginLeft: 6,
+                  }}
+                >
+                  {card.club}
+                </span>
               </div>
+
               <div
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '0.78rem',
-                  color: '#475569',
-                  marginTop: 2,
-                }}
-              >
-                {card.club}
-              </div>
-            </div>
-
-            {/* Points */}
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '2rem',
-                fontWeight: 700,
-                color: card.badgeColor,
-                lineHeight: 1,
-                textShadow: `0 0 20px ${card.badgeColor}44`,
-              }}
-            >
-              {card.pts}
-              <span
-                style={{
-                  fontSize: '0.85rem',
-                  color: '#64748b',
-                  fontWeight: 400,
-                  marginLeft: 4,
-                }}
-              >
-                pts proj.
-              </span>
-            </div>
-
-            {/* Reason */}
-            <div style={{ marginTop: 'auto', paddingTop: 8, borderTop: `1px solid ${card.badgeBorder}` }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: '0.82rem',
+                  fontSize: '0.75rem',
                   color: '#94a3b8',
-                  lineHeight: 1.4,
+                  marginTop: 3,
+                  lineHeight: 1.3,
                 }}
               >
                 {card.reason}
@@ -221,9 +218,9 @@ export default function Scene4() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.68rem',
+                  fontSize: '0.62rem',
                   color: '#475569',
-                  marginTop: 4,
+                  marginTop: 2,
                 }}
               >
                 {card.detail}
