@@ -17,6 +17,7 @@ const BADGE: Record<string, string> = {
   PAL: `${BASE}badges/PAL.png`,
   COR: `${BASE}badges/COR.png`,
   SAO: `${BASE}badges/SAO.png`,
+  FLU: `${BASE}badges/FLU.png`,
 };
 
 const fieldPlayers: Array<{
@@ -28,7 +29,7 @@ const fieldPlayers: Array<{
   delay: number;
 }> = [
   // ATA row
-  { name: 'Hulk',       pos: 'ATA', club: 'CAM', x: 18, y: 8,  delay: 0.5  },
+  { name: 'Hulk',       pos: 'ATA', club: 'FLU', x: 18, y: 8,  delay: 0.5  },
   { name: 'Pedro',      pos: 'ATA', club: 'FLA', x: 50, y: 5,  delay: 0.6  },
   { name: 'Flaco',      pos: 'ATA', club: 'PAL', x: 82, y: 8,  delay: 0.7  },
   // MEI row
