@@ -130,7 +130,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             <span className="text-xs font-bold text-muted-foreground bg-secondary px-3 py-1 rounded-lg">vs</span>
             {c.matchDate && (
               <p className="text-[10px] text-muted-foreground mt-1">
-                {new Date(c.matchDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                {new Date(c.matchDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
               </p>
             )}
             {c.stadium && (

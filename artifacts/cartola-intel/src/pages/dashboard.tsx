@@ -62,6 +62,7 @@ function formatMatchDateTime(value: string | Date | null | undefined): string {
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
 }
 
@@ -218,7 +219,7 @@ export default function Dashboard() {
                   {roundData?.closingDate && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground bg-secondary/50 p-2 rounded-lg border border-border">
                       <Clock className="w-4 h-4" />
-                      Fecha: {new Date(roundData.closingDate).toLocaleString("pt-BR")}
+                      Fecha: {new Date(roundData.closingDate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </div>
                   )}
                   <Button className="w-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all font-bold group" asChild>
