@@ -17,8 +17,8 @@ export default function Scene6() {
       <div
         style={{
           position: 'absolute',
-          width: '120vw',
-          height: '120vw',
+          width: 1300,
+          height: 1300,
           borderRadius: '50%',
           background:
             'radial-gradient(circle, rgba(16,185,129,0.22) 0%, rgba(139,92,246,0.08) 40%, transparent 70%)',
@@ -36,7 +36,7 @@ export default function Scene6() {
           inset: 0,
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundSize: '100px 100px',
           pointerEvents: 'none',
         }}
       />
@@ -48,10 +48,10 @@ export default function Scene6() {
         transition={{ delay: 0.2, duration: 1, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          width: '60vw',
-          height: '60vw',
+          width: 650,
+          height: 650,
           borderRadius: '50%',
-          border: '1.5px solid #10b981',
+          border: '3px solid #10b981',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -63,10 +63,10 @@ export default function Scene6() {
         transition={{ delay: 0.35, duration: 1, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
-          width: '80vw',
-          height: '80vw',
+          width: 880,
+          height: 880,
           borderRadius: '50%',
-          border: '1px solid #8b5cf6',
+          border: '2px solid #8b5cf6',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -75,16 +75,16 @@ export default function Scene6() {
 
       {/* Tagline above */}
       <motion.div
-        initial={{ opacity: 0, y: -16 }}
+        initial={{ opacity: 0, y: -32 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.78rem',
+          fontSize: 30,
           color: '#10b981',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 20,
+          marginBottom: 50,
           position: 'relative',
           zIndex: 2,
           textAlign: 'center',
@@ -106,7 +106,7 @@ export default function Scene6() {
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
-                fontSize: 'clamp(3.5rem, 18vw, 6rem)',
+                fontSize: 190,
                 lineHeight: 0.95,
                 color: '#ffffff',
                 letterSpacing: '-0.03em',
@@ -128,12 +128,12 @@ export default function Scene6() {
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
-                fontSize: 'clamp(3.5rem, 18vw, 6rem)',
+                fontSize: 190,
                 lineHeight: 0.95,
                 color: '#10b981',
                 letterSpacing: '-0.03em',
                 display: 'inline-block',
-                textShadow: '0 0 40px rgba(16,185,129,0.6)',
+                textShadow: '0 0 100px rgba(16,185,129,0.6)',
               }}
             >
               {ch}
@@ -144,14 +144,14 @@ export default function Scene6() {
 
       {/* Tagline below */}
       <motion.p
-        initial={{ opacity: 0, y: 14 }}
+        initial={{ opacity: 0, y: 28 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: 'clamp(1.1rem, 5vw, 1.35rem)',
+          fontSize: 52,
           color: '#94a3b8',
-          marginTop: 20,
+          marginTop: 50,
           position: 'relative',
           zIndex: 2,
           letterSpacing: '0.04em',
@@ -164,22 +164,22 @@ export default function Scene6() {
 
       {/* CTA pill */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.85, y: 16 }}
+        initial={{ opacity: 0, scale: 0.85, y: 32 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ delay: 1.5, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         style={{
-          marginTop: 32,
+          marginTop: 80,
           position: 'relative',
           zIndex: 2,
-          padding: '14px 44px',
-          borderRadius: 100,
+          padding: '35px 110px',
+          borderRadius: 250,
           background: 'linear-gradient(135deg, #10b981, #059669)',
           fontFamily: 'var(--font-display)',
           fontWeight: 600,
-          fontSize: 'clamp(0.95rem, 4vw, 1.1rem)',
+          fontSize: 43,
           color: '#080d1a',
           letterSpacing: '0.04em',
-          boxShadow: '0 0 36px rgba(16,185,129,0.45)',
+          boxShadow: '0 0 90px rgba(16,185,129,0.45)',
         }}
       >
         mitometro.com.br
@@ -195,7 +195,7 @@ export default function Scene6() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 4,
+          height: 10,
           background: 'linear-gradient(90deg, transparent, #10b981, #8b5cf6, transparent)',
           transformOrigin: 'center',
         }}

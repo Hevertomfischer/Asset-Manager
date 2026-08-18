@@ -44,17 +44,17 @@ export default function Scene4() {
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center"
       style={{ background: '#080d1a' }}
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 60 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -30, filter: 'blur(8px)' }}
+      exit={{ opacity: 0, y: -60, filter: 'blur(8px)' }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* Subtle glow */}
       <div
         style={{
           position: 'absolute',
-          width: '90vw',
-          height: '90vw',
+          width: 980,
+          height: 980,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%)',
           top: '50%',
@@ -66,16 +66,16 @@ export default function Scene4() {
 
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -12 }}
+        initial={{ opacity: 0, y: -24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05, duration: 0.45 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.72rem',
+          fontSize: 28,
           color: '#10b981',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 10,
+          marginBottom: 25,
           position: 'relative',
           zIndex: 2,
         }}
@@ -84,20 +84,20 @@ export default function Scene4() {
       </motion.div>
 
       <motion.h2
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08, duration: 0.45, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
-          fontSize: 'clamp(1.6rem, 7vw, 2.4rem)',
+          fontSize: 76,
           color: '#ffffff',
-          marginBottom: 28,
+          marginBottom: 70,
           letterSpacing: '-0.02em',
           textAlign: 'center',
           position: 'relative',
           zIndex: 2,
-          padding: '0 24px',
+          padding: '0 60px',
         }}
       >
         Cada jogador tem{' '}
@@ -109,9 +109,9 @@ export default function Scene4() {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 30,
           width: '100%',
-          padding: '0 20px',
+          padding: '0 50px',
           position: 'relative',
           zIndex: 2,
         }}
@@ -119,41 +119,41 @@ export default function Scene4() {
         {analysisCards.map((card) => (
           <motion.div
             key={card.player}
-            initial={{ opacity: 0, x: -28, scale: 0.97 }}
+            initial={{ opacity: 0, x: -70, scale: 0.97 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ delay: card.delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
-              borderRadius: 14,
-              border: `1.5px solid ${card.badgeBorder}`,
+              borderRadius: 35,
+              border: `3px solid ${card.badgeBorder}`,
               background: card.badgeBg,
-              padding: '14px 18px',
+              padding: '35px 45px',
               display: 'flex',
               alignItems: 'center',
-              gap: 16,
+              gap: 40,
             }}
           >
             {/* Points — left */}
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '1.8rem',
+                fontSize: 72,
                 fontWeight: 700,
                 color: card.badgeColor,
                 lineHeight: 1,
-                textShadow: `0 0 16px ${card.badgeColor}44`,
+                textShadow: `0 0 40px ${card.badgeColor}44`,
                 flexShrink: 0,
-                width: 58,
+                width: 150,
                 textAlign: 'center',
               }}
             >
               {card.pts}
-              <div style={{ fontSize: '0.55rem', color: '#64748b', fontWeight: 400, marginTop: 2 }}>
+              <div style={{ fontSize: 22, color: '#64748b', fontWeight: 400, marginTop: 6 }}>
                 pts proj.
               </div>
             </div>
 
             {/* Divider */}
-            <div style={{ width: 1, alignSelf: 'stretch', background: `${card.badgeBorder}` }} />
+            <div style={{ width: 2, alignSelf: 'stretch', background: `${card.badgeBorder}` }} />
 
             {/* Info — right */}
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -162,18 +162,18 @@ export default function Scene4() {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  padding: '3px 10px',
-                  borderRadius: 100,
+                  padding: '8px 25px',
+                  borderRadius: 250,
                   background: card.badgeBg,
-                  border: `1px solid ${card.badgeBorder}`,
-                  marginBottom: 6,
+                  border: `2px solid ${card.badgeBorder}`,
+                  marginBottom: 16,
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'var(--font-display)',
                     fontWeight: 600,
-                    fontSize: '0.7rem',
+                    fontSize: 28,
                     color: card.badgeColor,
                   }}
                 >
@@ -185,7 +185,7 @@ export default function Scene4() {
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,
-                  fontSize: '1rem',
+                  fontSize: 40,
                   color: '#ffffff',
                   letterSpacing: '-0.01em',
                 }}
@@ -194,10 +194,10 @@ export default function Scene4() {
                 <span
                   style={{
                     fontFamily: 'var(--font-body)',
-                    fontSize: '0.72rem',
+                    fontSize: 29,
                     color: '#475569',
                     fontWeight: 400,
-                    marginLeft: 6,
+                    marginLeft: 15,
                   }}
                 >
                   {card.club}
@@ -207,9 +207,9 @@ export default function Scene4() {
               <div
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '0.75rem',
+                  fontSize: 30,
                   color: '#94a3b8',
-                  marginTop: 3,
+                  marginTop: 8,
                   lineHeight: 1.3,
                 }}
               >
@@ -218,9 +218,9 @@ export default function Scene4() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.62rem',
+                  fontSize: 25,
                   color: '#475569',
-                  marginTop: 2,
+                  marginTop: 6,
                 }}
               >
                 {card.detail}

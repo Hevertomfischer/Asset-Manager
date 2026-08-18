@@ -3,10 +3,11 @@ import { motion } from 'framer-motion';
 /**
  * 4-3-3 lineup — Cartola-compliant: max 3 players per club.
  *   FLA (Flamengo):    Léo Ortiz (ZAG), De Arrascaeta (MEI), Pedro (ATA)
- *   CAM (Atlético-MG): Everson (GOL), Guilherme Arana (LAT), Hulk (ATA)
+ *   CAM (Atlético-MG): Everson (GOL), Guilherme Arana (LAT)
  *   PAL (Palmeiras):   Piquerez (LAT), Raphael Veiga (MEI), Flaco López (ATA)
  *   COR (Corinthians): Murillo (ZAG)
  *   SAO (São Paulo):   Lucas (MEI)
+ *   FLU (Fluminense):  Hulk (ATA)
  */
 
 const BASE = import.meta.env.BASE_URL;
@@ -60,36 +61,36 @@ function BadgePin({ club, pos, name, delay }: { club: string; pos: string; name:
       initial={{ opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
     >
       <div
         style={{
-          width: 28,
-          height: 28,
+          width: 80,
+          height: 80,
           borderRadius: '50%',
           background: '#0d1f1a',
-          border: `2px solid ${color}`,
-          boxShadow: `0 0 8px ${color}55`,
+          border: `4px solid ${color}`,
+          boxShadow: `0 0 20px ${color}55`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
         }}
       >
-        <img src={BADGE[club]} alt={club} style={{ width: 20, height: 20, objectFit: 'contain' }} />
+        <img src={BADGE[club]} alt={club} style={{ width: 56, height: 56, objectFit: 'contain' }} />
       </div>
       <div
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: '0.42rem',
+          fontSize: 24,
           color: '#e2e8f0',
           textAlign: 'center',
-          maxWidth: 44,
+          maxWidth: 130,
           lineHeight: 1.1,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
-          textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+          textShadow: '0 2px 8px rgba(0,0,0,0.9)',
         }}
       >
         {name}
@@ -103,24 +104,24 @@ export default function Scene3() {
     <motion.div
       className="absolute inset-0 flex flex-col"
       style={{ background: '#080d1a' }}
-      initial={{ opacity: 0, x: 80 }}
+      initial={{ opacity: 0, x: 200 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* Header */}
-      <div style={{ padding: '28px 24px 12px', flexShrink: 0 }}>
+      <div style={{ padding: '70px 60px 30px', flexShrink: 0 }}>
         <motion.div
-          initial={{ opacity: 0, y: -12 }}
+          initial={{ opacity: 0, y: -24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.45, ease: 'circOut' }}
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.72rem',
+            fontSize: 28,
             color: '#10b981',
             letterSpacing: '0.3em',
             textTransform: 'uppercase',
-            marginBottom: 6,
+            marginBottom: 16,
           }}
         >
           Escalação gerada
@@ -132,7 +133,7 @@ export default function Scene3() {
           style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
-            fontSize: '3rem',
+            fontSize: 120,
             lineHeight: 1,
             color: '#ffffff',
             letterSpacing: '-0.03em',
@@ -149,12 +150,12 @@ export default function Scene3() {
         transition={{ delay: 0.25, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         style={{
           flex: 1,
-          margin: '0 16px',
-          borderRadius: 14,
+          margin: '0 40px',
+          borderRadius: 35,
           overflow: 'hidden',
           position: 'relative',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
-          border: '1.5px solid rgba(16,185,129,0.25)',
+          boxShadow: '0 20px 100px rgba(0,0,0,0.5)',
+          border: '3px solid rgba(16,185,129,0.25)',
           minHeight: 0,
         }}
       >
@@ -209,8 +210,8 @@ export default function Scene3() {
       <div
         style={{
           display: 'flex',
-          gap: 8,
-          padding: '12px 16px 24px',
+          gap: 20,
+          padding: '30px 40px 60px',
           flexShrink: 0,
         }}
       >
@@ -221,7 +222,7 @@ export default function Scene3() {
         ].map(({ label, value, color }, i) => (
           <motion.div
             key={label}
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 + i * 0.1, duration: 0.4, ease: 'circOut' }}
             style={{
@@ -229,17 +230,17 @@ export default function Scene3() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 2,
-              padding: '10px 8px',
-              borderRadius: 10,
+              gap: 6,
+              padding: '25px 20px',
+              borderRadius: 25,
               background: '#0f1629',
-              border: `1px solid ${color}22`,
+              border: `2px solid ${color}22`,
             }}
           >
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color, fontWeight: 700 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 36, color, fontWeight: 700 }}>
               {value}
             </span>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', color: '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 25, color: '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
               {label}
             </span>
           </motion.div>

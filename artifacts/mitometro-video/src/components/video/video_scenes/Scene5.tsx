@@ -87,7 +87,7 @@ export default function Scene5() {
         style={{
           backgroundImage:
             'linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundSize: '100px 100px',
         }}
       />
 
@@ -95,8 +95,8 @@ export default function Scene5() {
       <div
         style={{
           position: 'absolute',
-          width: '80vw',
-          height: '80vw',
+          width: 900,
+          height: 900,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)',
           top: '50%',
@@ -108,16 +108,16 @@ export default function Scene5() {
 
       {/* Section label */}
       <motion.div
-        initial={{ opacity: 0, y: -12 }}
+        initial={{ opacity: 0, y: -24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.45 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.72rem',
+          fontSize: 28,
           color: '#f59e0b',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 14,
+          marginBottom: 36,
           position: 'relative',
           zIndex: 2,
         }}
@@ -126,15 +126,15 @@ export default function Scene5() {
       </motion.div>
 
       {/* Main headline */}
-      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 32, padding: '0 24px' }}>
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 80, padding: '0 60px' }}>
         <motion.h2
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.5, ease: 'circOut' }}
           style={{
             fontFamily: 'var(--font-display)',
             fontWeight: 700,
-            fontSize: 'clamp(1.8rem, 8vw, 2.8rem)',
+            fontSize: 86,
             color: '#ffffff',
             letterSpacing: '-0.02em',
             lineHeight: 1.1,
@@ -144,14 +144,14 @@ export default function Scene5() {
           Todo modelo erra.
         </motion.h2>
         <motion.p
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.45, ease: 'circOut' }}
           style={{
             fontFamily: 'var(--font-body)',
-            fontSize: 'clamp(0.95rem, 4vw, 1.15rem)',
+            fontSize: 44,
             color: '#64748b',
-            marginTop: 10,
+            marginTop: 25,
           }}
         >
           A diferença é saber{' '}
@@ -164,9 +164,9 @@ export default function Scene5() {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 30,
           width: '100%',
-          padding: '0 20px',
+          padding: '0 50px',
           position: 'relative',
           zIndex: 2,
         }}
@@ -174,44 +174,44 @@ export default function Scene5() {
         {metrics.map((m) => (
           <motion.div
             key={m.label}
-            initial={{ opacity: 0, x: 24, scale: 0.96 }}
+            initial={{ opacity: 0, x: 60, scale: 0.96 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ delay: m.delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
-              borderRadius: 14,
-              border: `1.5px solid ${m.color}30`,
+              borderRadius: 35,
+              border: `3px solid ${m.color}30`,
               background: `linear-gradient(135deg, ${m.color}0d 0%, #0b1120 100%)`,
-              padding: '16px 22px',
+              padding: '40px 55px',
               display: 'flex',
               alignItems: 'center',
-              gap: 20,
+              gap: 50,
             }}
           >
             {/* Number */}
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '2.2rem',
+                fontSize: 88,
                 fontWeight: 700,
                 color: m.color,
                 lineHeight: 1,
-                textShadow: `0 0 20px ${m.color}44`,
+                textShadow: `0 0 50px ${m.color}44`,
                 flexShrink: 0,
-                minWidth: 90,
+                minWidth: 230,
                 textAlign: 'right',
               }}
             >
               <AnimatedCount target={m.value} suffix={m.suffix} delay={m.delay} decimals={m.decimals} />
             </div>
 
-            <div style={{ width: 1, alignSelf: 'stretch', background: `${m.color}25` }} />
+            <div style={{ width: 2, alignSelf: 'stretch', background: `${m.color}25` }} />
 
             {/* Label */}
             <div style={{ flex: 1 }}>
               <div
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: '0.85rem',
+                  fontSize: 34,
                   color: '#94a3b8',
                   lineHeight: 1.4,
                 }}
@@ -221,9 +221,9 @@ export default function Scene5() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.62rem',
+                  fontSize: 25,
                   color: '#475569',
-                  marginTop: 3,
+                  marginTop: 8,
                 }}
               >
                 {m.sublabel}
@@ -240,14 +240,14 @@ export default function Scene5() {
         transition={{ delay: 1.35, duration: 0.5 }}
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: '0.65rem',
+          fontSize: 26,
           color: '#334155',
-          marginTop: 24,
+          marginTop: 60,
           letterSpacing: '0.05em',
           position: 'relative',
           zIndex: 2,
           textAlign: 'center',
-          padding: '0 24px',
+          padding: '0 60px',
         }}
       >
         Histórico completo em mitometro.com.br/desempenho
