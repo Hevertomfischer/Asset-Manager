@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTrack } from "@/hooks/useTrack";
 import {
@@ -57,6 +57,7 @@ export interface SwapSimulatorProps {
   onApply: (outId: number, inPlayer: Player, after: LineupMetrics) => void;
   skipSimulation?: boolean; // para reservas: pula a chamada de simulação
   label?: string; // override do título "Simular troca"
+  initialCandidate?: Player;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -162,12 +163,14 @@ export function SwapSimulator({
   onApply,
   skipSimulation = false,
   label,
+  initialCandidate,
 }: SwapSimulatorProps) {
   const [search, setSearch] = useState("");
   const [phase, setPhase] = useState<"select" | "result">("select");
   const [selectedCandidate, setSelectedCandidate] = useState<Player | null>(null);
   const [simulateResult, setSimulateResult] = useState<SimulateResult | null>(null);
   const [simulatingId, setSimulatingId] = useState<number | null>(null);
+  const autoSimulatedCandidateId = useRef<number | null>(null);
   const track = useTrack();
 
   // Fetch eligible players of the same position
@@ -249,6 +252,12 @@ export function SwapSimulator({
     simulateMutation.mutate(candidate);
   };
 
+  useEffect(() => {
+    if (!isOpen || !initialCandidate || autoSimulatedCandidateId.current === initialCandidate.id) return;
+    autoSimulatedCandidateId.current = initialCandidate.id;
+    handleSelectCandidate(initialCandidate);
+  }, [initialCandidate, isOpen, outPlayer.playerId]);
+
   const handleApply = () => {
     if (!selectedCandidate || !simulateResult) return;
     onApply(outPlayer.playerId!, selectedCandidate, simulateResult.after);
@@ -270,6 +279,7 @@ export function SwapSimulator({
     setSimulateResult(null);
     setSimulatingId(null);
     simulateMutation.reset();
+    autoSimulatedCandidateId.current = null;
     onClose();
   };
 

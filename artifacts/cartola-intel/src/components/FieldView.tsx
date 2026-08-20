@@ -6,8 +6,10 @@
  * reais dos clubes (PNG em /jerseys/{ABBR}.png) com fallback SVG.
  */
 
-import type { LineupPlayer, LineupReservePlayer } from "@workspace/api-client-react";
+import type { LineupPlayer, LineupReservePlayer, LineupSuggestion, Player } from "@workspace/api-client-react";
 import { getClubColors, JERSEY_PNG_CLUBS, JERSEY_VERSION } from "@/lib/clubColors";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
 
 function getJerseyImageUrl(abbr: string | null | undefined): string | null {
   if (!abbr) return null;
@@ -93,10 +95,18 @@ function JerseyCard({
   player,
   captainId,
   onClick,
+  lineup,
+  reserves,
+  onSuggestedSwap,
+  onSwapRequest,
 }: {
   player: LineupPlayer;
   captainId?: number | null;
   onClick?: (player: LineupPlayer) => void;
+  lineup?: LineupSuggestion;
+  reserves?: LineupReservePlayer[];
+  onSuggestedSwap?: (outPlayer: LineupPlayer, candidate: Player) => void;
+  onSwapRequest?: (player: LineupPlayer) => void;
 }) {
   const isCaptain = player.playerId === captainId;
   const raw = player.nickname ?? player.name ?? "";
@@ -127,17 +137,35 @@ function JerseyCard({
     </>
   );
 
-  if (onClick) {
+  const button = onClick ? (
+    <button
+      type="button"
+      onClick={() => onClick(player)}
+      title={`Ver detalhes e opções de substituição de ${displayName}`}
+      className="flex flex-col items-center gap-0.5 group cursor-pointer active:scale-95 transition-transform duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 rounded-lg"
+    >
+      {inner}
+    </button>
+  ) : null;
+
+  if (button && lineup && player.position !== "TEC" && onSuggestedSwap && onSwapRequest) {
     return (
-      <button
-        type="button"
-        onClick={() => onClick(player)}
-        className="flex flex-col items-center gap-0.5 group cursor-pointer active:scale-95 transition-transform duration-100 focus:outline-none"
-      >
-        {inner}
-      </button>
+      <HoverCard openDelay={350} closeDelay={200}>
+        <HoverCardTrigger asChild>{button}</HoverCardTrigger>
+        <HoverCardContent side="top" align="center" collisionPadding={12} className="w-[292px] p-0">
+          <ReplacementSuggestions
+            outPlayer={player}
+            lineup={lineup}
+            reserves={reserves}
+            onSelect={(candidate) => onSuggestedSwap(player, candidate)}
+            onBrowseAll={() => onSwapRequest(player)}
+          />
+        </HoverCardContent>
+      </HoverCard>
     );
   }
+
+  if (button) return button;
 
   return (
     <div className="flex flex-col items-center gap-0.5 group">
@@ -202,13 +230,26 @@ function PitchBackground() {
 interface FieldViewProps {
   players: LineupPlayer[];
   reserves?: LineupReservePlayer[];
+  lineup?: LineupSuggestion;
   captainId?: number | null;
   coachId?: number | null;
   onPlayerClick?: (player: LineupPlayer) => void;
   onReserveClick?: (reserve: LineupReservePlayer) => void;
+  onSuggestedSwap?: (outPlayer: LineupPlayer, candidate: Player) => void;
+  onSwapRequest?: (player: LineupPlayer) => void;
 }
 
-export function FieldView({ players, reserves = [], captainId, coachId, onPlayerClick, onReserveClick }: FieldViewProps) {
+export function FieldView({
+  players,
+  reserves = [],
+  lineup,
+  captainId,
+  coachId,
+  onPlayerClick,
+  onReserveClick,
+  onSuggestedSwap,
+  onSwapRequest,
+}: FieldViewProps) {
   const fieldPlayers = players.filter((p) => p.position !== "TEC");
   const coach = players.find((p) => p.position === "TEC" || p.playerId === coachId);
 
@@ -244,32 +285,32 @@ export function FieldView({ players, reserves = [], captainId, coachId, onPlayer
           {/* ATT */}
           <div className="flex justify-evenly w-full items-center">
             {att.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
             ))}
           </div>
 
           {/* MID */}
           <div className="flex justify-evenly w-full items-center">
             {mid.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
             ))}
           </div>
 
           {/* DEF */}
           <div className="flex justify-evenly w-full items-center">
             {def.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
             ))}
           </div>
 
           {/* GOL + TEC */}
           <div className="flex justify-center w-full relative items-center">
             {gk.map((p) => (
-              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} />
+              <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
             ))}
             {coach && (
               <div className="absolute right-2 bottom-0 scale-90 opacity-80 hover:opacity-100 transition-opacity">
-                <JerseyCard player={coach} captainId={captainId} onClick={onPlayerClick} />
+                <JerseyCard player={coach} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
               </div>
             )}
           </div>

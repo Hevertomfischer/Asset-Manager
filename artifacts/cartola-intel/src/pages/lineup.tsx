@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
 import { FieldView } from "@/components/FieldView";
 import { LineupShareCard } from "@/components/share/LineupShareCard";
 import { useShareCard } from "@/hooks/useShareCard";
+import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
 
 function LineupPlayerCard({
   player,
@@ -185,6 +186,7 @@ export default function Lineup() {
 
   const [currentLineup, setCurrentLineup] = useState<LineupSuggestion | null>(null);
   const [swapOutPlayer, setSwapOutPlayer] = useState<LineupPlayer | null>(null);
+  const [suggestedSwapCandidate, setSuggestedSwapCandidate] = useState<Player | null>(null);
   const [swapOutReserve, setSwapOutReserve] = useState<LineupReservePlayer | null>(null);
   const [fieldClickedPlayer, setFieldClickedPlayer] = useState<LineupPlayer | null>(null);
   const [reserveClickedPlayer, setReserveClickedPlayer] = useState<LineupReservePlayer | null>(null);
@@ -279,7 +281,15 @@ export default function Lineup() {
 
   const handleSwapRequest = (player: LineupPlayer) => {
     if (!isPro) { openPaywall(); return; }
+    setSuggestedSwapCandidate(null);
     setSwapOutPlayer(player);
+  };
+
+  const handleSuggestedSwapRequest = (outPlayer: LineupPlayer, candidate: Player) => {
+    if (!isPro) { openPaywall(); return; }
+    setFieldClickedPlayer(null);
+    setSuggestedSwapCandidate(candidate);
+    setSwapOutPlayer(outPlayer);
   };
 
   const handleReserveSwapRequest = (reserve: LineupReservePlayer) => {
@@ -369,6 +379,7 @@ export default function Lineup() {
       riskScore: afterMetrics.totalRisk,
     });
     setSwapOutPlayer(null);
+    setSuggestedSwapCandidate(null);
     toast({
       title: "Troca aplicada",
       description: `${outName} → ${inPlayer.nickname ?? inPlayer.name}`,
@@ -630,10 +641,13 @@ export default function Lineup() {
               <FieldView
                 players={currentLineup.players ?? []}
                 reserves={currentLineup.reserves ?? []}
+                lineup={currentLineup}
                 captainId={currentLineup.captainPlayerId}
                 coachId={currentLineup.coachPlayerId}
                 onPlayerClick={setFieldClickedPlayer}
                 onReserveClick={handleReserveSwapRequest}
+                onSuggestedSwap={handleSuggestedSwapRequest}
+                onSwapRequest={handleSwapRequest}
               />
             )}
 
@@ -748,6 +762,9 @@ export default function Lineup() {
                     <DialogTitle className="text-lg leading-tight truncate">
                       {p.nickname ?? p.name ?? "Jogador"}
                     </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        Análise do jogador e alternativas de substituição para esta escalação.
+                      </DialogDescription>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {p.position && (
                         <span className="text-xs font-mono font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
@@ -824,6 +841,21 @@ export default function Lineup() {
                       })}
                     </div>
                   )}
+
+                  {currentLineup && (
+                    <div className="mb-4">
+                      <ReplacementSuggestions
+                        outPlayer={p}
+                        lineup={currentLineup}
+                        reserves={currentLineup.reserves ?? []}
+                        onSelect={(candidate) => handleSuggestedSwapRequest(p, candidate)}
+                        onBrowseAll={() => {
+                          setFieldClickedPlayer(null);
+                          handleSwapRequest(p);
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -869,10 +901,14 @@ export default function Lineup() {
       {swapOutPlayer && currentLineup && (
         <SwapSimulator
           isOpen={!!swapOutPlayer}
-          onClose={() => setSwapOutPlayer(null)}
+          onClose={() => {
+            setSwapOutPlayer(null);
+            setSuggestedSwapCandidate(null);
+          }}
           outPlayer={swapOutPlayer}
           lineup={currentLineup}
           budget={budget}
+          initialCandidate={suggestedSwapCandidate ?? undefined}
           onApply={handleApplySwap}
         />
       )}
