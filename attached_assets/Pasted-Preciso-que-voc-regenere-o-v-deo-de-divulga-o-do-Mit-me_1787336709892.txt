@@ -1,0 +1,41 @@
+Preciso que você regenere o vídeo de divulgação do Mitômetro (o mesmo projeto/composição que gerou o arquivo MitometroAug18134101.mp4), corrigindo os seguintes problemas técnicos e de roteiro. Não precisa redesenhar a identidade visual (fundo escuro, verde neon, tipografia atual) — o objetivo é corrigir exportação, ritmo e áudio, mantendo o estilo.
+
+## 1. Formato de exportação (bug crítico)
+O vídeo atual foi montado em proporção vertical (~9:16) mas exportado dentro de um canvas 1920x1080, gerando barras pretas grandes nas laterais (pillarboxing) — só ~30% da largura do frame tem conteúdo.
+- Corrija o canvas de renderização para 1080x1920 nativo (9:16 real), sem letterbox/pillarbox.
+- Gere também uma segunda versão em 1920x1080 (16:9) para uso no X/Twitter, recompondo os elementos para ocupar a largura toda (não é para cortar a versão vertical, é para recompor o layout nessa proporção).
+
+## 2. Áudio (hoje o vídeo não tem nenhuma faixa de áudio)
+- Adicione uma trilha de fundo (upbeat, estilo esportivo/hype, livre de direitos) com volume moderado.
+- Adicione efeitos sonoros curtos nas transições e nos momentos de destaque: um "whoosh" na entrada de cada cena, um som de "tick/contador" quando os números das estatísticas aparecem (2.85 pts, 64.4%, etc.), e um som de confirmação quando os jogadores entram no campo 4-3-3.
+- Adicione locução (texto-para-voz ou gravação) lendo em voz alta pelo menos: a frase de abertura, a frase "Não é achismo. É método." e o CTA final ("Escale com explicação, no mitometro.com.br"). O objetivo é que o vídeo funcione bem mesmo para quem assiste com som ligado (TikTok/Reels favorecem isso no algoritmo).
+
+## 3. Abertura (primeiros 1-2 segundos)
+- O frame de abertura atual é quase todo preto com texto pequeno — isso vira a miniatura do vídeo e precisa comunicar a ideia central instantaneamente.
+- Substitua por uma abertura com movimento desde o frame zero: o campo de futebol 4-3-3 já começando a se preencher com os jogadores, OU uma frase-gancho grande ocupando boa parte da tela ("Você ainda escala no feeling?"), com o texto já legível no primeiro frame — nunca comece em tela quase vazia.
+
+## 4. Ritmo das cenas com texto denso
+- A cena de comparação "❌ Palpite (Feeling / Influenciador / Chute)" vs "✅ Escalação com explicação (Dados históricos / Confrontos / Razões claras)" tem 6 blocos de texto para ler em poucos segundos e hoje aparece praticamente estática.
+- Anime a entrada de cada chip/bloco de forma sequencial (um de cada vez, com leve stagger de 0.15-0.2s entre eles) em vez de tudo aparecer junto, e sincronize com efeito sonoro leve em cada entrada, para dar tempo de leitura sem alongar demais a cena.
+
+## 5. CTA final
+- A tela final com "mitometro.com.br" hoje aparece rápido demais e o botão fica próximo da borda inferior do frame.
+- Aumente o tempo de exibição da tela final para no mínimo 3.5-4 segundos.
+- Reposicione o botão de CTA e a URL para dentro da "safe zone": nada nos últimos 20-25% inferiores do frame (essa área é coberta pela legenda, nome de usuário e ícones de áudio no TikTok/Instagram) nem colado à borda direita (onde ficam curtir/comentar/salvar no feed).
+
+## 6. Estrutura modular (importante)
+Estruture o código/composição de forma que cada bloco de conteúdo abaixo possa ser renderizado tanto como parte do vídeo completo quanto como um clipe independente, cada um começando e terminando de forma que funcione sozinho (com seu próprio hook e seu próprio encerramento com a marca):
+  a. Abertura/posicionamento — "Cartola FC é estratégia" (~8-10s)
+  b. Demonstração — campo 4-3-3 sendo montado com pontos e custo (~10-15s)
+  c. Explicabilidade — "Cada jogador tem um motivo" com os cards Pedro/Calleri/Arrascaeta (~12-15s)
+  d. Comparação — Palpite vs. Escalação com explicação (~8-10s)
+  e. Transparência/backtest — erro médio, % de acerto, link para /desempenho (~12-18s)
+Gere como saída: (1) o vídeo completo revisado (~25-30s) nos dois formatos do item 1, e (2) cada um dos 5 blocos acima como arquivo .mp4 separado, também nos dois formatos, para que eu possa publicar como uma série de posts ao longo da semana em vez de um vídeo único.
+
+## 7. Checklist de aceite antes de finalizar
+- [ ] Nenhuma barra preta nas laterais em nenhum dos dois formatos de saída
+- [ ] Áudio presente em 100% da duração (trilha + pelo menos os 3 trechos de locução indicados)
+- [ ] Primeiro frame de cada vídeo (completo e dos 5 clipes) já comunica a ideia central visualmente
+- [ ] Nenhum elemento de texto ou botão dentro da faixa inferior de 20-25% do frame
+- [ ] Tela final de CTA visível por pelo menos 3.5s em todos os vídeos
+- [ ] Identidade visual (cores, tipografia, iconografia) idêntica à versão atual
