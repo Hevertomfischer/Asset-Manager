@@ -3,7 +3,67 @@ import { ChevronDown, ChevronUp, Repeat, Volume2, VolumeX } from 'lucide-react';
 import VideoTemplate, { SCENE_DURATIONS } from './VideoTemplate';
 import { useSceneControls } from './useSceneControls';
 
+declare global {
+  interface Window {
+    /** Set true by the exporter once tab capture is ready, to release the timeline. */
+    __MITOMETRO_EXPORT_START__?: boolean;
+    /** Set true once the (non-looping) export playback has reached its end. */
+    __MITOMETRO_EXPORT_ENDED__?: boolean;
+  }
+}
+
 const PROGRESS_TICK_MS = 60;
+
+/**
+ * Deterministic export handshake.
+ *
+ * In `?export=true` mode we must NOT start the React timeline / autoplay audio
+ * until the external exporter (export.js) has finished setting up tab capture.
+ * Otherwise the first ~1s of playback is lost and a frozen tail is captured.
+ *
+ * The exporter signals readiness by either:
+ *   - setting `window.__MITOMETRO_EXPORT_START__ = true`, or
+ *   - dispatching a `mitometro:export-start` event on window.
+ *
+ * If the exporter injects the flag/attaches the listener *before* React mounts,
+ * we detect the pre-set global on first render. Outside export mode the gate is
+ * always "open" so interactive usage is unaffected.
+ */
+function useExportStartGate(isExport: boolean): boolean {
+  const [ready, setReady] = useState(() => {
+    if (!isExport) return true;
+    if (typeof window === 'undefined') return false;
+    return window.__MITOMETRO_EXPORT_START__ === true;
+  });
+
+  useEffect(() => {
+    if (!isExport || ready || typeof window === 'undefined') return;
+
+    // Re-check in case the flag was set between initial state and effect run.
+    if (window.__MITOMETRO_EXPORT_START__ === true) {
+      setReady(true);
+      return;
+    }
+
+    const onStart = () => setReady(true);
+    window.addEventListener('mitometro:export-start', onStart);
+
+    // Poll the global as a fallback for injection races (page.evaluate before nav vs after).
+    const poll = window.setInterval(() => {
+      if (window.__MITOMETRO_EXPORT_START__ === true) {
+        setReady(true);
+        window.clearInterval(poll);
+      }
+    }, 50);
+
+    return () => {
+      window.removeEventListener('mitometro:export-start', onStart);
+      window.clearInterval(poll);
+    };
+  }, [isExport, ready]);
+
+  return ready;
+}
 
 interface ControlBarProps {
   visible: boolean;
@@ -148,8 +208,15 @@ function ControlBar({
   );
 }
 
-export default function VideoWithControls() {
+export default function VideoWithControls({
+  aspectRatio = '9:16',
+  clipDurations = SCENE_DURATIONS
+}: {
+  aspectRatio?: '9:16' | '16:9';
+  clipDurations?: Record<string, number>;
+}) {
   const isIframed = typeof window !== 'undefined' && window.self !== window.top;
+  const isExport = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('export') === 'true';
 
   const {
     sceneKeys,
@@ -162,13 +229,33 @@ export default function VideoWithControls() {
     onSceneChange,
     jumpTo,
     toggleLock,
-  } = useSceneControls(SCENE_DURATIONS);
+  } = useSceneControls(clipDurations);
 
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(!isExport);
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [tapPinned, setTapPinned] = useState(false);
   const sensorRef = useRef<HTMLDivElement | null>(null);
+
+  // Export handshake: hold the timeline/audio until the exporter is ready to capture.
+  const exportReady = useExportStartGate(isExport);
+
+  // Export end signal: useVideoPlayer calls window.stopRecording?.() when the
+  // (non-looping) timeline reaches its final scene. We hook that to publish a
+  // deterministic playback-end signal for export.js. We do NOT touch hooks.ts.
+  useEffect(() => {
+    if (!isExport || typeof window === 'undefined') return;
+    const prev = window.stopRecording;
+    window.__MITOMETRO_EXPORT_ENDED__ = false;
+    window.stopRecording = () => {
+      prev?.();
+      window.__MITOMETRO_EXPORT_ENDED__ = true;
+      window.dispatchEvent(new Event('mitometro:export-ended'));
+    };
+    return () => {
+      window.stopRecording = prev;
+    };
+  }, [isExport]);
 
   const handlePointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') setHovering(true);
@@ -204,43 +291,53 @@ export default function VideoWithControls() {
     return () => document.removeEventListener('pointerdown', onDocPointerDown);
   }, [collapsed, tapPinned]);
 
-  const barVisible = !collapsed || hovering || tapPinned;
+  const barVisible = (!collapsed || hovering || tapPinned) && !isExport;
 
-  if (!isIframed) return <VideoTemplate />;
+  if (isExport) {
+    // Keep a clean black frame until the exporter releases the start gate; this
+    // prevents the timeline and autoplay audio from running before capture starts.
+    if (!exportReady) return <div className="w-full h-screen" style={{ backgroundColor: '#080d1a' }} />;
+    return <VideoTemplate aspectRatio={aspectRatio} durations={clipDurations} muted={false} loop={false} />;
+  }
+
+  if (!isIframed) return <VideoTemplate aspectRatio={aspectRatio} durations={clipDurations} />;
 
   return (
     <div className="relative w-full h-screen">
       <VideoTemplate
         key={mountKey}
+        aspectRatio={aspectRatio}
         durations={durations}
         loop
         muted={muted}
         onSceneChange={onSceneChange}
       />
-      <div
-        ref={sensorRef}
-        className="absolute bottom-0 left-0 right-0 z-50 flex flex-col justify-end"
-        style={{ height: '25%' }}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        onPointerDown={handlePointerDown}
-      >
-        <div className="flex-1 w-full" aria-hidden="true" />
-        <ControlBar
-          visible={barVisible}
-          collapsed={collapsed}
-          locked={locked}
-          muted={muted}
-          sceneKeys={sceneKeys}
-          activeIndex={activeIndex}
-          activeDuration={activeDuration}
-          tick={tick}
-          onToggleLock={toggleLock}
-          onToggleMute={() => setMuted((m) => !m)}
-          onJumpTo={jumpTo}
-          onToggleCollapsed={handleToggleCollapsed}
-        />
-      </div>
+      {!isExport && (
+        <div
+          ref={sensorRef}
+          className="absolute bottom-0 left-0 right-0 z-50 flex flex-col justify-end"
+          style={{ height: '25%' }}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onPointerDown={handlePointerDown}
+        >
+          <div className="flex-1 w-full" aria-hidden="true" />
+          <ControlBar
+            visible={barVisible}
+            collapsed={collapsed}
+            locked={locked}
+            muted={muted}
+            sceneKeys={sceneKeys}
+            activeIndex={activeIndex}
+            activeDuration={activeDuration}
+            tick={tick}
+            onToggleLock={toggleLock}
+            onToggleMute={() => setMuted((m) => !m)}
+            onJumpTo={jumpTo}
+            onToggleCollapsed={handleToggleCollapsed}
+          />
+        </div>
+      )}
     </div>
   );
 }

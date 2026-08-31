@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 const chars1 = 'CARTOLA FC'.split('');
 const chars2 = 'É ESTRATÉGIA'.split('');
 
-export default function Scene1() {
+export default function Scene1({ aspectRatio = '9:16', muted = false }: { aspectRatio?: '16:9' | '9:16', muted?: boolean }) {
+  const isLandscape = aspectRatio === '16:9';
+  
   return (
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center"
@@ -13,6 +15,9 @@ export default function Scene1() {
       exit={{ opacity: 0, scale: 1.08, filter: 'blur(12px)' }}
       transition={{ duration: 0.5 }}
     >
+      <audio src={`${import.meta.env.BASE_URL}audio/whoosh.wav`} autoPlay muted={muted} />
+      <audio src={`${import.meta.env.BASE_URL}audio/tts_opening.mp3`} autoPlay muted={muted} />
+
       {/* Grid background */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -27,8 +32,8 @@ export default function Scene1() {
       <div
         className="absolute"
         style={{
-          width: 900,
-          height: 900,
+          width: isLandscape ? 1200 : 900,
+          height: isLandscape ? 800 : 900,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)',
           top: '50%',
@@ -39,15 +44,15 @@ export default function Scene1() {
 
       {/* Live badge */}
       <motion.div
-        style={{ marginBottom: 72, overflow: 'hidden' }}
+        style={{ marginBottom: isLandscape ? 40 : 72, overflow: 'hidden' }}
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.5, ease: 'circOut' }}
+        transition={{ delay: 0.05, duration: 0.4, ease: 'circOut' }}
       >
         <span
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 32,
+            fontSize: isLandscape ? 28 : 32,
             color: '#10b981',
             letterSpacing: '0.25em',
             textTransform: 'uppercase',
@@ -64,11 +69,11 @@ export default function Scene1() {
             key={i}
             initial={{ y: '110%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.25 + i * 0.04, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 0.1 + i * 0.03, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
-              fontSize: 116,
+              fontSize: isLandscape ? 140 : 116,
               lineHeight: 1,
               color: '#ffffff',
               letterSpacing: ch === ' ' ? 16 : '-0.02em',
@@ -88,11 +93,11 @@ export default function Scene1() {
             key={i}
             initial={{ y: '110%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.55 + i * 0.04, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ delay: 0.35 + i * 0.03, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
-              fontSize: 116,
+              fontSize: isLandscape ? 140 : 116,
               lineHeight: 1,
               color: '#10b981',
               letterSpacing: ch === ' ' ? 16 : '-0.02em',
@@ -109,12 +114,12 @@ export default function Scene1() {
       <motion.p
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.4, duration: 0.5, ease: 'circOut' }}
+        transition={{ delay: 1.0, duration: 0.5, ease: 'circOut' }}
         style={{
           fontFamily: 'var(--font-body)',
-          fontSize: 44,
+          fontSize: isLandscape ? 40 : 44,
           color: '#94a3b8',
-          marginTop: 60,
+          marginTop: isLandscape ? 40 : 60,
           letterSpacing: '0.04em',
           textAlign: 'center',
           padding: '0 60px',
@@ -127,7 +132,7 @@ export default function Scene1() {
       <motion.div
         initial={{ scaleX: 0 }}
         animate={{ scaleX: 1 }}
-        transition={{ delay: 1.7, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ delay: 1.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         style={{
           position: 'absolute',
           bottom: 0,

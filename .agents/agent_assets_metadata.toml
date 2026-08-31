@@ -12,3 +12,87 @@ id = "E8E16tl9MkdsOQeV1uEoy"
 uri = "file://attached_assets/scouts_completo.xlsx"
 type = "table"
 title = "Scouts Completo — Todas as Rodadas (R7, R10, R20 reconstruídas)"
+
+[[outputs]]
+id = "j_AIq_1tiKSyd3VTlRk5Z"
+uri = "file://artifacts/mitometro-video/exports/full_9x16.mp4"
+type = "video"
+title = "Entrega final — Mitômetro completo (9:16)"
+description = "1080×1920 · 27,5 s · 825 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "YtHXLh1hHvDprxtjw0lNl"
+uri = "file://artifacts/mitometro-video/exports/full_16x9.mp4"
+type = "video"
+title = "Entrega final — Mitômetro completo (16:9)"
+description = "1920×1080 · 27,5 s · 825 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "4J3SvsPfsxZXJV8SvAxHY"
+uri = "file://artifacts/mitometro-video/exports/positioning_9x16.mp4"
+type = "video"
+title = "Entrega final — Posicionamento (9:16)"
+description = "1080×1920 · 10,0 s · 300 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "l7HPjnX2EoG0NB81PyZTj"
+uri = "file://artifacts/mitometro-video/exports/positioning_16x9.mp4"
+type = "video"
+title = "Entrega final — Posicionamento (16:9)"
+description = "1920×1080 · 10,0 s · 300 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "44mZfAfocpf-phszSgmOV"
+uri = "file://artifacts/mitometro-video/exports/demonstration_9x16.mp4"
+type = "video"
+title = "Entrega final — Campo 4-3-3 (9:16)"
+description = "1080×1920 · 14,0 s · 420 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "bA1BWL8MiauTqgaeCyFHu"
+uri = "file://artifacts/mitometro-video/exports/demonstration_16x9.mp4"
+type = "video"
+title = "Entrega final — Campo 4-3-3 (16:9)"
+description = "1920×1080 · 14,0 s · 420 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "zlZvVJERX_DzyNbT1vcr_"
+uri = "file://artifacts/mitometro-video/exports/explainability_9x16.mp4"
+type = "video"
+title = "Entrega final — Explicabilidade (9:16)"
+description = "1080×1920 · 14,0 s · 420 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "dXSUkrw80dW-ALSkTfZvr"
+uri = "file://artifacts/mitometro-video/exports/explainability_16x9.mp4"
+type = "video"
+title = "Entrega final — Explicabilidade (16:9)"
+description = "1920×1080 · 14,0 s · 420 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "ELpmkgZPOwirgKFBMozll"
+uri = "file://artifacts/mitometro-video/exports/comparison_9x16.mp4"
+type = "video"
+title = "Entrega final — Palpite x Dados (9:16)"
+description = "1080×1920 · 10,0 s · 300 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "8dpv04Umujk98scZSP2qN"
+uri = "file://artifacts/mitometro-video/exports/comparison_16x9.mp4"
+type = "video"
+title = "Entrega final — Palpite x Dados (16:9)"
+description = "1920×1080 · 10,0 s · 300 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "DIMaWsToTIlrhIEIX0HAw"
+uri = "file://artifacts/mitometro-video/exports/transparency_9x16.mp4"
+type = "video"
+title = "Entrega final — Transparência (9:16)"
+description = "1080×1920 · 15,0 s · 450 frames · H.264 + AAC · 30 fps CFR"
+
+[[outputs]]
+id = "hkUFrSUO5mQm79-8k2LHY"
+uri = "file://artifacts/mitometro-video/exports/transparency_16x9.mp4"
+type = "video"
+title = "Entrega final — Transparência (16:9)"
+description = "1920×1080 · 15,0 s · 450 frames · H.264 + AAC · 30 fps CFR"

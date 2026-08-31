@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 const analysisCards = [
   {
@@ -39,7 +40,16 @@ const analysisCards = [
   },
 ];
 
-export default function Scene4() {
+export default function Scene4({ aspectRatio = '9:16', muted = false }: { aspectRatio?: '16:9' | '9:16', muted?: boolean }) {
+  const isLandscape = aspectRatio === '16:9';
+  const tickAudioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (muted) return;
+    const timers = analysisCards.map(c => setTimeout(() => tickAudioRef.current?.play().catch(()=>{}), c.delay * 1000 + 100));
+    return () => timers.forEach(clearTimeout);
+  }, [muted]);
+
   return (
     <motion.div
       className="absolute inset-0 flex flex-col items-center justify-center"
@@ -49,12 +59,15 @@ export default function Scene4() {
       exit={{ opacity: 0, y: -60, filter: 'blur(8px)' }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
+      <audio ref={tickAudioRef} src={`${import.meta.env.BASE_URL}audio/tick.wav`} preload="auto" />
+      <audio src={`${import.meta.env.BASE_URL}audio/whoosh.wav`} autoPlay muted={muted} />
+
       {/* Subtle glow */}
       <div
         style={{
           position: 'absolute',
-          width: 980,
-          height: 980,
+          width: isLandscape ? 1200 : 980,
+          height: isLandscape ? 800 : 980,
           borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%)',
           top: '50%',
@@ -75,7 +88,7 @@ export default function Scene4() {
           color: '#10b981',
           letterSpacing: '0.3em',
           textTransform: 'uppercase',
-          marginBottom: 25,
+          marginBottom: isLandscape ? 15 : 25,
           position: 'relative',
           zIndex: 2,
         }}
@@ -90,9 +103,9 @@ export default function Scene4() {
         style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 700,
-          fontSize: 76,
+          fontSize: isLandscape ? 86 : 76,
           color: '#ffffff',
-          marginBottom: 70,
+          marginBottom: isLandscape ? 50 : 70,
           letterSpacing: '-0.02em',
           textAlign: 'center',
           position: 'relative',
@@ -104,16 +117,17 @@ export default function Scene4() {
         <span style={{ color: '#10b981' }}>um motivo</span>.
       </motion.h2>
 
-      {/* Cards stacked vertically */}
+      {/* Cards stacked vertically or horizontally */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: isLandscape ? 'row' : 'column',
           gap: 30,
           width: '100%',
-          padding: '0 50px',
+          padding: isLandscape ? '0 80px' : '0 50px',
           position: 'relative',
           zIndex: 2,
+          justifyContent: 'center'
         }}
       >
         {analysisCards.map((card) => (
@@ -126,13 +140,15 @@ export default function Scene4() {
               borderRadius: 35,
               border: `3px solid ${card.badgeBorder}`,
               background: card.badgeBg,
-              padding: '35px 45px',
+              padding: isLandscape ? '30px' : '35px 45px',
               display: 'flex',
-              alignItems: 'center',
-              gap: 40,
+              flexDirection: isLandscape ? 'column' : 'row',
+              alignItems: isLandscape ? 'flex-start' : 'center',
+              gap: isLandscape ? 20 : 40,
+              flex: isLandscape ? 1 : 'none',
             }}
           >
-            {/* Points — left */}
+            {/* Points */}
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
@@ -142,20 +158,25 @@ export default function Scene4() {
                 lineHeight: 1,
                 textShadow: `0 0 40px ${card.badgeColor}44`,
                 flexShrink: 0,
-                width: 150,
-                textAlign: 'center',
+                width: isLandscape ? '100%' : 150,
+                textAlign: isLandscape ? 'left' : 'center',
               }}
             >
               {card.pts}
-              <div style={{ fontSize: 22, color: '#64748b', fontWeight: 400, marginTop: 6 }}>
+              <div style={{ fontSize: 22, color: '#64748b', fontWeight: 400, marginTop: 6, display: isLandscape ? 'inline-block' : 'block', marginLeft: isLandscape ? 10 : 0 }}>
                 pts proj.
               </div>
             </div>
 
             {/* Divider */}
-            <div style={{ width: 2, alignSelf: 'stretch', background: `${card.badgeBorder}` }} />
+            <div style={{ 
+              width: isLandscape ? '100%' : 2, 
+              height: isLandscape ? 2 : 'auto',
+              alignSelf: 'stretch', 
+              background: `${card.badgeBorder}` 
+            }} />
 
-            {/* Info — right */}
+            {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* Badge */}
               <div
@@ -173,7 +194,7 @@ export default function Scene4() {
                   style={{
                     fontFamily: 'var(--font-display)',
                     fontWeight: 600,
-                    fontSize: 28,
+                    fontSize: isLandscape ? 24 : 28,
                     color: card.badgeColor,
                   }}
                 >
@@ -185,7 +206,7 @@ export default function Scene4() {
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,
-                  fontSize: 40,
+                  fontSize: isLandscape ? 36 : 40,
                   color: '#ffffff',
                   letterSpacing: '-0.01em',
                 }}
@@ -198,6 +219,8 @@ export default function Scene4() {
                     color: '#475569',
                     fontWeight: 400,
                     marginLeft: 15,
+                    display: isLandscape ? 'block' : 'inline',
+                    marginTop: isLandscape ? 4 : 0
                   }}
                 >
                   {card.club}
@@ -207,7 +230,7 @@ export default function Scene4() {
               <div
                 style={{
                   fontFamily: 'var(--font-body)',
-                  fontSize: 30,
+                  fontSize: isLandscape ? 26 : 30,
                   color: '#94a3b8',
                   marginTop: 8,
                   lineHeight: 1.3,
@@ -218,7 +241,7 @@ export default function Scene4() {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 25,
+                  fontSize: isLandscape ? 22 : 25,
                   color: '#475569',
                   marginTop: 6,
                 }}

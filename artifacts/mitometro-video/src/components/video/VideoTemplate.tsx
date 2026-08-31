@@ -17,10 +17,10 @@ export const SCENE_DURATIONS = {
   scene3: 4500,
   scene4: 4500,
   scene5: 4500,
-  scene6: 5000,
+  scene6: 6000,
 };
 
-const SCENE_COMPONENTS: Record<string, React.ComponentType> = {
+const SCENE_COMPONENTS: Record<string, React.ComponentType<{ aspectRatio?: '16:9' | '9:16', muted?: boolean }>> = {
   scene1: Scene1,
   scene2: Scene2,
   scene3: Scene3,
@@ -29,20 +29,20 @@ const SCENE_COMPONENTS: Record<string, React.ComponentType> = {
   scene6: Scene6,
 };
 
-function useFitScale() {
+function useFitScale(width: number, height: number) {
   const [scale, setScale] = useState(() =>
     typeof window === 'undefined'
       ? 1
-      : Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT),
+      : Math.min(window.innerWidth / width, window.innerHeight / height),
   );
 
   useEffect(() => {
     const onResize = () =>
-      setScale(Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT));
+      setScale(Math.min(window.innerWidth / width, window.innerHeight / height));
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, []);
+  }, [width, height]);
 
   return scale;
 }
@@ -52,14 +52,19 @@ export default function VideoTemplate({
   loop = true,
   muted = false,
   onSceneChange,
+  aspectRatio = '9:16'
 }: {
   durations?: Record<string, number>;
   loop?: boolean;
   muted?: boolean;
   onSceneChange?: (sceneKey: string) => void;
+  aspectRatio?: '16:9' | '9:16';
 } = {}) {
   const { currentSceneKey } = useVideoPlayer({ durations, loop });
-  const scale = useFitScale();
+  
+  const canvasWidth = aspectRatio === '16:9' ? 1920 : 1080;
+  const canvasHeight = aspectRatio === '16:9' ? 1080 : 1920;
+  const scale = useFitScale(canvasWidth, canvasHeight);
 
   useEffect(() => {
     onSceneChange?.(currentSceneKey);
@@ -73,11 +78,11 @@ export default function VideoTemplate({
       className="relative w-full h-screen overflow-hidden flex items-center justify-center"
       style={{ backgroundColor: '#080d1a' }}
     >
-      {/* Fixed 1080 × 1920 stage — internal units never change, only the scale */}
+      <audio src={`${import.meta.env.BASE_URL}audio/music.wav`} autoPlay loop muted={muted} />
       <div
         style={{
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
+          width: canvasWidth,
+          height: canvasHeight,
           flexShrink: 0,
           position: 'relative',
           overflow: 'hidden',
@@ -87,7 +92,7 @@ export default function VideoTemplate({
         }}
       >
         <AnimatePresence mode="popLayout">
-          {SceneComponent && <SceneComponent key={currentSceneKey} />}
+          {SceneComponent && <SceneComponent key={currentSceneKey} aspectRatio={aspectRatio} muted={muted} />}
         </AnimatePresence>
       </div>
     </div>

@@ -1,15 +1,9 @@
 import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
 /**
  * 4-3-3 lineup — Cartola-compliant: max 3 players per club.
- *   FLA (Flamengo):    Léo Ortiz (ZAG), De Arrascaeta (MEI), Pedro (ATA)
- *   CAM (Atlético-MG): Everson (GOL), Guilherme Arana (LAT)
- *   PAL (Palmeiras):   Piquerez (LAT), Raphael Veiga (MEI), Flaco López (ATA)
- *   COR (Corinthians): Murillo (ZAG)
- *   SAO (São Paulo):   Lucas (MEI)
- *   FLU (Fluminense):  Hulk (ATA)
  */
-
 const BASE = import.meta.env.BASE_URL;
 
 const BADGE: Record<string, string> = {
@@ -99,18 +93,39 @@ function BadgePin({ club, pos, name, delay }: { club: string; pos: string; name:
   );
 }
 
-export default function Scene3() {
+export default function Scene3({ aspectRatio = '9:16', muted = false }: { aspectRatio?: '16:9' | '9:16', muted?: boolean }) {
+  const isLandscape = aspectRatio === '16:9';
+  const hitAudioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (muted) return;
+    const t = setTimeout(() => {
+      hitAudioRef.current?.play().catch(()=>{});
+    }, 1500); // After Everson animates
+    return () => clearTimeout(t);
+  }, [muted]);
+
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col"
-      style={{ background: '#080d1a' }}
+      className="absolute inset-0 flex"
+      style={{ background: '#080d1a', flexDirection: isLandscape ? 'row' : 'column' }}
       initial={{ opacity: 0, x: 200 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* Header */}
-      <div style={{ padding: '70px 60px 30px', flexShrink: 0 }}>
+      <audio ref={hitAudioRef} src={`${import.meta.env.BASE_URL}audio/hit.wav`} preload="auto" />
+      <audio src={`${import.meta.env.BASE_URL}audio/whoosh.wav`} autoPlay muted={muted} />
+
+      {/* Header & Stats (Left in 16:9, Top/Bottom in 9:16) */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        padding: isLandscape ? '100px 80px' : '70px 60px 30px',
+        flexShrink: 0,
+        width: isLandscape ? '45%' : '100%',
+        justifyContent: 'center'
+      }}>
         <motion.div
           initial={{ opacity: 0, y: -24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -137,20 +152,55 @@ export default function Scene3() {
             lineHeight: 1,
             color: '#ffffff',
             letterSpacing: '-0.03em',
+            marginBottom: isLandscape ? 60 : 0
           }}
         >
           4-3-3
         </motion.div>
+
+        {isLandscape && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {[
+              { label: 'Pts esperados', value: '82 pts',    color: '#10b981' },
+              { label: 'Custo total',   value: 'C$ 127,5', color: '#8b5cf6' },
+              { label: 'Clubes',        value: '5 clubes', color: '#f59e0b' },
+            ].map(({ label, value, color }, i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, x: -24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.65 + i * 0.1, duration: 0.4, ease: 'circOut' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 20,
+                  padding: '25px 30px',
+                  borderRadius: 25,
+                  background: '#0f1629',
+                  border: `2px solid ${color}22`,
+                }}
+              >
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 36, color, fontWeight: 700, minWidth: 160 }}>
+                  {value}
+                </span>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 28, color: '#64748b' }}>
+                  {label}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Football pitch — takes most of the space */}
+      {/* Football pitch */}
       <motion.div
         initial={{ opacity: 0, scale: 0.94 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.25, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         style={{
           flex: 1,
-          margin: '0 40px',
+          maxWidth: isLandscape ? 600 : 'none',
+          margin: isLandscape ? '60px auto 60px 0' : '0 40px',
           borderRadius: 35,
           overflow: 'hidden',
           position: 'relative',
@@ -159,7 +209,6 @@ export default function Scene3() {
           minHeight: 0,
         }}
       >
-        {/* Green pitch */}
         <div
           style={{
             position: 'absolute',
@@ -167,8 +216,6 @@ export default function Scene3() {
             background: 'linear-gradient(180deg, #1a4a2e 0%, #1e5534 18%, #1a4a2e 36%, #1e5534 54%, #1a4a2e 72%, #1e5534 90%, #1a4a2e 100%)',
           }}
         />
-
-        {/* Pitch lines SVG */}
         <svg
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
           viewBox="0 0 300 460"
@@ -178,19 +225,16 @@ export default function Scene3() {
           <line x1="12" y1="230" x2="288" y2="230" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
           <circle cx="150" cy="230" r="36" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" />
           <circle cx="150" cy="230" r="2.5" fill="rgba(255,255,255,0.5)" />
-          {/* Top area */}
           <rect x="70" y="10" width="160" height="58" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
           <rect x="110" y="10" width="80" height="24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
           <circle cx="150" cy="52" r="2" fill="rgba(255,255,255,0.4)" />
           <path d="M 116 68 A 36 36 0 0 1 184 68" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-          {/* Bottom area */}
           <rect x="70" y="392" width="160" height="58" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
           <rect x="110" y="426" width="80" height="24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
           <circle cx="150" cy="408" r="2" fill="rgba(255,255,255,0.4)" />
           <path d="M 116 392 A 36 36 0 0 0 184 392" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
         </svg>
 
-        {/* Player badges */}
         {fieldPlayers.map((p) => (
           <div
             key={p.name}
@@ -206,46 +250,48 @@ export default function Scene3() {
         ))}
       </motion.div>
 
-      {/* Stats row — bottom */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 20,
-          padding: '30px 40px 60px',
-          flexShrink: 0,
-        }}
-      >
-        {[
-          { label: 'Pts esperados', value: '82 pts',    color: '#10b981' },
-          { label: 'Custo total',   value: 'C$ 127,5', color: '#8b5cf6' },
-          { label: 'Clubes',        value: '5 clubes', color: '#f59e0b' },
-        ].map(({ label, value, color }, i) => (
-          <motion.div
-            key={label}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65 + i * 0.1, duration: 0.4, ease: 'circOut' }}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              padding: '25px 20px',
-              borderRadius: 25,
-              background: '#0f1629',
-              border: `2px solid ${color}22`,
-            }}
-          >
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 36, color, fontWeight: 700 }}>
-              {value}
-            </span>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 25, color: '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
-              {label}
-            </span>
-          </motion.div>
-        ))}
-      </div>
+      {/* Stats row — bottom (only in 9:16) */}
+      {!isLandscape && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 20,
+            padding: '30px 40px 60px',
+            flexShrink: 0,
+          }}
+        >
+          {[
+            { label: 'Pts esperados', value: '82 pts',    color: '#10b981' },
+            { label: 'Custo total',   value: 'C$ 127,5', color: '#8b5cf6' },
+            { label: 'Clubes',        value: '5 clubes', color: '#f59e0b' },
+          ].map(({ label, value, color }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.65 + i * 0.1, duration: 0.4, ease: 'circOut' }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+                padding: '25px 20px',
+                borderRadius: 25,
+                background: '#0f1629',
+                border: `2px solid ${color}22`,
+              }}
+            >
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 36, color, fontWeight: 700 }}>
+                {value}
+              </span>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 25, color: '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+                {label}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
