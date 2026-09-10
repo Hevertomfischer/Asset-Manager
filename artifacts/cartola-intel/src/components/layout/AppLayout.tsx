@@ -1,11 +1,13 @@
 import { FC, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Shield, Settings, Activity, Swords, History, UserCircle, Sparkles, GitFork, GitCompare, Trophy } from "lucide-react";
+import { Activity } from "lucide-react";
 import { UserMenu } from "@/components/layout/UserMenu";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -21,24 +23,18 @@ import { FounderCampaignBanner } from "@/components/FounderCampaignBanner";
 import { ProBadge } from "@/components/ProBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useGetAdminFeedbackNewCount } from "@workspace/api-client-react";
-
-const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Jogadores", url: "/jogadores", icon: Users },
-  { title: "Escalação", url: "/escalacao", icon: Shield },
-  { title: "Confrontos", url: "/confrontos", icon: Swords },
-  { title: "Histórico", url: "/historico", icon: History },
-  { title: "Meus Times", url: "/meus-times", icon: Trophy },
-  { title: "Fronteira", url: "/fronteira", icon: GitFork },
-  { title: "Comparar", url: "/comparar", icon: GitCompare },
-  { title: "Planos", url: "/planos", icon: Sparkles },
-  { title: "Admin", url: "/admin", icon: Settings },
-  { title: "Minha conta", url: "/conta", icon: UserCircle },
-];
+import {
+  ACCOUNT_NAV_ITEM,
+  ADMIN_NAV_ITEM,
+  isNavItemActive,
+  NAV_GROUPS,
+  PLANS_NAV_ITEM,
+  type AppNavItem,
+} from "@/components/layout/navigation";
 
 export const AppSidebar = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { isPro, user } = useAuth();
   const isAdmin = user?.role === "admin";
 
   const { data: feedbackCountData } = useGetAdminFeedbackNewCount(isAdmin);
@@ -55,54 +51,91 @@ export const AppSidebar = () => {
             <h1 className="font-display font-bold text-xl text-foreground tracking-tight leading-none">
               Mito<span className="text-primary">metro</span>
             </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Analytics</p>
-              <ProBadge />
-            </div>
+            <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+              Escalação com explicação
+            </p>
           </div>
         </div>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-6 mb-2">Plataforma</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="px-3">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.url;
-                const isAdminItem = item.url === "/admin";
-                const showBadge = isAdminItem && isAdmin && newFeedbackCount > 0;
-
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      className={`
-                        mb-1 h-11 px-3 rounded-xl transition-all duration-200
-                        ${isActive
-                          ? "bg-primary/15 text-primary font-semibold hover:bg-primary/20"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        }
-                      `}
-                    >
-                      <Link to={item.url} className="flex items-center gap-3">
-                        <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : "opacity-70"}`} />
-                        <span className="flex-1">{item.title}</span>
-                        {item.url === "/planos" && <ProBadge />}
-                        {showBadge && (
-                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-[10px] font-bold text-danger-foreground flex items-center justify-center leading-none shrink-0">
-                            {newFeedbackCount > 99 ? "99+" : newFeedbackCount}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group.label} className="py-1">
+            <SidebarGroupLabel className="mb-1 px-6 text-xs font-semibold text-muted-foreground">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="px-3">
+                {group.items.map((item) => (
+                  <SidebarNavItem
+                    key={item.url}
+                    item={item}
+                    active={isNavItemActive(location.pathname, item.url)}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
+      <SidebarFooter className="border-t border-border/50 p-3">
+        <SidebarMenu>
+          {!isPro && (
+            <SidebarNavItem
+              item={PLANS_NAV_ITEM}
+              active={isNavItemActive(location.pathname, PLANS_NAV_ITEM.url)}
+              showProBadge
+            />
+          )}
+          <SidebarNavItem
+            item={ACCOUNT_NAV_ITEM}
+            active={isNavItemActive(location.pathname, ACCOUNT_NAV_ITEM.url)}
+          />
+          {isAdmin && (
+            <SidebarNavItem
+              item={ADMIN_NAV_ITEM}
+              active={isNavItemActive(location.pathname, ADMIN_NAV_ITEM.url)}
+              badgeCount={newFeedbackCount}
+            />
+          )}
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 };
+
+function SidebarNavItem({
+  item,
+  active,
+  badgeCount = 0,
+  showProBadge = false,
+}: {
+  item: AppNavItem;
+  active: boolean;
+  badgeCount?: number;
+  showProBadge?: boolean;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className={`mb-1 h-11 rounded-xl px-3 transition-all duration-200 ${
+          active
+            ? "bg-primary/15 font-semibold text-primary hover:bg-primary/20"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+        }`}
+      >
+        <Link to={item.url} className="flex items-center gap-3" aria-current={active ? "page" : undefined}>
+          <item.icon className={`h-5 w-5 ${active ? "text-primary" : "opacity-70"}`} />
+          <span className="flex-1">{showProBadge ? "Planos" : item.title}</span>
+          {showProBadge && <ProBadge />}
+          {badgeCount > 0 && (
+            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-danger-foreground">
+              {badgeCount > 99 ? "99+" : badgeCount}
+            </span>
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
 
 export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
   const style = {
@@ -121,18 +154,16 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             </div>
             <div className="flex items-center gap-2">
-              <div className="px-3 py-1 rounded-full bg-secondary text-xs font-semibold text-muted-foreground border border-border hidden sm:block">
-                v0.2.0-beta
-              </div>
               <NotificationBell />
               <UserMenu />
             </div>
           </header>
           <FounderCampaignBanner />
-          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 relative">
+          <main className="relative flex-1 overflow-auto p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto w-full">{children}</div>
           </main>
           <FeedbackWidget />
+          <BottomNav />
         </div>
       </div>
     </SidebarProvider>

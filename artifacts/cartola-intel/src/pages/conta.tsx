@@ -46,29 +46,35 @@ export default function Conta() {
 
   if (!isLoading && !isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <p className="text-muted-foreground">Você não está logado.</p>
-        <Button asChild variant="outline">
-          <a href="/api/auth/google">Entrar com Google</a>
-        </Button>
+      <div className="flex min-h-[60vh] flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground">Você não está logado.</p>
+          <Button asChild variant="outline">
+            <a href="/api/auth/google">Entrar com Google</a>
+          </Button>
+        </div>
+        <VersionFooter />
       </div>
     );
   }
 
   if (isLoading || !user) {
     return (
-      <div className="max-w-lg mx-auto mt-8">
-        <Card>
-          <CardHeader>
-            <div className="h-6 w-32 animate-pulse rounded-md bg-primary/10" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="h-4 w-full animate-pulse rounded-md bg-primary/10" />
-              <div className="h-4 w-3/4 animate-pulse rounded-md bg-primary/10" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mx-auto mt-8 max-w-lg">
+        <div className="min-h-[50vh]">
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-32 animate-pulse rounded-md bg-primary/10" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="h-4 w-full animate-pulse rounded-md bg-primary/10" />
+                <div className="h-4 w-3/4 animate-pulse rounded-md bg-primary/10" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <VersionFooter />
       </div>
     );
   }
@@ -155,6 +161,11 @@ export default function Conta() {
           </Button>
         </CardContent>
       </Card>
+      <VersionFooter />
     </div>
   );
+}
+
+function VersionFooter() {
+  return <p className="mt-6 text-center text-xs text-muted-foreground">v0.2.0-beta</p>;
 }

@@ -124,7 +124,7 @@ export function FeedbackWidget() {
         title="Enviar feedback"
         aria-label="Abrir widget de feedback"
         className={`
-          fixed bottom-5 right-4 z-40
+          fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40
           flex items-center gap-2
           h-10 px-3.5 rounded-full
           border border-primary/30
@@ -134,7 +134,7 @@ export function FeedbackWidget() {
           transition-all duration-200
           hover:bg-primary/10 hover:border-primary/60 hover:shadow-primary/10
           active:scale-95
-          sm:bottom-6 sm:right-6
+          md:bottom-6 md:right-6
           ${cooldown ? "opacity-40 cursor-not-allowed" : ""}
         `}
       >
