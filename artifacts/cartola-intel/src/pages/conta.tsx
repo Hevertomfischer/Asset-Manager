@@ -64,12 +64,12 @@ export default function Conta() {
         <div className="min-h-[50vh]">
           <Card>
             <CardHeader>
-              <div className="h-6 w-32 animate-pulse rounded-md bg-primary/10" />
+              <div className="h-6 w-32 motion-safe:animate-pulse rounded-md bg-primary/10" />
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="h-4 w-full animate-pulse rounded-md bg-primary/10" />
-                <div className="h-4 w-3/4 animate-pulse rounded-md bg-primary/10" />
+                <div className="h-4 w-full motion-safe:animate-pulse rounded-md bg-primary/10" />
+                <div className="h-4 w-3/4 motion-safe:animate-pulse rounded-md bg-primary/10" />
               </div>
             </CardContent>
           </Card>

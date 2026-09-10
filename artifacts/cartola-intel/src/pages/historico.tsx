@@ -132,7 +132,7 @@ function MaeBar({ mae, max = 10 }: { mae: number; max?: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-2 rounded-full bg-border/30 overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full motion-safe:transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs font-mono text-foreground font-bold w-10 text-right">{mae.toFixed(2)}</span>
     </div>
@@ -146,9 +146,9 @@ function PlayerRow({ player, rank, isGood }: { player: BacktestPlayer; rank: num
       <span className="text-xs text-muted-foreground font-mono w-5">#{rank}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground truncate">{player.nickname ?? player.name}</p>
-        <p className="text-[10px] text-muted-foreground">Rodada {player.round}</p>
+        <p className="text-xs text-muted-foreground">Rodada {player.round}</p>
       </div>
-      <Badge variant="outline" className={`text-[10px] font-mono shrink-0 ${getPositionColor(player.position)}`}>
+      <Badge variant="outline" className={`text-xs font-mono shrink-0 ${getPositionColor(player.position)}`}>
         {player.position}
       </Badge>
       <div className="text-right shrink-0">
@@ -198,7 +198,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
             <CardTitle className="text-lg flex items-center gap-2">
               {!hideRoundTitle && <>Rodada {data.round}</>}
               {isPartial && (
-                <span className="text-[10px] font-normal text-attention bg-attention/10 border border-attention/30 px-1.5 py-0.5 rounded">
+                <span className="text-xs font-normal text-attention bg-attention/10 border border-attention/30 px-1.5 py-0.5 rounded">
                   {playersWithData}/{totalPlayers} com dados
                 </span>
               )}
@@ -209,27 +209,27 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
           </div>
           <div className="flex gap-4 text-right">
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Projetado</p>
+              <p className="text-xs text-muted-foreground">Projetado</p>
               <p className="text-2xl font-bold font-mono text-foreground">{data.projectedTotal?.toFixed(2) ?? "—"}</p>
               {isPartial && projectedComparableTotal != null && (
-                <p className="text-[10px] text-muted-foreground">({projectedComparableTotal.toFixed(2)} comparável)</p>
+                <p className="text-xs text-muted-foreground">({projectedComparableTotal.toFixed(2)} comparável)</p>
               )}
             </div>
             {data.hasActualData && (
               <>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Real</p>
+                  <p className="text-xs text-muted-foreground">Real</p>
                   <p className={`text-2xl font-bold font-mono ${
                     data.differenceSign === "above" ? "text-positive" : "text-danger"
                   }`}>
                     {data.actualTotal?.toFixed(2) ?? "—"}
                   </p>
                   {isPartial && (
-                    <p className="text-[10px] text-muted-foreground">parcial</p>
+                    <p className="text-xs text-muted-foreground">parcial</p>
                   )}
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{isPartial ? "Dif. (compar.)" : "Dif. Abs."}</p>
+                  <p className="text-xs text-muted-foreground">{isPartial ? "Dif. (compar.)" : "Dif. Abs."}</p>
                   <div className="text-2xl font-bold font-mono mt-0.5">
                     <DiffIndicator value={data.difference} sign={data.differenceSign} />
                   </div>
@@ -258,11 +258,11 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/40">
-                  <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Jogador</th>
-                  <th className="text-center py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider w-16">Pos</th>
-                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Projetado</th>
-                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Real</th>
-                  <th className="text-right py-2 pl-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider">Dif.</th>
+                  <th className="text-left py-2 pr-3 text-xs text-muted-foreground font-semibold">Jogador</th>
+                  <th className="text-center py-2 px-2 text-xs text-muted-foreground font-semibold w-16">Pos</th>
+                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold">Projetado</th>
+                  <th className="text-right py-2 px-2 text-xs text-muted-foreground font-semibold">Real</th>
+                  <th className="text-right py-2 pl-2 text-xs text-muted-foreground font-semibold">Dif.</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +276,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
                           {p.isCaptain && <Crown className="w-3.5 h-3.5 text-attention shrink-0" />}
                           <div>
                             <p className="font-semibold text-foreground leading-tight">{p.nickname ?? p.name}</p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {p.clubAbbr ?? p.clubName ?? ""}
                               {p.isCaptain && <span className="ml-1 text-attention font-bold">× 2</span>}
                             </p>
@@ -284,7 +284,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
                         </div>
                       </td>
                       <td className="py-2 px-2 text-center">
-                        <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(p.position)}`}>
+                        <Badge variant="outline" className={`text-xs font-mono ${getPositionColor(p.position)}`}>
                           {p.position}
                         </Badge>
                       </td>
@@ -296,7 +296,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
                           <span className={(p.actual ?? 0) >= (p.projected ?? 0) ? "text-positive" : "text-danger"}>
                             {p.actual.toFixed(2)}
                             {p.isCaptain && p.actualRaw !== null && (
-                              <span className="text-[10px] text-muted-foreground ml-1">({p.actualRaw.toFixed(2)}×2)</span>
+                              <span className="text-xs text-muted-foreground ml-1 tabular-nums">({p.actualRaw.toFixed(2)}×2)</span>
                             )}
                           </span>
                         ) : "—"}
@@ -391,7 +391,7 @@ function PlayerBacktestTab() {
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse"><CardContent className="h-24 bg-muted/20 rounded-lg m-4" /></Card>
+            <Card key={i} className="motion-safe:animate-pulse"><CardContent className="h-24 bg-muted/20 rounded-lg m-4" /></Card>
           ))}
         </div>
       )}
@@ -410,9 +410,9 @@ function PlayerBacktestTab() {
             <Card>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">MAE Geral</p>
+                  <p className="text-xs text-muted-foreground font-medium">MAE geral</p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-60">
                       Inclui todos os jogadores projetados — mesmo quem não jogou (pontos = 0). O erro desses jogadores é menor porque a projeção já foi descontada pela probabilidade de jogo, mascarando o erro real do motor.
                     </TooltipContent>
@@ -425,9 +425,9 @@ function PlayerBacktestTab() {
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="pt-5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide">MAE Quem Jogou</p>
+                  <p className="text-xs text-primary font-semibold">MAE quem jogou</p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3 h-3 text-primary/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3 h-3 text-primary/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-60">
                       MAE honesto: compara projeções apenas com jogadores que efetivamente entraram em campo (pontuação &gt; 0). Este é o indicador real da acurácia do motor de pontuação.
                     </TooltipContent>
@@ -439,7 +439,7 @@ function PlayerBacktestTab() {
             </Card>
             <Card>
               <CardContent className="pt-5">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Não Jogaram</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Não jogaram</p>
                 <p className="text-3xl font-bold font-mono text-foreground">{summary?.dnpCount ?? 0}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {summary && summary.totalPlayers > 0
@@ -450,7 +450,7 @@ function PlayerBacktestTab() {
             </Card>
             <Card>
               <CardContent className="pt-5">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Rodadas Avaliadas</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Rodadas avaliadas</p>
                 <p className="text-3xl font-bold font-mono text-foreground">{byRound.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">{summary?.totalPlayers ?? 0} pares projeção × real</p>
               </CardContent>
@@ -464,7 +464,7 @@ function PlayerBacktestTab() {
                   <BarChart2 className="w-4 h-4 text-primary" />
                   Erro por Posição
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-52">Posições com maior erro são mais difíceis de projetar.</TooltipContent>
                   </Tooltip>
                 </CardTitle>
@@ -474,7 +474,7 @@ function PlayerBacktestTab() {
                   <div key={pos}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(pos)}`}>{pos}</Badge>
+                        <Badge variant="outline" className={`text-xs font-mono ${getPositionColor(pos)}`}>{pos}</Badge>
                         <span className="text-xs text-muted-foreground">{stats.count} jogadores</span>
                       </div>
                       <Tooltip>
@@ -561,7 +561,7 @@ function PlayerBacktestTab() {
                   <Trophy className="w-4 h-4" />
                   Melhores Previsões
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-52">Jogadores onde a projeção chegou mais perto da pontuação real.</TooltipContent>
                   </Tooltip>
                 </CardTitle>
@@ -577,7 +577,7 @@ function PlayerBacktestTab() {
                   <Bomb className="w-4 h-4" />
                   Maiores Erros
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3.5 h-3.5 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-52">Jogadores com maior divergência entre projeção e real.</TooltipContent>
                   </Tooltip>
                 </CardTitle>
@@ -698,7 +698,7 @@ function LineupBacktestTab() {
       {isLoading && (
         <div className="space-y-4">
           {[1, 2].map((i) => (
-            <Card key={i} className="animate-pulse"><CardContent className="h-40 bg-muted/20 rounded-lg m-4" /></Card>
+            <Card key={i} className="motion-safe:animate-pulse"><CardContent className="h-40 bg-muted/20 rounded-lg m-4" /></Card>
           ))}
         </div>
       )}
@@ -846,11 +846,11 @@ function PerfectTeamTab() {
             <Card className={stats.hitPct >= 50 ? "border-primary/30 bg-primary/5" : "border-attention/30 bg-attention/5"}>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: stats.hitPct >= 50 ? "hsl(var(--primary))" : "hsl(var(--attention))" }}>
+                  <p className="text-xs font-semibold" style={{ color: stats.hitPct >= 50 ? "hsl(var(--primary))" : "hsl(var(--attention))" }}>
                     % Acerto
                   </p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-56">
                       Percentual dos jogadores do time perfeito que estavam na nossa escalação sugerida para esta rodada.
                     </TooltipContent>
@@ -866,9 +866,9 @@ function PerfectTeamTab() {
             <Card>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Desvio Médio</p>
+                  <p className="text-xs text-muted-foreground font-medium">Desvio médio</p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-56">
                       Diferença absoluta média entre nossa projeção e os pontos reais dos jogadores do time perfeito.
                     </TooltipContent>
@@ -884,9 +884,9 @@ function PerfectTeamTab() {
             <Card>
               <CardContent className="pt-5">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Rank Médio</p>
+                  <p className="text-xs text-muted-foreground font-medium">Rank médio</p>
                   <Tooltip>
-                    <TooltipTrigger><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
+                    <TooltipTrigger aria-label="Mais informações"><Info className="w-3 h-3 text-muted-foreground/60" /></TooltipTrigger>
                     <TooltipContent className="max-w-56">
                       Posição média em que rankeamos os jogadores do time perfeito nas nossas projeções por posição. Rank 1 = mais bem projetado.
                     </TooltipContent>
@@ -901,7 +901,7 @@ function PerfectTeamTab() {
 
             <Card>
               <CardContent className="pt-5">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Pontos Totais</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Pontos totais</p>
                 <p className="text-3xl font-bold font-mono text-foreground">{stats.totalActual}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {stats.totalProjected !== null ? `projetamos ${stats.totalProjected} pts` : "sem projeção"}
@@ -922,7 +922,7 @@ function PerfectTeamTab() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/40 text-[11px] text-muted-foreground uppercase tracking-wide">
+                    <tr className="border-b border-border/40 text-xs text-muted-foreground">
                       <th className="text-left px-4 py-2 font-medium">Pos</th>
                       <th className="text-left px-4 py-2 font-medium">Jogador</th>
                       <th className="text-right px-4 py-2 font-medium">Pts Reais</th>
@@ -937,9 +937,9 @@ function PerfectTeamTab() {
                         const deviation = p.ourProjection !== null ? p.ourProjection - p.actualPoints : null;
                         const deviationColor = deviation === null ? "" : Math.abs(deviation) <= 2 ? "text-positive" : Math.abs(deviation) <= 5 ? "text-attention" : "text-danger";
                         return (
-                          <tr key={`${p.playerId}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors">
+                          <tr key={`${p.playerId}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/20 motion-safe:transition-colors">
                             <td className="px-4 py-3">
-                              <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(p.position)}`}>
+                              <Badge variant="outline" className={`text-xs font-mono ${getPositionColor(p.position)}`}>
                                 {p.position}
                               </Badge>
                             </td>
@@ -951,7 +951,7 @@ function PerfectTeamTab() {
                                     {p.nickname ?? p.name}
                                   </p>
                                   {p.clubName && (
-                                    <p className="text-[10px] text-muted-foreground">{p.clubName}</p>
+                                    <p className="text-xs text-muted-foreground">{p.clubName}</p>
                                   )}
                                 </div>
                               </div>
@@ -964,7 +964,7 @@ function PerfectTeamTab() {
                                 <div>
                                   <span className="font-mono text-foreground">{p.ourProjection}</span>
                                   {deviation !== null && (
-                                    <span className={`text-[10px] ml-1 ${deviationColor}`}>
+                                    <span className={`text-xs ml-1 ${deviationColor}`}>
                                       ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)})
                                     </span>
                                   )}
@@ -977,7 +977,7 @@ function PerfectTeamTab() {
                               {p.ourRankInPosition !== null ? (
                                 <span className={`font-mono text-sm ${p.ourRankInPosition <= 3 ? "text-positive font-bold" : p.ourRankInPosition <= 8 ? "text-attention" : "text-muted-foreground"}`}>
                                   #{p.ourRankInPosition}
-                                  <span className="text-muted-foreground font-normal text-[10px]">/{p.totalInPosition}</span>
+                                  <span className="text-muted-foreground font-normal text-xs">/{p.totalInPosition}</span>
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
@@ -1001,7 +1001,7 @@ function PerfectTeamTab() {
           </Card>
 
           {/* Legend */}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             <strong>Rank:</strong> posição do jogador no nosso ranking de projeções por posição nesta rodada.
             Verde = top 3, Amarelo = top 8. Desvio = nossa projeção − pontos reais.
           </p>
@@ -1079,7 +1079,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
   return (
     <Card className="overflow-hidden">
       <CardHeader
-        className="pb-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+        className="pb-3 cursor-pointer select-none hover:bg-muted/20 motion-safe:transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex items-center justify-between">
@@ -1094,25 +1094,25 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
         {/* Summary row */}
         <div className="grid grid-cols-4 gap-3 mt-3">
           <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nossos Pts</p>
+            <p className="text-xs text-muted-foreground">Nossos pts</p>
             <p className="text-xl font-bold font-mono text-foreground">{s.ourActualPoints}</p>
           </div>
           <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Melhor Possível</p>
+            <p className="text-xs text-muted-foreground">Melhor possível</p>
             <p className="text-xl font-bold font-mono text-attention">{s.optimalActualPoints}</p>
           </div>
           <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Gap</p>
+            <p className="text-xs text-muted-foreground">Gap</p>
             <p className={`text-xl font-bold font-mono ${s.pointsGap > 0 ? "text-danger" : "text-positive"}`}>
               {s.pointsGap > 0 ? "-" : "+"}{Math.abs(s.pointsGap)}
             </p>
           </div>
           <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Eficiência</p>
+            <p className="text-xs text-muted-foreground">Eficiência</p>
             <p className={`text-xl font-bold font-mono ${effColor}`}>{s.efficiencyPct}%</p>
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           {matchCount} de {s.ourPlayers.length} jogadores coincidem com o ótimo •{" "}
           <span className="text-muted-foreground/70">clique para ver detalhe</span>
         </p>
@@ -1123,7 +1123,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/40 text-[11px] text-muted-foreground uppercase tracking-wide bg-muted/10">
+                <tr className="border-b border-border/40 text-xs text-muted-foreground bg-muted/10">
                   <th className="text-left px-3 py-2 font-medium w-14">Pos</th>
                   <th className="text-left px-3 py-2 font-medium">Nosso Time</th>
                   <th className="text-right px-3 py-2 font-medium">Pts</th>
@@ -1141,10 +1141,10 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
                     const opt = optGroup[i];
                     const same = ours && opt && ours.playerId === opt.playerId;
                     return (
-                      <tr key={`${pos}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/10 transition-colors">
+                      <tr key={`${pos}-${i}`} className="border-b border-border/20 last:border-0 hover:bg-muted/10 motion-safe:transition-colors">
                         <td className="px-3 py-2.5">
                           {i === 0 && (
-                            <Badge variant="outline" className={`text-[10px] font-mono ${getPositionColor(pos)}`}>
+                            <Badge variant="outline" className={`text-xs font-mono ${getPositionColor(pos)}`}>
                               {pos}
                             </Badge>
                           )}
@@ -1174,10 +1174,10 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
                             <div className="flex items-center gap-1.5">
                               <ClubBadge url={opt.clubBadgeUrl} className="w-4 h-4" />
                               <span className="font-medium text-attention leading-tight">{opt.nickname ?? opt.name}</span>
-                              <span className="text-[10px] text-muted-foreground font-mono">C${opt.price.toFixed(1)}</span>
+                              <span className="text-xs text-muted-foreground font-mono tabular-nums">C${opt.price.toFixed(1)}</span>
                             </div>
                           ) : opt && same ? (
-                            <span className="text-[11px] text-positive">✓ mesmo jogador</span>
+                            <span className="text-xs text-positive">✓ mesmo jogador</span>
                           ) : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
                         <td className="px-3 py-2.5 text-right">
@@ -1200,7 +1200,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
               </tfoot>
             </table>
           </div>
-          <p className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border/20">
+          <p className="px-4 py-2 text-xs text-muted-foreground border-t border-border/20">
             Preço atual dos jogadores como aproximação do preço na rodada •
             ✓ = coincide com o ótimo
           </p>
@@ -1269,7 +1269,7 @@ function BudgetOptimalTab() {
           {data.strategies.map((s) => (
             <StrategyCompareCard key={s.strategyType} s={s} />
           ))}
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             <strong>Eficiência</strong> = nossos pts reais ÷ melhor possível no orçamento × 100.
             Preços usados são aproximações do momento atual — podem diferir em ±5% do valor real na rodada.
           </p>

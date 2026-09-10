@@ -192,8 +192,12 @@ export default function Players() {
 
   const SortableHead = ({ col, children, className }: { col: SortColumn; children: React.ReactNode; className?: string }) => (
     <TableHead
-      className={`py-4 font-semibold cursor-pointer select-none hover:text-primary transition-colors ${className ?? ""}`}
+      className={`py-4 font-semibold cursor-pointer select-none hover:text-primary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ""}`}
       onClick={() => handleSort(col)}
+      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") handleSort(col); }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Ordenar por ${String(children)}`}
     >
       <span className="inline-flex items-center">
         {children}
@@ -203,7 +207,7 @@ export default function Players() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Jogadores</h1>
@@ -216,7 +220,7 @@ export default function Players() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
           {/* Search */}
           <div className="space-y-2 xl:col-span-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Buscar</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Buscar</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
@@ -230,7 +234,7 @@ export default function Players() {
           
           {/* Position */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Posição</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Posição</Label>
             <Select value={position} onValueChange={handlePositionChange}>
               <SelectTrigger className="bg-background rounded-xl h-10 border-border focus:ring-primary/50">
                 <SelectValue placeholder="Todas" />
@@ -249,7 +253,7 @@ export default function Players() {
 
           {/* Club filter */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Clube</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Clube</Label>
             <Select value={clubFilter} onValueChange={handleClubChange}>
               <SelectTrigger className="bg-background rounded-xl h-10 border-border focus:ring-primary/50">
                 <SelectValue placeholder="Todos" />
@@ -266,8 +270,8 @@ export default function Players() {
           {/* Price Range */}
           <div className="space-y-2 xl:col-span-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase">Faixa de Preço</Label>
-              <span className="text-xs font-mono font-bold text-primary">C$ {minPrice} – {maxPrice}</span>
+              <Label className="text-xs font-semibold text-muted-foreground">Faixa de preço</Label>
+              <span className="text-xs font-mono tabular-nums font-bold text-primary">C$ {minPrice} – {maxPrice}</span>
             </div>
             <Slider 
               value={[minPrice, maxPrice]} 
@@ -285,7 +289,7 @@ export default function Players() {
 
           {/* Min Projection */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Proj. mín. (pts)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Proj. mín. (pts)</Label>
             <div className="relative">
               <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
@@ -300,7 +304,7 @@ export default function Players() {
 
           {/* Max Minimo para Valorizar */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Mín. Val. máx. (pts)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Mín. val. máx. (pts)</Label>
             <div className="relative">
               <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-attention" />
               <Input 
@@ -315,7 +319,7 @@ export default function Players() {
 
           {/* Min Base Average */}
           <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase">Média Base mín. (pts)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Média base mín. (pts)</Label>
             <div className="relative">
               <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-differential" />
               <Input 
@@ -366,7 +370,7 @@ export default function Players() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Zap className="w-3.5 h-3.5 text-positive" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-positive">Diferencial da rodada</span>
+                  <span className="text-xs font-bold text-positive">Diferencial da rodada</span>
                 </div>
                 <Button
                   size="sm"
@@ -390,13 +394,13 @@ export default function Players() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-primary font-mono">
+                   <p className="text-lg font-bold text-primary font-mono tabular-nums">
                     {(topDiferencial.projection?.expectedPoints ?? 0).toFixed(1)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">pts proj.</p>
+                  <p className="text-xs text-muted-foreground">pts proj.</p>
                 </div>
               </div>
-              {difError && <p className="text-[11px] text-destructive mt-2">{difError}</p>}
+              {difError && <p className="text-xs text-destructive mt-2">{difError}</p>}
             </div>
           )}
 
@@ -406,7 +410,7 @@ export default function Players() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-3.5 h-3.5 text-attention" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-attention">Armadilha da rodada</span>
+                  <span className="text-xs font-bold text-attention">Armadilha da rodada</span>
                 </div>
                 <Button
                   size="sm"
@@ -430,13 +434,13 @@ export default function Players() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-attention font-mono">
+                   <p className="text-lg font-bold text-attention font-mono tabular-nums">
                     {(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%
                   </p>
-                  <p className="text-[10px] text-muted-foreground">escalação</p>
+                  <p className="text-xs text-muted-foreground">escalação</p>
                 </div>
               </div>
-              {armError && <p className="text-[11px] text-destructive mt-2">{armError}</p>}
+              {armError && <p className="text-xs text-destructive mt-2">{armError}</p>}
             </div>
           )}
 
@@ -452,16 +456,16 @@ export default function Players() {
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
                       {topDiferencial.nickname ?? topDiferencial.name}
                     </div>
-                    <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }}>
                       {topDiferencial.position} · {topDiferencial.club?.abbreviation ?? "—"} · C$ {(topDiferencial.price ?? 0).toFixed(1)}
                     </div>
                   </div>
                 </div>
                 <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid hsl(var(--positive))" }}>
-                  <div style={{ fontSize: "10px", color: "hsl(var(--positive))", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "hsl(var(--positive))", fontWeight: 700, marginBottom: "4px" }}>
                     Baixa escalação · Alto potencial
                   </div>
-                  <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
                     Jogador com alta probabilidade de superar a média com pouca exposição nas escalações.
                   </div>
                 </div>
@@ -473,7 +477,7 @@ export default function Players() {
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
                       <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
                     </div>
                   ))}
                 </div>
@@ -492,16 +496,16 @@ export default function Players() {
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
                       {topArmadilha.nickname ?? topArmadilha.name}
                     </div>
-                    <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))" }}>
+                    <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }}>
                       {topArmadilha.position} · {topArmadilha.club?.abbreviation ?? "—"} · C$ {(topArmadilha.price ?? 0).toFixed(1)}
                     </div>
                   </div>
                 </div>
                 <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid hsl(var(--attention))" }}>
-                  <div style={{ fontSize: "10px", color: "hsl(var(--attention))", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "hsl(var(--attention))", fontWeight: 700, marginBottom: "4px" }}>
                     Alta escalação · Alto risco
                   </div>
-                  <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
                     Jogador amplamente escalado com risco elevado de decepcionar na rodada.
                   </div>
                 </div>
@@ -513,7 +517,7 @@ export default function Players() {
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
                       <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "12px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
                     </div>
                   ))}
                 </div>
@@ -576,7 +580,7 @@ export default function Players() {
                   const riskScore = player.availability?.riskScore ?? null;
                   const isRisky = prob !== null && prob < 0.5;
                   return (
-                    <TableRow key={player.id} className="hover:bg-secondary/20 transition-colors cursor-pointer group border-b-border/30">
+                    <TableRow key={player.id} className="hover:bg-secondary/20 motion-safe:transition-colors cursor-pointer group border-b-border/30">
                       <TableCell className="py-3">
                         <PlayerCard
                           variant="full"
@@ -598,15 +602,15 @@ export default function Players() {
                         </PlayerCard>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`font-mono text-[10px] ${getPositionColor(player.position)} border`}>
+                        <Badge variant="outline" className={`font-mono text-xs ${getPositionColor(player.position)} border`}>
                           {player.position}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-foreground">
+                       <TableCell className="text-right font-mono tabular-nums text-sm text-foreground">
                         <div className="flex items-center justify-end gap-1">
                           <span>C$ {player.price?.toFixed(2) ?? '-'}</span>
                           {player.priceVariation != null && player.priceVariation !== 0 && (
-                            <span className={`flex items-center gap-0.5 text-[10px] font-bold ${
+                            <span className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${
                               player.priceVariation > 0 ? 'text-positive' : 'text-danger'
                             }`}>
                               {player.priceVariation > 0
@@ -617,30 +621,30 @@ export default function Players() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                       <TableCell className="text-right font-mono tabular-nums text-sm text-muted-foreground">
                         {player.averagePoints?.toFixed(1) ?? '-'}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm" title="Mínimo para valorizar: pontuação mínima para aumentar de preço">
+                       <TableCell className="text-right font-mono tabular-nums text-sm" title="Mínimo para valorizar: pontuação mínima para aumentar de preço">
                         {player.minimoParaValorizar != null
                           ? <span className="text-attention font-semibold">↑{player.minimoParaValorizar.toFixed(1)}</span>
                           : <span className="text-muted-foreground">-</span>}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm" title="Média base: pontuação sem contar Gols, Assistências e SG">
+                       <TableCell className="text-right font-mono tabular-nums text-sm" title="Média base: pontuação sem contar Gols, Assistências e SG">
                         {player.baseAverage != null
                           ? <span className="text-differential">{player.baseAverage.toFixed(1)}</span>
                           : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-mono font-bold text-primary text-base">
+                           <span className="font-mono tabular-nums font-bold text-primary text-base">
                           {player.projection?.expectedPoints?.toFixed(1) ?? '-'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                       <TableCell className="text-right font-mono tabular-nums text-sm text-muted-foreground">
                         <ProGate variant="inline">
                           {player.projection?.floorPoints?.toFixed(1) ?? '-'}
                         </ProGate>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                       <TableCell className="text-right font-mono tabular-nums text-sm text-muted-foreground">
                         <ProGate variant="inline">
                           {player.projection?.ceilingPoints?.toFixed(1) ?? '-'}
                         </ProGate>
@@ -648,7 +652,7 @@ export default function Players() {
                       <TableCell className="text-center">
                         <ProGate variant="inline">
                           {riskScore !== null ? (
-                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold tabular-nums ${
                               riskScore < 0.3 ? 'bg-positive/10 text-positive' :
                               riskScore < 0.6 ? 'bg-attention/10 text-attention' :
                               'bg-danger/10 text-danger'
@@ -661,7 +665,7 @@ export default function Players() {
                       <TableCell className="text-center">
                         <ProGate variant="inline">
                           {prob !== null ? (
-                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${
+                            <div className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold tabular-nums ${
                               prob >= 0.7 ? 'bg-positive/10 text-positive' :
                               prob >= 0.4 ? 'bg-attention/10 text-attention' :
                               'bg-danger/10 text-danger'
@@ -681,14 +685,14 @@ export default function Players() {
                           const diff = exp - min;
                           if (diff >= 0) {
                             return (
-                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-positive/10 text-positive border border-positive/20" title={`Projeção supera o mínimo por ${diff.toFixed(1)} pts`}>
+                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold tabular-nums bg-positive/10 text-positive border border-positive/20" title={`Projeção supera o mínimo por ${diff.toFixed(1)} pts`}>
                                 <Sparkles className="w-3 h-3" />
                                 +{diff.toFixed(1)}
                               </div>
                             );
                           }
                           return (
-                            <div className="inline-flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] font-bold bg-secondary text-muted-foreground" title={`Falta ${Math.abs(diff).toFixed(1)} pts para valorizar`}>
+                            <div className="inline-flex items-center gap-0.5 px-2 py-1 rounded-md text-xs font-bold tabular-nums bg-secondary text-muted-foreground" title={`Falta ${Math.abs(diff).toFixed(1)} pts para valorizar`}>
                               {diff.toFixed(1)}
                             </div>
                           );
@@ -709,7 +713,8 @@ export default function Players() {
               Mostrando <span className="font-semibold text-foreground">{page * pageSize + 1}</span> a <span className="font-semibold text-foreground">{Math.min((page + 1) * pageSize, filteredPlayers.length)}</span> de <span className="font-semibold text-foreground">{filteredPlayers.length}</span>
             </span>
             <div className="flex items-center gap-2">
-              <Button 
+                 <Button
+                 aria-label="Página anterior"
                 variant="outline" 
                 size="icon" 
                 onClick={() => setPage(p => Math.max(0, p - 1))}
@@ -718,7 +723,8 @@ export default function Players() {
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <Button 
+               <Button
+                 aria-label="Próxima página"
                 variant="outline" 
                 size="icon" 
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}

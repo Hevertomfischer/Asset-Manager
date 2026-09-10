@@ -67,7 +67,7 @@ export function BottomNav() {
                 key={item.url}
                 to={item.url}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 min-w-11 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition-colors ${
+                className={`flex min-h-14 min-w-11 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >
@@ -81,7 +81,7 @@ export function BottomNav() {
             aria-label="Abrir mais opções"
             aria-current={moreIsActive ? "page" : undefined}
             onClick={() => setMoreOpen(true)}
-            className={`flex min-h-14 min-w-11 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition-colors ${
+            className={`flex min-h-14 min-w-11 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               moreIsActive ? "text-primary" : "text-muted-foreground"
             }`}
           >
@@ -148,7 +148,7 @@ function MobileMenuLink({
       <Link
         to={item.url}
         aria-current={active ? "page" : undefined}
-        className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+        className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
           active ? "bg-primary/15 text-primary" : "text-foreground hover:bg-secondary"
         }`}
       >

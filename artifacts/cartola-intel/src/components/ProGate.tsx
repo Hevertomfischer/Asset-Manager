@@ -30,8 +30,9 @@ export function ProGate({ children, message, variant = "overlay", compact = fals
   if (variant === "inline") {
     return (
       <button
-        className="inline-flex items-center gap-1 text-muted-foreground/40 hover:text-primary/70 transition-colors cursor-pointer"
+        className="inline-flex items-center gap-1 text-muted-foreground/40 hover:text-primary/70 motion-safe:transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title="Disponível no plano Pro"
+        aria-label="Disponível no plano Pro"
         onClick={() => navigate("/planos")}
       >
         <Lock className="w-3 h-3" />
@@ -51,7 +52,7 @@ export function ProGate({ children, message, variant = "overlay", compact = fals
           <ProBadge />
           <Button
             size="sm"
-            className="ml-1 bg-gradient-to-r from-primary to-accent font-semibold text-[11px] h-7 px-3 shrink-0"
+             className="ml-1 bg-gradient-to-r from-primary to-accent font-semibold text-xs h-7 px-3 shrink-0"
             onClick={() => navigate("/planos")}
           >
             <Sparkles className="w-3 h-3 mr-1" />

@@ -178,7 +178,7 @@ export default function Planos() {
                 <p className="text-sm font-semibold text-foreground">
                   Você está usando o Founder Access
                 </p>
-                <Badge className="bg-primary/20 text-primary border border-primary/30 text-[11px] font-semibold">
+                <Badge className="bg-primary/20 text-primary border border-primary/30 text-xs font-semibold">
                   Campanha ativa
                 </Badge>
               </div>
@@ -203,7 +203,7 @@ export default function Planos() {
       )}
 
       <div className="text-center mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-4">
           <Sparkles className="w-3.5 h-3.5" />
            <ProBadge />
         </div>
@@ -216,7 +216,7 @@ export default function Planos() {
       </div>
 
       <div className="mb-8 bg-secondary/40 border border-border rounded-2xl p-5">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        <p className="text-xs font-semibold text-muted-foreground mb-3">
           O que está incluso nos planos Pro
         </p>
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -246,7 +246,7 @@ export default function Planos() {
           return (
             <Card
               key={plan.id}
-              className={`relative flex flex-col border transition-colors duration-200 ${
+              className={`relative flex flex-col border motion-safe:transition-colors motion-safe:duration-200 ${
                 plan.best
                   ? "border-primary/50 bg-primary/5 shadow-lg shadow-primary/10"
                   : "border-border bg-card"
@@ -273,7 +273,7 @@ export default function Planos() {
                   )}
                 </div>
                 <div className="flex items-baseline gap-1 mt-4">
-                  <span className="text-3xl font-extrabold tracking-tight text-foreground">
+                   <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
                     {plan.price}
                   </span>
                   <span className="text-muted-foreground text-sm">{plan.period}</span>

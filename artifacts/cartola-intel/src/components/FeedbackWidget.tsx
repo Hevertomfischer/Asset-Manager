@@ -131,15 +131,16 @@ export function FeedbackWidget() {
           bg-card/90 backdrop-blur-md
           text-primary text-xs font-semibold
           shadow-lg shadow-black/20
-          transition-all duration-200
+          motion-safe:transition-all motion-safe:duration-200
           hover:bg-primary/10 hover:border-primary/60 hover:shadow-primary/10
-          active:scale-95
+          motion-safe:active:scale-95
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
           md:bottom-6 md:right-6
           ${cooldown ? "opacity-40 cursor-not-allowed" : ""}
         `}
       >
         <MessageSquarePlus className="w-4 h-4 shrink-0" />
-        <span className="hidden sm:inline">Feedback</span>
+         <span className="hidden sm:inline">Feedback</span>
       </button>
 
       {/* ── Sheet panel ─────────────────────────────────────────────────── */}
@@ -153,11 +154,12 @@ export function FeedbackWidget() {
             <div className="flex items-center justify-between">
               <SheetTitle className="flex items-center gap-2 text-base font-semibold">
                 <MessageSquarePlus className="w-4 h-4 text-primary" />
-                Enviar Feedback
+                Enviar feedback
               </SheetTitle>
               <button
                 onClick={handleClose}
-                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                 aria-label="Fechar feedback"
+                 className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -172,7 +174,7 @@ export function FeedbackWidget() {
 
             {/* ── Type selector ──────────────────────────────────────────── */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <Label className="text-xs font-medium text-muted-foreground">
                 Tipo
               </Label>
               <div className="grid grid-cols-2 gap-2">
@@ -182,7 +184,7 @@ export function FeedbackWidget() {
                     type="button"
                     onClick={() => setType(t.value)}
                     className={`
-                      flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all
+                      flex flex-col items-start gap-1 p-3 rounded-xl border text-left motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
                       ${type === t.value
                         ? "border-primary/50 bg-primary/10 text-primary"
                         : "border-border/40 bg-secondary/40 text-muted-foreground hover:border-border hover:text-foreground"
@@ -193,7 +195,7 @@ export function FeedbackWidget() {
                       {t.icon}
                     </span>
                     <span className="text-xs font-semibold">{t.label}</span>
-                    <span className="text-[10px] leading-tight opacity-80">{t.description}</span>
+                    <span className="text-xs leading-tight opacity-80">{t.description}</span>
                   </button>
                 ))}
               </div>
@@ -202,10 +204,10 @@ export function FeedbackWidget() {
             {/* ── Message ────────────────────────────────────────────────── */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="fb-message" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Label htmlFor="fb-message" className="text-xs font-medium text-muted-foreground">
                   Mensagem
                 </Label>
-                <span className={`text-[10px] font-mono tabular-nums ${charCount > MAX_LEN ? "text-danger" : charCount > MAX_LEN * 0.85 ? "text-attention" : "text-muted-foreground"}`}>
+                <span className={`text-xs font-mono tabular-nums ${charCount > MAX_LEN ? "text-danger" : charCount > MAX_LEN * 0.85 ? "text-attention" : "text-muted-foreground"}`}>
                   {charCount}/{MAX_LEN}
                 </span>
               </div>
@@ -219,14 +221,14 @@ export function FeedbackWidget() {
                 maxLength={MAX_LEN + 50}
               />
               {charCount > 0 && charCount < MIN_LEN && (
-                <p className="text-[11px] text-attention/80">
+                <p className="text-xs text-attention/80">
                   Mínimo {MIN_LEN} caracteres ({MIN_LEN - charCount} restante{MIN_LEN - charCount !== 1 ? "s" : ""})
                 </p>
               )}
             </div>
 
             {/* ── Page indicator (read-only) ─────────────────────────────── */}
-            <p className="text-[10px] text-muted-foreground/60">
+            <p className="text-xs text-muted-foreground/60">
               Página capturada automaticamente: <code className="font-mono">{window.location.pathname}</code>
             </p>
           </div>
@@ -243,7 +245,7 @@ export function FeedbackWidget() {
               ) : (
                 <MessageSquarePlus className="w-4 h-4 mr-2" />
               )}
-              {loading ? "Enviando…" : "Enviar Feedback"}
+              {loading ? "Enviando…" : "Enviar feedback"}
             </Button>
           </div>
         </SheetContent>

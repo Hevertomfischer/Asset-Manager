@@ -166,7 +166,7 @@ function PlayerSlot({
           {name}
         </div>
         {player.price != null && (
-          <div style={{ fontSize: 8, color: "hsl(var(--attention))", fontFamily: "monospace", fontWeight: 700, lineHeight: 1.1 }}>
+          <div style={{ fontSize: 8, color: "hsl(var(--attention))", fontFamily: "monospace", fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
             C${player.price.toFixed(2)}
           </div>
         )}
@@ -208,7 +208,7 @@ function ReserveSlot({ reserve }: { reserve: LineupReservePlayer }) {
           {name}
         </div>
         {reserve.price != null && (
-          <div style={{ fontSize: 7, color: "rgba(253,224,71,0.80)", fontFamily: "monospace", lineHeight: 1.1 }}>
+          <div style={{ fontSize: 7, color: "rgba(253,224,71,0.80)", fontFamily: "monospace", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
             C${reserve.price.toFixed(2)}
           </div>
         )}
@@ -446,8 +446,6 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
                 fontSize: 9,
                 color: "hsl(var(--positive))",
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
               }}
             >
               {subtitle}
@@ -510,8 +508,8 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
           ].map((stat, i, arr) => (
             <div key={stat.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 8, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>{stat.label}</div>
-                <div style={{ fontSize: 13, fontFamily: "monospace", fontWeight: 700, color: stat.color, marginTop: 2 }}>{stat.value}</div>
+                <div style={{ fontSize: 8, color: "hsl(var(--muted-foreground))", fontWeight: 600 }}>{stat.label}</div>
+                <div style={{ fontSize: 13, fontFamily: "monospace", fontWeight: 700, color: stat.color, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{stat.value}</div>
               </div>
               {i < arr.length - 1 && <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.10)" }} />}
             </div>
@@ -525,14 +523,12 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
               style={{
                 fontSize: 8,
                 color: "hsl(var(--muted-foreground))",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
+                 fontWeight: 700,
                 textAlign: "center",
                 marginBottom: 8,
               }}
             >
-              Banco de Reservas
+               Banco de reservas
             </div>
             <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
               {sortedReserves.map((r) => (

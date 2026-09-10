@@ -72,9 +72,9 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
   const posColor = getPositionColor(player.position ?? "");
 
   return (
-    <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/60 p-4 text-center transition-colors hover:border-primary/30 hover:bg-card/80">
+    <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/60 p-4 text-center motion-safe:transition-colors hover:border-primary/30 hover:bg-card/80">
       {rank === 1 && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-attention/40 bg-attention/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-attention">
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-attention/40 bg-attention/10 px-2 py-0.5 text-xs font-bold text-attention">
           # Maior projeção
         </span>
       )}
@@ -93,17 +93,17 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
         <p className="truncate text-sm font-bold text-foreground leading-tight" title={displayName}>
           {displayName}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">
           {player.club.abbreviation ?? player.club.name ?? "—"}
         </p>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap justify-center">
-        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-bold ${posColor}`}>
+        <Badge variant="outline" className={`text-xs px-1 py-0 font-bold ${posColor}`}>
           {player.position}
         </Badge>
         {player.isDifferencial && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-semibold text-purple-400 border-purple-500/30 bg-purple-500/10">
+          <Badge variant="outline" className="text-xs px-1 py-0 font-semibold text-purple-400 border-purple-500/30 bg-purple-500/10">
             Diferencial
           </Badge>
         )}
@@ -112,13 +112,13 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
         )}
       </div>
 
-      <p className="text-2xl font-mono font-bold text-primary leading-none">
+        <p className="text-2xl font-mono font-bold text-primary leading-none tabular-nums">
         {(player.expectedPoints ?? 0).toFixed(1)}
         <span className="text-xs text-muted-foreground font-normal ml-0.5">pts</span>
       </p>
 
       {player.price != null && (
-        <p className="text-[11px] text-muted-foreground font-mono">
+        <p className="text-xs text-muted-foreground font-mono tabular-nums">
           C$ {player.price.toFixed(2)}
         </p>
       )}
@@ -155,7 +155,7 @@ function StatBubble({
     <Card className={`bg-card/60 border ${colorMap[variant]} rounded-2xl flex-1 min-w-0`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold leading-tight max-w-[140px]">
+          <p className="text-xs text-muted-foreground font-semibold leading-tight max-w-[140px]">
             {label}
           </p>
           <Icon className={`w-4 h-4 shrink-0 ${iconColor[variant]}`} />
@@ -228,7 +228,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="bg-primary/20 p-1.5 rounded-lg border border-primary/30 group-hover:bg-primary/30 transition-colors">
+            <div className="bg-primary/20 p-1.5 rounded-lg border border-primary/30 group-hover:bg-primary/30 motion-safe:transition-colors">
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <span className="font-display font-bold text-lg text-foreground leading-none">
@@ -265,9 +265,9 @@ export default function Landing() {
           <div className="flex items-center justify-center gap-2">
             <Badge
               variant="outline"
-              className="border-primary/40 text-primary bg-primary/5 gap-1.5 text-xs font-semibold uppercase tracking-wide"
+              className="border-primary/40 text-primary bg-primary/5 gap-1.5 text-xs font-semibold"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
               Projeções ao vivo — Cartola FC 2026
             </Badge>
           </div>
@@ -463,7 +463,7 @@ export default function Landing() {
             Criar conta grátis
             <ArrowRight className="w-4 h-4" />
           </Button>
-          <p className="text-[11px] text-muted-foreground/60">
+          <p className="text-xs text-muted-foreground/60">
             Dados do Cartola FC 2026 · Algoritmo atualizado a cada rodada
           </p>
         </section>
@@ -477,10 +477,10 @@ export default function Landing() {
             Mitometro · Cartola FC Analytics
           </span>
           <div className="flex items-center gap-4">
-            <Link to="/desempenho" className="hover:text-foreground transition-colors">
+            <Link to="/desempenho" className="hover:text-foreground motion-safe:transition-colors">
               Transparência
             </Link>
-            <a href="/api/auth/google" className="hover:text-foreground transition-colors">
+            <a href="/api/auth/google" className="hover:text-foreground motion-safe:transition-colors">
               Entrar
             </a>
           </div>

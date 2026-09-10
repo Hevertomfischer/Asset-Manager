@@ -73,7 +73,12 @@ function DevLoginPopover() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-attention hover:text-attention hover:bg-attention/10 border border-attention/40">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Abrir login de desenvolvimento"
+          className="gap-1.5 text-attention hover:text-attention hover:bg-attention/10 border border-attention/40"
+        >
           <FlaskConical className="w-3.5 h-3.5" />
           <span className="hidden sm:inline text-xs font-medium">Dev</span>
         </Button>
@@ -116,7 +121,7 @@ function DevLoginPopover() {
               <button
                 type="button"
                 onClick={() => setPlan("free")}
-                className={`flex-1 h-8 rounded-md border text-xs font-medium transition-colors ${
+                className={`flex-1 h-8 rounded-md border text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   plan === "free"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-input bg-background hover:bg-accent"
@@ -127,7 +132,7 @@ function DevLoginPopover() {
               <button
                 type="button"
                 onClick={() => setPlan("pro")}
-                className={`flex-1 h-8 rounded-md border text-xs font-medium transition-colors ${
+                className={`flex-1 h-8 rounded-md border text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   plan === "pro"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-input bg-background hover:bg-accent"
@@ -159,7 +164,11 @@ export function UserMenu() {
       <div className="flex items-center gap-2">
         {import.meta.env.DEV && <DevLoginPopover />}
         <Button asChild variant="outline" size="sm">
-          <a href="/api/auth/google">
+          <a
+            href="/api/auth/google"
+            aria-label="Entrar com Google"
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          >
             <LogIn className="w-4 h-4" />
             <span className="hidden sm:inline">Entrar com Google</span>
           </a>
@@ -171,7 +180,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button aria-label="Abrir menu do usuário" className="flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Avatar className="h-8 w-8">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name ?? user.email} />}
             <AvatarFallback className="text-xs font-semibold">
@@ -190,7 +199,7 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to="/conta" className="flex items-center gap-2 cursor-pointer">
+          <Link to="/conta" className="flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
             <UserCircle className="w-4 h-4" />
             Minha conta
           </Link>

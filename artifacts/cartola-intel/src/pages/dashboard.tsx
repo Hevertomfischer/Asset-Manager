@@ -81,7 +81,7 @@ function ClubBadge({ club }: { club: MatchClub }) {
     );
   }
   return (
-    <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
+    <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
       {(club?.abbreviation ?? club?.name ?? "?").slice(0, 3).toUpperCase()}
     </div>
   );
@@ -164,7 +164,7 @@ export default function Dashboard() {
   const positions = ["ATA", "MEI", "LAT", "ZAG", "GOL", "TEC"];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
       {/* Hero Section */}
       <div className="relative rounded-3xl overflow-hidden border border-border/50 shadow-2xl bg-card">
         <div className="absolute inset-0 z-0">
@@ -176,7 +176,7 @@ export default function Dashboard() {
           <div className="space-y-4 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm font-semibold shadow-[0_0_15px_hsl(var(--positive) / 0.2)]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
               Motor de Inteligência Ativo
@@ -191,7 +191,7 @@ export default function Dashboard() {
 
           <Card className="w-full md:w-80 bg-background/60 backdrop-blur-xl border-border/50 shadow-xl">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center justify-between">
                 Status do Mercado
                 {roundData?.marketOpen ? (
                   <ShieldCheck className="w-5 h-5 text-primary" />
@@ -222,10 +222,10 @@ export default function Dashboard() {
                       Fecha: {new Date(roundData.closingDate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </div>
                   )}
-                  <Button className="w-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all font-bold group" asChild>
+                  <Button className="w-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 motion-safe:transition-all font-bold group" asChild>
                     <Link to="/escalacao">
                       Otimizar Escalação
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4 ml-2 motion-safe:group-hover:translate-x-1 motion-safe:transition-transform" />
                     </Link>
                   </Button>
                 </div>
@@ -244,11 +244,11 @@ export default function Dashboard() {
               <Users className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Jogadores Disponíveis</p>
+              <p className="text-xs text-muted-foreground font-semibold">Jogadores disponíveis</p>
               {availabilityError ? (
                 <p className="text-sm text-destructive font-medium">Erro</p>
               ) : (
-                <p className="text-2xl font-mono font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
+                <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
               )}
             </div>
           </CardContent>
@@ -259,8 +259,8 @@ export default function Dashboard() {
               <Trophy className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Com Projeção</p>
-              <p className="text-2xl font-mono font-bold text-foreground">{projections.length}</p>
+              <p className="text-xs text-muted-foreground font-semibold">Com projeção</p>
+              <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{projections.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -270,8 +270,8 @@ export default function Dashboard() {
               <AlertTriangle className="w-5 h-5 text-attention" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Alertas de Risco</p>
-              <p className="text-2xl font-mono font-bold text-foreground">{riskAlerts.length}</p>
+              <p className="text-xs text-muted-foreground font-semibold">Alertas de risco</p>
+              <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{riskAlerts.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -281,8 +281,8 @@ export default function Dashboard() {
               <Calendar className="w-5 h-5 text-differential" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Partidas</p>
-              <p className="text-2xl font-mono font-bold text-foreground">{matches.length}</p>
+              <p className="text-xs text-muted-foreground font-semibold">Partidas</p>
+              <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{matches.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -293,7 +293,7 @@ export default function Dashboard() {
         <div className="col-span-1 lg:col-span-2 space-y-6">
           <div className="flex items-center gap-2">
             <Trophy className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-display font-bold">Melhores Projeções</h2>
+            <h2 className="text-2xl font-display font-bold">Melhores projeções</h2>
           </div>
 
           {projError ? (
@@ -313,7 +313,7 @@ export default function Dashboard() {
                 </div>
                 <a
                   href="/api/auth/google"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 text-sm font-bold transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 text-sm font-bold motion-safe:transition-colors"
                 >
                   Entrar com Google
                 </a>
@@ -333,7 +333,7 @@ export default function Dashboard() {
                 if (!tops.length) return null;
 
                 return (
-                  <Card key={pos} className="bg-card hover:border-border transition-colors group overflow-hidden">
+                  <Card key={pos} className="bg-card hover:border-border motion-safe:transition-colors group overflow-hidden">
                     <div
                       className={`h-1 w-full bg-gradient-to-r ${
                         pos === "ATA"
@@ -353,12 +353,12 @@ export default function Dashboard() {
                       <Badge variant="outline" className={`font-mono text-xs ${getPositionColor(pos)} border`}>
                         {pos}
                       </Badge>
-                      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Top 5</span>
+                      <span className="text-xs text-muted-foreground font-medium">Top 5</span>
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="divide-y divide-border/50">
                         {tops.map((p, idx) => (
-                          <div key={p.id} className="p-3 px-4 flex items-center justify-between hover:bg-secondary/40 transition-colors">
+                          <div key={p.id} className="p-3 px-4 flex items-center justify-between hover:bg-secondary/40 motion-safe:transition-colors">
                             <div className="flex items-center gap-3 overflow-hidden">
                               <span className="text-xs font-bold text-muted-foreground w-3">{idx + 1}</span>
                               <div className="truncate">
@@ -373,7 +373,7 @@ export default function Dashboard() {
                             <div className="text-right pl-2 shrink-0">
                               <p className="font-bold text-primary font-mono">
                                 {p.expectedPoints?.toFixed(1)}{" "}
-                                <span className="text-[10px] text-muted-foreground">pts</span>
+                                <span className="text-xs text-muted-foreground">pts</span>
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 C$ {(getPlayerField(p, "price") as number | null)?.toFixed(2)}
@@ -404,7 +404,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-attention" />
-                <h3 className="text-lg font-display font-bold">Alertas de Risco</h3>
+                <h3 className="text-lg font-display font-bold">Alertas de risco</h3>
                 <span className="text-xs text-muted-foreground">(jogadores com baixa probabilidade de jogar)</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -433,7 +433,7 @@ export default function Dashboard() {
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-attention">{(numProb * 100).toFixed(0)}%</p>
                         {riskScore !== null && (
-                          <p className="text-[10px] text-muted-foreground">risco: {riskScore.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">risco: {riskScore.toFixed(2)}</p>
                         )}
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent" />
-                <h3 className="text-lg font-display font-bold">Diferenciais da Rodada</h3>
+                <h3 className="text-lg font-display font-bold">Diferenciais da rodada</h3>
                 <span className="text-xs text-muted-foreground">(alta projeção, baixa escalação)</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -468,14 +468,14 @@ export default function Dashboard() {
                         <div>
                           <p className="font-semibold text-sm">{name ?? "—"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {clubName ?? "—"} · {position ? <Badge variant="outline" className={`font-mono text-[9px] px-1 py-0 ${getPositionColor(position)} border`}>{position}</Badge> : null}
+                            {clubName ?? "—"} · {position ? <Badge variant="outline" className={`font-mono text-xs px-1 py-0 ${getPositionColor(position)} border`}>{position}</Badge> : null}
                           </p>
                           <PlayerBadges badges={badges} />
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
-                        <p className="text-[10px] text-muted-foreground">escal.: {(pop * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">escal.: {(pop * 100).toFixed(0)}%</p>
                       </div>
                     </div>
                   );
@@ -489,7 +489,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bomb className="w-5 h-5 text-destructive" />
-                <h3 className="text-lg font-display font-bold">Armadilhas da Rodada</h3>
+                <h3 className="text-lg font-display font-bold">Armadilhas da rodada</h3>
                 <span className="text-xs text-muted-foreground">(muito escalados, forma em queda)</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -516,7 +516,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-destructive">{(pop * 100).toFixed(0)}% escalado</p>
-                        <p className="text-[10px] text-muted-foreground">{p.expectedPoints?.toFixed(1)} pts proj.</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{p.expectedPoints?.toFixed(1)} pts proj.</p>
                       </div>
                     </div>
                   );
@@ -569,7 +569,7 @@ export default function Dashboard() {
                           variant={
                             provider.status === "ok" ? "default" : provider.status === "error" ? "destructive" : "secondary"
                           }
-                          className="text-[10px]"
+                          className="text-xs"
                         >
                           {provider.status === "ok" ? "ok" : provider.status === "error" ? "erro" : "degradado"}
                         </Badge>

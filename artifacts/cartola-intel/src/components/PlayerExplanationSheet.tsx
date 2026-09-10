@@ -62,7 +62,7 @@ function BarRow({
       </div>
       <div className="h-2 rounded-full bg-secondary overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
+          className={`h-full rounded-full motion-safe:transition-all motion-safe:duration-500 ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -96,7 +96,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
       <button
         onClick={openPaywall}
         title="Análise completa — disponível no Pro"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-primary/70 transition-colors rounded px-1.5 py-0.5 hover:bg-primary/5"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-primary/70 motion-safe:transition-colors rounded px-1.5 py-0.5 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Lock className="w-3 h-3" />
         <span className="hidden sm:inline">Análise</span>
@@ -130,7 +130,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
       <button
         onClick={() => setOpen(true)}
         title="Ver análise completa"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors rounded px-1.5 py-0.5 hover:bg-primary/5"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary motion-safe:transition-colors rounded px-1.5 py-0.5 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <BarChart2 className="w-3 h-3" />
         <span className="hidden sm:inline">Análise</span>
@@ -157,7 +157,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
 
           {/* Barras métricas */}
           <div className="space-y-4 mb-6 bg-secondary/30 rounded-xl p-4 border border-border/40">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <p className="text-xs font-semibold text-muted-foreground">
               Métricas principais
             </p>
             <BarRow
@@ -190,7 +190,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
 
           {/* Lista de fatores */}
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">
               Fatores de decisão
             </p>
             {insights.length === 0 ? (
@@ -218,18 +218,18 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
             <div className="grid grid-cols-2 gap-2">
               {exp.averagePoints != null && (
                 <div className="bg-secondary/30 rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] text-muted-foreground">Média geral</p>
-                  <p className="font-bold text-sm text-foreground">{exp.averagePoints.toFixed(1)} pts</p>
+                  <p className="text-xs text-muted-foreground">Média geral</p>
+                  <p className="font-bold text-sm text-foreground tabular-nums">{exp.averagePoints.toFixed(1)} pts</p>
                 </div>
               )}
               {exp.priceVariation != null && (
                 <div className={`rounded-lg p-2.5 text-center ${
                   exp.priceVariation > 0 ? "bg-positive/10" : exp.priceVariation < 0 ? "bg-danger/10" : "bg-secondary/30"
                 }`}>
-                  <p className="text-[10px] text-muted-foreground">Variação</p>
+                  <p className="text-xs text-muted-foreground">Variação</p>
                   <p className={`font-bold text-sm ${
                     exp.priceVariation > 0 ? "text-positive" : exp.priceVariation < 0 ? "text-danger" : "text-foreground"
-                  }`}>
+                  } tabular-nums`}>
                     {exp.priceVariation > 0 ? "+" : ""}C$ {exp.priceVariation.toFixed(2)}
                   </p>
                 </div>
@@ -239,14 +239,14 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
               <div className="grid grid-cols-2 gap-2">
                 {minimoParaValorizar != null && (
                   <div className="bg-attention/10 rounded-lg p-2.5 text-center" title="Pontuação mínima para o jogador aumentar de preço na próxima rodada">
-                    <p className="text-[10px] text-muted-foreground">Mín. para valorizar</p>
-                    <p className="font-bold text-sm text-attention">↑{minimoParaValorizar.toFixed(1)} pts</p>
+                    <p className="text-xs text-muted-foreground">Mín. para valorizar</p>
+                    <p className="font-bold text-sm text-attention tabular-nums">↑{minimoParaValorizar.toFixed(1)} pts</p>
                   </div>
                 )}
                 {baseAverage != null && (
                   <div className="bg-differential/10 rounded-lg p-2.5 text-center" title="Média de pontos excluindo Gols (G×8), Assistências (A×5) e Saldo de Gols (SG×5) — representa o quanto o jogador pontua sem eventos de gol">
-                    <p className="text-[10px] text-muted-foreground">Média base (sem G/A/SG)</p>
-                    <p className="font-bold text-sm text-differential">{baseAverage.toFixed(1)} pts</p>
+                    <p className="text-xs text-muted-foreground">Média base (sem G/A/SG)</p>
+                    <p className="font-bold text-sm text-differential tabular-nums">{baseAverage.toFixed(1)} pts</p>
                   </div>
                 )}
               </div>

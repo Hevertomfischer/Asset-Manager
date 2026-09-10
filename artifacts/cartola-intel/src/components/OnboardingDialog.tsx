@@ -128,7 +128,7 @@ export function OnboardingDialog({ onClose }: Props) {
             {[1, 2].map((s) => (
               <div
                 key={s}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
+                className={`h-1.5 rounded-full motion-safe:transition-all motion-safe:duration-300 ${
                   s === step ? "w-8 bg-primary" : s < step ? "w-4 bg-primary/40" : "w-4 bg-border"
                 }`}
               />
@@ -136,7 +136,7 @@ export function OnboardingDialog({ onClose }: Props) {
           </div>
           <button
             onClick={handleSkip}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
+            className="text-xs text-muted-foreground hover:text-foreground motion-safe:transition-colors px-2 py-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Pular
           </button>
@@ -145,7 +145,7 @@ export function OnboardingDialog({ onClose }: Props) {
         {step === 1 && (
           <div className="p-6 space-y-5">
             <div>
-              <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">
+              <p className="text-xs font-semibold text-primary mb-1">
                 Bem-vindo ao Mitometro
               </p>
               <h2 className="text-xl font-bold leading-snug">
@@ -183,7 +183,7 @@ export function OnboardingDialog({ onClose }: Props) {
         {step === 2 && (
           <div className="p-6 space-y-5">
             <div>
-              <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">
+              <p className="text-xs font-semibold text-primary mb-1">
                 Personalização
               </p>
               <h2 className="text-xl font-bold leading-snug">Como você joga?</h2>
@@ -200,7 +200,7 @@ export function OnboardingDialog({ onClose }: Props) {
                   <button
                     key={value}
                     onClick={() => setSelected(value)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all duration-150 ${
+                    className={`w-full text-left p-4 rounded-xl border motion-safe:transition-all motion-safe:duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isSelected
                         ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
                         : "border-border/50 bg-secondary/30 hover:border-border hover:bg-secondary/60"
@@ -217,7 +217,7 @@ export function OnboardingDialog({ onClose }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold">{label}</span>
-                          <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          <span className="text-xs font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
                             {sublabel}
                           </span>
                           {showProBadge && (

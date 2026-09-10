@@ -151,7 +151,7 @@ export function RegisterRoundDialog({
           // Has teams — show selector
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs font-medium text-muted-foreground">
                 Registrar em
               </label>
               <Select value={selectedTeamId} onValueChange={handleSelectTeam}>
@@ -162,7 +162,7 @@ export function RegisterRoundDialog({
                   {teams.map((t) => (
                     <SelectItem key={t.id} value={String(t.id)}>
                       <span className="font-medium">{t.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="ml-2 text-xs text-muted-foreground tabular-nums">
                         {t.roundCount} rodada{t.roundCount !== 1 ? "s" : ""}
                       </span>
                     </SelectItem>

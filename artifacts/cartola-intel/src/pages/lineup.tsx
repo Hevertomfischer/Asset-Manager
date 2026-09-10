@@ -57,7 +57,7 @@ function LineupPlayerCard({
 
   return (
     <div
-      className={`p-4 rounded-xl border transition-all ${
+      className={`p-4 rounded-xl border motion-safe:transition-all ${
         isCaptain
           ? "border-attention/50 bg-attention/5 shadow-[0_0_15px_hsl(var(--attention)/0.1)]"
           : isCoach
@@ -80,12 +80,12 @@ function LineupPlayerCard({
       />
 
       {isCaptain && (
-        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-attention/20 text-attention text-[10px] font-bold uppercase tracking-wider text-center">
+        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-attention/20 text-attention text-xs font-bold text-center">
           Capitão
         </div>
       )}
       {isCoach && !isCaptain && (
-        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider text-center">
+        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold text-center">
           Técnico
         </div>
       )}
@@ -96,17 +96,17 @@ function LineupPlayerCard({
           {strategy === "valorizacao" && player.valorizacaoMargin != null && (
             <div className="flex items-center gap-1">
               {player.valorizacaoMargin >= 0 ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-positive/15 text-positive text-[10px] font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-positive/15 text-positive text-xs font-semibold">
                   <TrendingUp className="w-3 h-3" />
                   folga +{player.valorizacaoMargin.toFixed(1)} pts
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-danger/10 text-danger text-[10px] font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-danger/10 text-danger text-xs font-semibold">
                   falta {Math.abs(player.valorizacaoMargin).toFixed(1)} pts
                 </span>
               )}
               {player.minimoParaValorizar != null && (
-                <span className="text-[9px] text-muted-foreground">MPV {player.minimoParaValorizar.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">MPV {player.minimoParaValorizar.toFixed(1)}</span>
               )}
             </div>
           )}
@@ -117,7 +117,7 @@ function LineupPlayerCard({
                 <button
                   onClick={onSwapRequest}
                   title="Simular troca"
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <ArrowLeftRight className="w-3 h-3" />
                   Trocar
@@ -139,7 +139,7 @@ function LineupPlayerCard({
 function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
   return (
     <div
-      className={`p-3 rounded-xl border transition-all ${
+      className={`p-3 rounded-xl border motion-safe:transition-all ${
         reserve.isLuxuryReserve
           ? "border-purple-500/50 bg-purple-500/5"
           : "border-border/40 bg-card/60"
@@ -158,10 +158,10 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
         }}
       >
         {reserve.isLuxuryReserve && (
-          <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider shrink-0">Luxo</span>
+          <span className="text-xs font-bold text-purple-400 shrink-0">Luxo</span>
         )}
       </PlayerCard>
-      <div className="flex items-center justify-between text-[10px] mt-1.5">
+      <div className="flex items-center justify-between text-xs mt-1.5 tabular-nums">
         <span className="text-muted-foreground">C$ {(reserve.price ?? 0).toFixed(2)}</span>
       </div>
     </div>
@@ -447,7 +447,7 @@ export default function Lineup() {
   const positionOrder = ["GOL", "ZAG", "LAT", "MEI", "ATA"];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
       {/* Controls Sidebar */}
       <div className="lg:col-span-4 space-y-6">
         <div className="mb-2">
@@ -466,7 +466,7 @@ export default function Lineup() {
             <button
               type="button"
               onClick={openPaywall}
-              className="self-start text-xs font-semibold text-primary hover:underline"
+              className="self-start text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Conhecer o Pro
             </button>
@@ -481,7 +481,7 @@ export default function Lineup() {
             {/* Formação + Orçamento em linha */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Formação</Label>
+                <Label className="text-xs text-muted-foreground font-semibold">Formação</Label>
                 <Select value={formation} onValueChange={setFormation}>
                   <SelectTrigger className="h-9 bg-background border-border rounded-lg text-sm">
                     <SelectValue placeholder="Formação" />
@@ -498,7 +498,7 @@ export default function Lineup() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Orçamento</Label>
+                <Label className="text-xs text-muted-foreground font-semibold">Orçamento</Label>
                 <div className="flex items-center gap-1 h-9 px-2 bg-background border border-border rounded-lg">
                   <span className="text-xs font-mono text-primary">C$</span>
                   <input
@@ -516,7 +516,7 @@ export default function Lineup() {
                       setBudgetText(clamped.toFixed(2));
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    className="flex-1 text-right text-sm font-mono font-bold text-primary bg-transparent focus:outline-none min-w-0"
+                     className="flex-1 text-right text-sm font-mono font-bold text-primary bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0"
                   />
                 </div>
               </div>
@@ -525,7 +525,7 @@ export default function Lineup() {
             <Slider value={[budget]} onValueChange={(v) => { const val = v[0] ?? budget; setBudget(val); setBudgetText(val.toFixed(2)); }} max={500} min={80} step={0.01} className="py-0.5" />
 
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Estratégia</Label>
+              <Label className="text-xs text-muted-foreground font-semibold">Estratégia</Label>
               <TooltipProvider delayDuration={400}>
                 <div className="space-y-1">
                   {strategies.map((s) => {
@@ -535,7 +535,7 @@ export default function Lineup() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={() => setStrategy(s.value)}
-                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all duration-200 ${
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               isActive
                                 ? "border-primary bg-primary/10"
                                 : "border-border bg-background hover:border-muted-foreground/50"
@@ -566,7 +566,7 @@ export default function Lineup() {
             </div>
 
             <Button
-              className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 transition-all bg-gradient-to-r from-primary to-accent"
+              className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all bg-gradient-to-r from-primary to-accent"
               onClick={handleGenerate}
               disabled={generateLineupMutation.isPending}
             >
@@ -590,22 +590,22 @@ export default function Lineup() {
       {/* Lineup Display */}
       <div className="lg:col-span-8 flex flex-col">
         {currentLineup ? (
-          <div className="w-full animate-in zoom-in-95 duration-500 space-y-3">
+          <div className="w-full motion-safe:animate-in zoom-in-95 motion-safe:duration-500 space-y-3">
             {/* Summary bar — compact */}
             <div className="flex items-center justify-between gap-2 bg-card border border-border/50 px-3 py-2 rounded-xl shadow-sm">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Pts esp.</p>
-                  <p className="text-sm font-mono font-bold text-primary leading-none">{(currentLineup.expectedPoints ?? 0).toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground font-semibold leading-none mb-0.5">Pts esp.</p>
+                   <p className="text-sm font-mono font-bold text-primary leading-none tabular-nums">{(currentLineup.expectedPoints ?? 0).toFixed(1)}</p>
                 </div>
                 <div className="w-px h-6 bg-border/50" />
                 <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Custo</p>
-                  <p className="text-sm font-mono font-bold text-foreground leading-none">C$ {(currentLineup.totalCost ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground font-semibold leading-none mb-0.5">Custo</p>
+                   <p className="text-sm font-mono font-bold text-foreground leading-none tabular-nums">C$ {(currentLineup.totalCost ?? 0).toFixed(2)}</p>
                 </div>
                 <div className="w-px h-6 bg-border/50" />
                 <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">
+                  <p className="text-xs text-muted-foreground font-semibold leading-none mb-0.5">
                     {strategy === "valorizacao" ? "Valoriz." : "Formação"}
                   </p>
                   <p className="text-sm font-mono font-bold text-foreground leading-none">
@@ -620,23 +620,25 @@ export default function Lineup() {
                 </div>
                 <div className="w-px h-6 bg-border/50" />
                 <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Risco</p>
-                  <p className="text-sm font-mono font-bold text-attention leading-none">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground font-semibold leading-none mb-0.5">Risco</p>
+                   <p className="text-sm font-mono font-bold text-attention leading-none tabular-nums">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {/* View toggle inline */}
                 <div className="flex items-center gap-0.5 bg-secondary rounded-lg p-0.5 mr-1">
                   <button
+                    aria-label="Exibir escalação no campo"
                     onClick={() => { setViewMode("field"); try { localStorage.setItem("lineup_view_mode", "field"); } catch { /* ignore */ } }}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === "field" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${viewMode === "field" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <LayoutDashboard className="w-3 h-3" />
                     <span className="hidden sm:inline">Campo</span>
                   </button>
                   <button
+                    aria-label="Exibir escalação em lista"
                     onClick={() => { setViewMode("list"); try { localStorage.setItem("lineup_view_mode", "list"); } catch { /* ignore */ } }}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition-all ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <List className="w-3 h-3" />
                     <span className="hidden sm:inline">Lista</span>
@@ -645,7 +647,7 @@ export default function Lineup() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
+                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-primary hover:text-primary-foreground hover:border-primary motion-safe:transition-all"
                   onClick={handleSave}
                   disabled={saveLineupMutation.isPending}
                 >
@@ -655,7 +657,7 @@ export default function Lineup() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-xs rounded-lg border-primary/40 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                  className="h-7 px-2 text-xs rounded-lg border-primary/40 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground motion-safe:transition-all"
                   onClick={() => setRegisterDialogOpen(true)}
                 >
                   <ClipboardList className="w-3 h-3" />
@@ -664,7 +666,7 @@ export default function Lineup() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-accent hover:text-accent-foreground transition-all"
+                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-accent hover:text-accent-foreground motion-safe:transition-all"
                   onClick={handleShare}
                   disabled={isSharing}
                   title="Baixar imagem da escalação"
@@ -679,7 +681,7 @@ export default function Lineup() {
             {strategy === "valorizacao" && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-positive/10 border border-positive/30">
                 <TrendingUp className="w-3.5 h-3.5 text-positive shrink-0" />
-                <p className="text-[11px] text-muted-foreground leading-tight">
+                  <p className="text-xs text-muted-foreground leading-tight">
                   <span className="text-positive font-semibold">Valorização</span> — jogadores com maior folga acima do MPV.
                 </p>
               </div>
@@ -752,8 +754,8 @@ export default function Lineup() {
                     <div className="flex items-center gap-2 mb-3">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-semibold text-foreground">Banco de Reservas</span>
-                      <Badge variant="secondary" className="text-[10px]">{currentLineup.reserves!.length}</Badge>
-                      <span className="text-[10px] text-muted-foreground ml-1">
+                      <Badge variant="secondary" className="text-xs">{currentLineup.reserves!.length}</Badge>
+                      <span className="text-xs text-muted-foreground ml-1">
                         {currentLineup.reserves!.some((r) => r.isLuxuryReserve) && (
                           <span className="text-purple-400">· 1 reserva de luxo</span>
                         )}
@@ -766,7 +768,7 @@ export default function Lineup() {
                           <ReserveCard key={r.playerId} reserve={r} />
                         ))}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-2 opacity-60">
+                    <p className="text-xs text-muted-foreground mt-2 opacity-60">
                       Reservas selecionadas com probabilidade de jogo {">"} 25%. A reserva de luxo entra quando todos os titulares jogaram e ela supera o pior titular.
                     </p>
                   </div>
@@ -824,7 +826,7 @@ export default function Lineup() {
                         <span className="text-xs text-muted-foreground">{p.clubAbbr}</span>
                       )}
                       {isCaptain && (
-                        <span className="text-[10px] font-bold text-attention bg-attention/15 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-attention bg-attention/15 px-1.5 py-0.5 rounded">
                           ★ Capitão
                         </span>
                       )}
@@ -848,7 +850,7 @@ export default function Lineup() {
                   {/* Metrics bars */}
                   {isPro ? (
                     <div className="space-y-3 bg-secondary/30 rounded-xl p-4 border border-border/40 mb-4">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Métricas</p>
+                      <p className="text-xs font-semibold text-muted-foreground">Métricas</p>
                       {[
                         { label: "Forma", pct: formPct, sublabel: `${formScore.toFixed(1)} pts`, color: formPct >= 70 ? "bg-positive" : formPct >= 45 ? "bg-attention" : "bg-danger" },
                         { label: "Confronto", pct: matchupPct, sublabel: `×${matchupScore.toFixed(2)}`, color: matchupPct >= 65 ? "bg-positive" : matchupPct >= 42 ? "bg-attention" : "bg-danger" },
@@ -861,7 +863,7 @@ export default function Lineup() {
                             <span className="text-foreground font-semibold">{sublabel}</span>
                           </div>
                           <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                            <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-full rounded-full motion-safe:transition-all motion-safe:duration-500 ${color}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       ))}
@@ -869,7 +871,7 @@ export default function Lineup() {
                   ) : (
                     <button
                       onClick={() => { setFieldClickedPlayer(null); openPaywall(); }}
-                      className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors text-sm"
+                      className="w-full flex items-center justify-center gap-2 py-3 mb-4 rounded-xl border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 motion-safe:transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Lock className="w-4 h-4" />
                       Ver métricas completas — Pro
@@ -879,7 +881,7 @@ export default function Lineup() {
                   {/* Insights */}
                   {isPro && insights.length > 0 && (
                     <div className="space-y-1 mb-4">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Fatores</p>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Fatores</p>
                       {insights.slice(0, 4).map((ins, i) => {
                         const colors: Record<InsightKind, string> = {
                           positive: "text-positive",
@@ -989,7 +991,7 @@ export default function Lineup() {
                       )}
                       {r.clubAbbr && <span className="text-xs text-muted-foreground">{r.clubAbbr}</span>}
                       {isLuxury && (
-                        <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                           ★ Reserva de Luxo
                         </span>
                       )}

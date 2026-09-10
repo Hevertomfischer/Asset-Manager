@@ -152,10 +152,10 @@ function TierCard({
             </p>
           </div>
           <div className="flex flex-col items-end shrink-0">
-            <span className="text-2xl font-bold font-mono text-primary leading-none">
+            <span className="text-2xl font-bold font-mono tabular-nums text-primary leading-none">
               {tier.expectedPoints.toFixed(1)}
             </span>
-            <span className="text-[10px] text-muted-foreground mt-0.5">pts esperados</span>
+            <span className="text-xs text-muted-foreground mt-0.5">pts esperados</span>
           </div>
         </div>
       </CardHeader>
@@ -167,19 +167,19 @@ function TierCard({
             <p className={`text-sm font-bold font-mono ${riskColor}`}>
               {tier.totalRisk.toFixed(2)}
             </p>
-            <p className="text-[10px] text-muted-foreground">risco</p>
+            <p className="text-xs text-muted-foreground">risco</p>
           </div>
           <div className="bg-secondary rounded-lg py-2">
             <p className="text-sm font-bold font-mono text-foreground">
               C$ {tier.totalCost.toFixed(0)}
             </p>
-            <p className="text-[10px] text-muted-foreground">custo</p>
+            <p className="text-xs text-muted-foreground">custo</p>
           </div>
           <div className="bg-secondary rounded-lg py-2">
             <p className="text-sm font-bold" style={{ color: tier.color }}>
               {riskLabel}
             </p>
-            <p className="text-[10px] text-muted-foreground">nível</p>
+            <p className="text-xs text-muted-foreground">nível</p>
           </div>
         </div>
 
@@ -189,7 +189,7 @@ function TierCard({
             <Crown className="w-3.5 h-3.5 text-attention shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-attention truncate">{captain.nickname ?? captain.name}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {captain.position} · {captain.expectedPoints.toFixed(1)} pts
               </p>
             </div>
@@ -229,7 +229,7 @@ function TierCard({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground gap-1 mt-auto"
+          className="w-full h-7 text-xs text-muted-foreground hover:text-foreground gap-1 mt-auto"
           onClick={onToggle}
         >
           {isExpanded ? (
@@ -260,7 +260,7 @@ function ScatterTooltip({
       <p className="font-bold mb-1 text-sm" style={{ color: d.color }}>
         {d.label}
       </p>
-      <p className="text-muted-foreground mb-2 text-[11px]">{d.description}</p>
+      <p className="text-muted-foreground mb-2 text-xs">{d.description}</p>
       <div className="space-y-1">
         <div className="flex justify-between gap-4">
           <span className="text-muted-foreground">Pts esperados</span>
@@ -375,7 +375,7 @@ export default function Fronteira() {
                   onValueChange={([v]) => setBudget(v ?? budget)}
                   className="w-full"
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>C$ 80</span>
                   <span>C$ 160</span>
                 </div>

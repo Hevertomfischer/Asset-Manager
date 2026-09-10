@@ -131,7 +131,7 @@ function Sparkline({ playerId }: { playerId: number }) {
 
   if (points.length === 0) {
     return (
-      <div className="h-12 flex items-center justify-center text-[10px] text-muted-foreground/40">
+      <div className="h-12 flex items-center justify-center text-xs text-muted-foreground/40">
         sem dados
       </div>
     );
@@ -159,7 +159,7 @@ function Sparkline({ playerId }: { playerId: number }) {
           <RechartsTooltip
             content={({ active, payload }) =>
               active && payload?.length ? (
-                <div className="text-[10px] bg-popover border border-border rounded px-2 py-1 shadow-lg">
+                <div className="text-xs bg-popover border border-border rounded px-2 py-1 shadow-lg">
                   <span className="text-muted-foreground">Rod. {payload[0]?.payload?.round}: </span>
                   <span className="font-mono font-bold text-primary">
                     {(payload[0]?.value as number)?.toFixed(1)} pts
@@ -188,7 +188,7 @@ const SEAL_CONFIG: Record<SealKind, { label: string; color: string; Icon: typeof
 function Seal({ kind }: { kind: SealKind }) {
   const { label, color, Icon } = SEAL_CONFIG[kind];
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${color}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold ${color}`}>
       <Icon className="w-2.5 h-2.5" />
       {label}
     </span>
@@ -214,7 +214,7 @@ function MetricRow({
   const format = fmt ?? ((v: number) => v.toFixed(1));
 
   return (
-    <tr className="border-b border-border/20 last:border-0 hover:bg-white/[0.015] transition-colors">
+    <tr className="border-b border-border/20 last:border-0 hover:bg-white/[0.015] motion-safe:transition-colors">
       <td className="py-2.5 px-4 text-xs text-muted-foreground whitespace-nowrap font-medium w-36 shrink-0">
         {label}
       </td>
@@ -224,7 +224,7 @@ function MetricRow({
             <span className="text-muted-foreground/30 text-xs">—</span>
           ) : (
             <span
-              className={`font-mono text-sm font-semibold ${
+            className={`font-mono tabular-nums text-sm font-semibold ${
                 i === bestIdx
                   ? "text-positive"
                   : "text-foreground/80"
@@ -232,7 +232,7 @@ function MetricRow({
             >
               {format(v)}{suffix}
               {i === bestIdx && (
-                <span className="ml-1 text-positive/70 text-[9px]">▲</span>
+                <span className="ml-1 text-positive/70 text-xs">▲</span>
               )}
             </span>
           )}
@@ -260,7 +260,8 @@ function PlayerHeader({
       {/* Remove button */}
       <button
         onClick={onRemove}
-        className="absolute top-2 right-2 w-5 h-5 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors"
+        aria-label={`Remover ${player.name}`}
+        className="absolute top-2 right-2 w-5 h-5 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title="Remover"
       >
         <X className="w-3 h-3" />
@@ -300,7 +301,7 @@ function MobileMetric({
           }`}
         >
           {rawValue}
-          {isBest && <span className="ml-1 text-positive/70 text-[9px]">▲</span>}
+          {isBest && <span className="ml-1 text-positive/70 text-xs">▲</span>}
         </span>
       )}
     </div>
@@ -359,7 +360,8 @@ function MobilePlayerCard({
       <div className="relative p-4 border-b border-border/30">
         <button
           onClick={onRemove}
-          className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center transition-colors"
+          aria-label={`Remover ${player.name}`}
+          className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-secondary hover:bg-destructive/20 hover:text-destructive flex items-center justify-center motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Remover"
         >
           <X className="w-3.5 h-3.5" />
@@ -375,7 +377,7 @@ function MobilePlayerCard({
 
       {/* Sparkline */}
       <div className="px-4 py-3 border-b border-border/20">
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">
+        <p className="text-xs text-muted-foreground font-medium mb-1">
           Forma recente · últimas 5 projeções
         </p>
         <Sparkline playerId={player.id} />
@@ -443,12 +445,12 @@ function MobilePlayerCard({
         <span className="text-xs font-semibold text-foreground">Score geral</span>
         {recVal != null ? (
           <span
-            className={`font-mono text-base font-bold ${
+            className={`font-mono tabular-nums text-base font-bold ${
               recBest ? "text-positive" : "text-foreground/70"
             }`}
           >
             {recVal.toFixed(1)}
-            {recBest && <span className="ml-1 text-[10px] text-positive/70">▲</span>}
+            {recBest && <span className="ml-1 text-xs text-positive/70">▲</span>}
           </span>
         ) : (
           <span className="text-muted-foreground/30 text-xs">—</span>
@@ -459,7 +461,7 @@ function MobilePlayerCard({
       <div className="px-4 pt-3 pb-4 border-t border-border/30">
         <button
           onClick={onToggleScouts}
-          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {showScouts ? (
             <ChevronUp className="w-3.5 h-3.5" />
@@ -472,7 +474,7 @@ function MobilePlayerCard({
 
         {showScouts && (
           <div className="mt-3 pt-2 border-t border-border/20">
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/60 pb-2 border-b border-border/20 mb-1">
+            <p className="text-xs font-semibold text-muted-foreground/60 pb-2 border-b border-border/20 mb-1">
               Scouts acumulados na temporada
             </p>
             {visibleScouts.map((s) => (
@@ -692,7 +694,7 @@ export default function Comparar() {
   const canAddMore = selectedIds.length < maxPlayers;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div>
@@ -707,7 +709,7 @@ export default function Comparar() {
           ) : (
             <span>
               Plano gratuito: até {MAX_FREE} jogadores.{" "}
-              <button className="text-primary hover:underline font-medium" onClick={openPaywall}>
+              <button className="text-primary hover:underline font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={openPaywall}>
                 Upgrade Pro
               </button>{" "}
               para 3+ e indicadores avançados.
@@ -725,13 +727,14 @@ export default function Comparar() {
               key={p.id}
               className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-sm font-medium"
             >
-              <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${getPositionColor(p.position ?? "")}`}>
+              <span className={`text-xs font-bold px-1 py-0.5 rounded ${getPositionColor(p.position ?? "")}`}>
                 {p.position}
               </span>
               {p.nickname ?? p.name}
               <button
                 onClick={() => removePlayer(p.id)}
-                className="w-4 h-4 rounded-full hover:bg-primary/20 flex items-center justify-center transition-colors ml-0.5"
+                aria-label={`Remover ${p.nickname ?? p.name}`}
+                className="w-4 h-4 rounded-full hover:bg-primary/20 flex items-center justify-center motion-safe:transition-colors ml-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="w-2.5 h-2.5" />
               </button>
@@ -761,7 +764,7 @@ export default function Comparar() {
                   {searchResults.map((p) => (
                     <button
                       key={p.id}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors text-sm"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 motion-safe:transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onMouseDown={() => addPlayer(p.id)}
                     >
                       {getBadgeUrl(p.club?.abbreviation, p.club?.badgeUrl) && (
@@ -773,14 +776,14 @@ export default function Comparar() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getPositionColor(p.position ?? "")}`}>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${getPositionColor(p.position ?? "")}`}>
                           {p.position}
                         </span>
-                        <span className="text-xs font-mono text-muted-foreground">
+                        <span className="text-xs font-mono tabular-nums text-muted-foreground">
                           C$ {(p.price ?? 0).toFixed(1)}
                         </span>
                         {p.projection?.expectedPoints != null && (
-                          <span className="text-xs font-mono text-primary font-semibold">
+                          <span className="text-xs font-mono tabular-nums text-primary font-semibold">
                             {p.projection.expectedPoints.toFixed(1)} pts
                           </span>
                         )}
@@ -799,7 +802,7 @@ export default function Comparar() {
             /* Locked slot for free user */
             <button
               onClick={openPaywall}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-muted-foreground/60 hover:border-primary/40 hover:text-primary/70 transition-colors text-sm"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-muted-foreground/60 hover:border-primary/40 hover:text-primary/70 motion-safe:transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Lock className="w-3.5 h-3.5" />
               <span>+1 jogador (Pro)</span>
@@ -830,7 +833,7 @@ export default function Comparar() {
               {isSharing ? "Gerando imagem…" : "Compartilhar comparação"}
             </Button>
             {shareError && (
-              <p className="text-[11px] text-destructive">{shareError}</p>
+              <p className="text-xs text-destructive">{shareError}</p>
             )}
           </div>
 
@@ -855,7 +858,7 @@ export default function Comparar() {
             ))}
 
             {/* Legend */}
-            <p className="text-center text-[11px] text-muted-foreground/50">
+            <p className="text-center text-xs text-muted-foreground/50">
               <span className="text-positive font-bold">▲</span>{" "}
               = melhor valor · Risco e Preço: menor é melhor.
             </p>
@@ -871,7 +874,7 @@ export default function Comparar() {
                 <tr className="border-b border-border/50 bg-card">
                   {/* Label column header */}
                   <th className="px-4 py-3 text-left w-36 shrink-0">
-                    <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground">
                       Indicador
                     </span>
                   </th>
@@ -892,7 +895,7 @@ export default function Comparar() {
                 <tr className="border-b border-border/40 bg-secondary/10">
                   <td className="px-4 py-2 text-xs text-muted-foreground font-medium">
                     Forma recente
-                    <span className="block text-[10px] opacity-60">últimas 5 projeções</span>
+                    <span className="block text-xs opacity-60">últimas 5 projeções</span>
                   </td>
                   {selectedPlayers.map((p) => (
                     <td key={p.id} className="px-4 py-2">
@@ -983,7 +986,7 @@ export default function Comparar() {
                           >
                             {v.toFixed(1)}
                             {i === bestIdx && (
-                              <span className="ml-1 text-[10px] text-positive/70">▲</span>
+                              <span className="ml-1 text-xs text-positive/70">▲</span>
                             )}
                           </span>
                         ) : (
@@ -999,7 +1002,7 @@ export default function Comparar() {
                   <td colSpan={selectedPlayers.length + 1} className="px-4 py-2">
                     <button
                       onClick={() => setShowScouts((v) => !v)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                       className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {showScouts ? (
                         <ChevronUp className="w-3.5 h-3.5" />
@@ -1020,7 +1023,7 @@ export default function Comparar() {
                     <tr className="border-b border-border/20 bg-secondary/10">
                       <td
                         colSpan={selectedPlayers.length + 1}
-                        className="px-4 pt-3 pb-1.5 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/60"
+                        className="px-4 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground/60"
                       >
                         Scouts acumulados na temporada
                       </td>
@@ -1041,7 +1044,7 @@ export default function Comparar() {
           </div>
 
           {/* Position legend */}
-          <div className="border-t border-border/30 px-5 py-3 text-[11px] text-muted-foreground/50 flex items-center gap-4 flex-wrap">
+          <div className="border-t border-border/30 px-5 py-3 text-xs text-muted-foreground/50 flex items-center gap-4 flex-wrap">
             <span>
               <span className="text-positive font-bold">▲</span> = melhor valor na linha
             </span>

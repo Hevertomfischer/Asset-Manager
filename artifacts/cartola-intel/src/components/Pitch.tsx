@@ -80,7 +80,7 @@ export const Pitch: FC<PitchProps> = ({ formation, players }) => {
             <PlayerCard key={p.id} variant="pitch" player={p} isCaptain={p.isCaptain} />
           ))}
 
-          <div className="absolute right-0 bottom-0 scale-90 opacity-80 hover:opacity-100 transition-opacity">
+          <div className="absolute right-0 bottom-0 motion-safe:scale-90 opacity-80 hover:opacity-100 motion-safe:transition-opacity">
             {tec.map((p) => (
               <PlayerCard key={p.id} variant="pitch" player={p} isCaptain={p.isCaptain} />
             ))}

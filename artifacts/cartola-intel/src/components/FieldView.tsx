@@ -39,7 +39,7 @@ function Jersey({
   return (
     <div className="relative inline-block">
       {isCaptain && (
-        <div className="absolute -top-2 -right-1 z-10 w-5 h-5 rounded-full bg-attention text-attention-foreground text-[10px] font-black flex items-center justify-center shadow-md ring-1 ring-attention">
+        <div className="absolute -top-2 -right-1 z-10 w-5 h-5 rounded-full bg-attention text-attention-foreground text-xs font-black flex items-center justify-center shadow-md ring-1 ring-attention">
           C
         </div>
       )}
@@ -47,7 +47,7 @@ function Jersey({
         <img
           src={url}
           alt={abbr ?? ""}
-          className={`${sizeClass} object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] group-hover:scale-110 transition-transform duration-200`}
+          className={`${sizeClass} object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] motion-safe:group-hover:scale-110 motion-safe:transition-transform motion-safe:duration-200`}
           draggable={false}
         />
       ) : (
@@ -73,7 +73,7 @@ function JerseySvgFallback({
   return (
     <svg
       viewBox="0 0 80 72"
-      className={`${sizeClass} drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] group-hover:scale-110 transition-transform duration-200`}
+      className={`${sizeClass} drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] motion-safe:group-hover:scale-110 motion-safe:transition-transform motion-safe:duration-200`}
       xmlns="http://www.w3.org/2000/svg"
     >
       <path d="M22 17 L5 36 L19 42 L19 67 L61 67 L61 42 L75 36 L58 17 Q49 10 40 10 Q31 10 22 17 Z" fill={primary} />
@@ -115,7 +115,7 @@ function JerseyCard({
   const inner = (
     <>
       {player.position && (
-        <span className="bg-black/60 text-white text-[8px] sm:text-[9px] font-bold uppercase tracking-wide rounded-full px-1.5 py-px leading-none">
+        <span className="bg-black/60 text-white text-xs font-bold rounded-full px-1 py-px leading-none">
           {player.position}
         </span>
       )}
@@ -125,11 +125,11 @@ function JerseyCard({
         position={player.position}
       />
       <div className="bg-black/65 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-center w-[64px] sm:w-[72px]">
-        <p className="text-[10px] sm:text-[11px] font-bold text-white truncate leading-tight">
+        <p className="text-xs font-bold text-white truncate leading-tight">
           {displayName}
         </p>
         {player.price != null && (
-          <p className="text-[9px] sm:text-[10px] text-attention font-mono font-bold leading-none">
+          <p className="text-xs tabular-nums text-attention font-mono font-bold leading-none">
             C$ {player.price.toFixed(2)}
           </p>
         )}
@@ -142,7 +142,7 @@ function JerseyCard({
       type="button"
       onClick={() => onClick(player)}
       title={`Ver detalhes e opções de substituição de ${displayName}`}
-      className="flex flex-col items-center gap-0.5 group cursor-pointer active:scale-95 transition-transform duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 rounded-lg"
+      className="flex flex-col items-center gap-0.5 group cursor-pointer motion-safe:active:scale-95 motion-safe:transition-transform motion-safe:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
     >
       {inner}
     </button>
@@ -182,10 +182,11 @@ function ReserveJerseyCard({ reserve, onClick }: { reserve: LineupReservePlayer;
   return (
     <Wrapper
       {...(onClick ? { type: "button" as const, onClick: () => onClick(reserve) } : {})}
-      className={`flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 transition-opacity${onClick ? " cursor-pointer active:scale-95 transition-transform duration-100 focus:outline-none" : ""}`}
+      aria-label={onClick ? `Ver detalhes e opções de substituição de ${displayName}` : undefined}
+      className={`flex flex-col items-center gap-0.5 group opacity-80 hover:opacity-100 motion-safe:transition-opacity${onClick ? " cursor-pointer motion-safe:active:scale-95 motion-safe:transition-transform motion-safe:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}
     >
       {reserve.position && (
-        <span className="bg-black/60 text-white text-[7px] sm:text-[8px] font-bold uppercase tracking-wide rounded-full px-1.5 py-px leading-none">
+        <span className="bg-black/60 text-white text-xs font-bold rounded-full px-1 py-px leading-none">
           {reserve.position}
         </span>
       )}
@@ -198,9 +199,9 @@ function ReserveJerseyCard({ reserve, onClick }: { reserve: LineupReservePlayer;
         <Jersey abbr={reserve.clubAbbr} isCaptain={false} size="sm" />
       </div>
       <div className="bg-black/60 rounded px-1 py-0.5 text-center w-[52px] sm:w-[60px]">
-        <p className="text-[9px] sm:text-[10px] font-semibold text-white/80 truncate leading-tight">{displayName}</p>
+            <p className="text-xs font-semibold text-white/80 truncate leading-tight">{displayName}</p>
         {reserve.price != null && (
-          <p className="text-[8px] sm:text-[9px] text-attention/80 font-mono leading-none">C${reserve.price.toFixed(2)}</p>
+          <p className="text-xs tabular-nums text-attention/80 font-mono leading-none">C${reserve.price.toFixed(2)}</p>
         )}
       </div>
     </Wrapper>
@@ -309,7 +310,7 @@ export function FieldView({
               <JerseyCard key={p.playerId} player={p} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
             ))}
             {coach && (
-              <div className="absolute right-2 bottom-0 scale-90 opacity-80 hover:opacity-100 transition-opacity">
+              <div className="absolute right-2 bottom-0 motion-safe:scale-90 opacity-80 hover:opacity-100 motion-safe:transition-opacity">
                 <JerseyCard player={coach} captainId={captainId} onClick={onPlayerClick} lineup={lineup} reserves={reserves} onSuggestedSwap={onSuggestedSwap} onSwapRequest={onSwapRequest} />
               </div>
             )}
@@ -320,8 +321,8 @@ export function FieldView({
       {/* Bench */}
       {sortedReserves.length > 0 && (
         <div className="bg-card/60 border border-border/40 rounded-xl p-3 max-w-2xl mx-auto">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
-            Banco de Reservas
+          <p className="text-xs font-semibold text-muted-foreground mb-2 text-center">
+            Banco de reservas
           </p>
           <div className="flex justify-center flex-wrap gap-3">
             {sortedReserves.map((r) => (

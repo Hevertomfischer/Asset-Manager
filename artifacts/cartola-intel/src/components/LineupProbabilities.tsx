@@ -193,18 +193,18 @@ function StatCard({
           : "border-border/50 bg-card/40"
       }`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 leading-tight">
+      <p className="text-xs text-muted-foreground font-semibold mb-1 leading-tight">
         {label}
       </p>
       <p
-        className={`text-xl font-mono font-bold leading-tight ${
+        className={`text-xl tabular-nums font-mono font-bold leading-tight ${
           highlight ? "text-primary" : "text-foreground"
         }`}
       >
         {value}
       </p>
       {sub && (
-        <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{sub}</p>
       )}
     </div>
   );
@@ -287,7 +287,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
           {sim && (
             <Badge
               variant="outline"
-              className="text-[9px] px-1.5 py-0 border-primary/30 text-primary/70"
+              className="text-xs px-1 py-0 border-primary/30 text-primary/70"
             >
               {sim.numSims.toLocaleString("pt-BR")} simulações
             </Badge>
@@ -329,7 +329,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
       {sim && (
         <>
           {/* Legend chips */}
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-4 text-xs tabular-nums text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-2.5 rounded-sm inline-block bg-primary" />
               Acima de {DEFAULT_TARGET} pts
@@ -432,7 +432,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                 </Bar>
               </ComposedChart>
             </ResponsiveContainer>
-            <p className="text-center text-[10px] text-muted-foreground -mt-0.5">
+            <p className="text-center text-xs text-muted-foreground -mt-0.5">
               Pontuação total estimada do time (pts)
             </p>
           </div>
@@ -459,7 +459,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
 
           {/* ── Threshold probability table ─────────────────────────────────── */}
           <div className="rounded-xl border border-border/40 bg-secondary/20 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2.5">
+            <p className="text-xs text-muted-foreground font-semibold mb-2.5">
               Probabilidade de superar cada meta
             </p>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -487,7 +487,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
           </div>
 
           {/* ── Disclaimer ──────────────────────────────────────────────────── */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border/30 text-[10px] text-muted-foreground/70 leading-relaxed">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border/30 text-xs text-muted-foreground/70 leading-relaxed">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-attention/60" />
             <span>
               <strong className="text-muted-foreground">Estimativas do modelo, não garantias.</strong>{" "}

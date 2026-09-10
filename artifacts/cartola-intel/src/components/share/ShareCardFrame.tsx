@@ -70,14 +70,12 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
                 fontSize: "10px",
                 color: "hsl(var(--positive))",
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
               }}
             >
               {subtitle}
             </div>
-            <div style={{ fontSize: "9px", color: "hsl(var(--positive) / 0.8)", marginTop: "2px" }}>
-              Cartola FC Intelligence
+             <div style={{ fontSize: "9px", color: "hsl(var(--positive) / 0.8)", marginTop: "2px" }}>
+             Cartola FC Intelligence
             </div>
           </div>
         </div>

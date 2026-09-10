@@ -217,7 +217,7 @@ function UsersTab() {
                   {items.map((user) => {
                     const isPro = !!user.plan && user.plan !== "free";
                     return (
-                      <TableRow key={user.id} className="border-border/30 hover:bg-secondary/20 transition-colors">
+                      <TableRow key={user.id} className="border-border/30 hover:bg-secondary/20 motion-safe:transition-colors">
                         <TableCell className="text-center text-xs text-muted-foreground font-mono">{user.id}</TableCell>
                         <TableCell className="text-sm font-medium text-foreground max-w-[160px] truncate" title={user.name ?? ""}>
                           {user.name || <span className="text-muted-foreground italic text-xs">—</span>}
@@ -226,7 +226,7 @@ function UsersTab() {
                           {user.email}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/50">
+                          <Badge variant="outline" className="text-xs text-muted-foreground border-border/50">
                             {PROVIDER_LABELS[user.provider ?? ""] ?? user.provider ?? "—"}
                           </Badge>
                         </TableCell>
@@ -234,7 +234,7 @@ function UsersTab() {
                           {isPro ? (
                             <ProBadge />
                           ) : (
-                            <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/40 bg-secondary/30">
+                            <Badge variant="outline" className="text-xs text-muted-foreground border-border/40 bg-secondary/30">
                               Free
                             </Badge>
                           )}
@@ -402,7 +402,7 @@ function FeedbackTab() {
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => (
-                    <TableRow key={item.id} className="border-border/30 hover:bg-secondary/20 transition-colors align-top">
+                    <TableRow key={item.id} className="border-border/30 hover:bg-secondary/20 motion-safe:transition-colors align-top">
                       <TableCell className="text-center text-xs text-muted-foreground font-mono">{item.id}</TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono max-w-[160px] truncate" title={item.page}>
                         {item.page}
@@ -410,7 +410,7 @@ function FeedbackTab() {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] flex items-center gap-1 w-fit ${TYPE_COLORS[item.type as FeedbackType] ?? ""}`}
+                          className={`text-xs flex items-center gap-1 w-fit ${TYPE_COLORS[item.type as FeedbackType] ?? ""}`}
                         >
                           {TYPE_ICONS[item.type as FeedbackType]}
                           {TYPE_LABELS[item.type as FeedbackType] ?? item.type}
@@ -431,10 +431,10 @@ function FeedbackTab() {
                           onValueChange={(v) => handleStatusChange(item.id, v as FeedbackStatus)}
                           disabled={patchStatus.isPending}
                         >
-                          <SelectTrigger className="h-7 text-[11px] w-36">
+                          <SelectTrigger className="h-7 text-xs w-36">
                             <SelectValue>
                               <span
-                                className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded border ${STATUS_COLORS[item.status as FeedbackStatus] ?? ""}`}
+                                className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${STATUS_COLORS[item.status as FeedbackStatus] ?? ""}`}
                               >
                                 {STATUS_LABELS[item.status as FeedbackStatus] ?? item.status}
                               </span>
@@ -648,7 +648,7 @@ export default function Admin() {
   const providers = providersData?.providers || [];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 motion-safe:animate-in fade-in motion-safe:duration-500">
       <div>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
           <Settings className="w-8 h-8 text-primary" />
@@ -661,7 +661,7 @@ export default function Admin() {
             ? <>Última sincronização: <span className="font-medium text-foreground">{new Date(syncStatus.lastSyncAt).toLocaleString("pt-BR")}</span></>
             : "Aguardando primeira sincronização..."}
           {syncStatus.marketStatus && (
-            <Badge variant="outline" className={`ml-2 text-[10px] ${syncStatus.marketStatus === "open" ? "border-positive/50 text-positive" : "border-muted-foreground/30 text-muted-foreground"}`}>
+            <Badge variant="outline" className={`ml-2 text-xs ${syncStatus.marketStatus === "open" ? "border-positive/50 text-positive" : "border-muted-foreground/30 text-muted-foreground"}`}>
               Mercado {syncStatus.marketStatus === "open" ? "aberto" : "fechado"}
             </Badge>
           )}
@@ -717,10 +717,10 @@ export default function Admin() {
                             <Label className="text-sm font-semibold text-foreground">
                               {cfg?.label ?? key}
                             </Label>
-                            <span className="font-mono text-sm text-primary font-bold">{value.toFixed(2)}</span>
+                            <span className="font-mono tabular-nums text-sm text-primary font-bold">{value.toFixed(2)}</span>
                           </div>
                           {cfg?.hint && (
-                            <p className="text-[11px] text-muted-foreground leading-snug">
+                            <p className="text-xs text-muted-foreground leading-snug">
                               {cfg.hint}
                             </p>
                           )}
@@ -765,7 +765,7 @@ export default function Admin() {
                           Salvar
                         </Button>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Exibe aviso de "Desatualizado" no painel e no admin quando o último sync de xG for mais antigo que esse número de dias.
                       </p>
                     </div>
@@ -830,7 +830,7 @@ export default function Admin() {
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
-                            className={`text-[10px] uppercase border ${
+                            className={`text-xs border ${
                               p.status === "ok" || p.status === "success"
                                 ? "text-positive border-positive/30 bg-positive/10"
                                 : p.status === "error"
@@ -843,7 +843,7 @@ export default function Admin() {
                             {{ ok: "OK", success: "Sucesso", error: "Erro", degraded: "Degradado", never_synced: "Nunca" }[p.status] ?? p.status}
                           </Badge>
                           {p.lastCollectedAt && (
-                            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                            <span className="text-xs text-muted-foreground hidden sm:inline">
                               {new Date(p.lastCollectedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                             </span>
                           )}
@@ -884,7 +884,7 @@ export default function Admin() {
                 {lastXgResult && (
                   <Badge
                     variant="outline"
-                    className={`text-[10px] ml-auto ${lastXgResult.degraded ? "text-attention border-attention/30 bg-attention/10" : "text-positive border-positive/30 bg-positive/10"}`}
+                    className={`text-xs ml-auto ${lastXgResult.degraded ? "text-attention border-attention/30 bg-attention/10" : "text-positive border-positive/30 bg-positive/10"}`}
                   >
                     {lastXgResult.degraded ? "Degradado" : "OK"} — {lastXgResult.clubsMapped} clubes
                   </Badge>
@@ -897,7 +897,7 @@ export default function Admin() {
             <CardContent className="p-6 space-y-4">
               <div className="flex items-end gap-3">
                 <div className="flex-1 space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
+                  <Label className="text-xs text-muted-foreground font-semibold">Número da rodada</Label>
                   <Input
                     type="number"
                     min={1}
@@ -934,7 +934,7 @@ export default function Admin() {
             <CardContent className="p-6 space-y-4">
               <div className="flex items-end gap-3">
                 <div className="flex-1 space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Número da Rodada</Label>
+                  <Label className="text-xs text-muted-foreground font-semibold">Número da rodada</Label>
                   <Input
                     type="number"
                     min={1}
@@ -954,7 +954,7 @@ export default function Admin() {
                   Sincronizar
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Após sincronizar, acesse o Histórico para ver os pontos reais vs. projetados no backtest de escalação.
               </p>
             </CardContent>
@@ -1000,7 +1000,7 @@ export default function Admin() {
                         </TableRow>
                       ) : (
                         logs.map((log, i) => (
-                          <TableRow key={i} className="border-border/30 hover:bg-secondary/20 transition-colors">
+                          <TableRow key={i} className="border-border/30 hover:bg-secondary/20 motion-safe:transition-colors">
                             <TableCell className="font-mono text-xs text-muted-foreground">
                               {new Date(log.collectedAt || log.createdAt || "").toLocaleString("pt-BR")}
                             </TableCell>
@@ -1008,7 +1008,7 @@ export default function Admin() {
                             <TableCell>
                               <Badge
                                 variant="outline"
-                                className={`text-[10px] uppercase border ${
+                                className={`text-xs border ${
                                   log.status === "success" || log.status === "ok"
                                     ? "text-positive border-positive/30 bg-positive/10"
                                     : log.status === "error"

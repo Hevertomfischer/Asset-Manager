@@ -105,17 +105,17 @@ function PlayerSearchInput({
             <button
               key={p.id}
               type="button"
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-secondary/80 transition-colors text-left"
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-secondary/80 motion-safe:transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => { onSelect(p); setQuery(""); setOpen(false); }}
             >
               <Badge
                 variant="outline"
-                className={`text-[10px] font-mono w-8 justify-center shrink-0 ${getPositionColor(p.position)}`}
+                className={`text-xs font-mono w-8 justify-center shrink-0 ${getPositionColor(p.position)}`}
               >
                 {p.position}
               </Badge>
               <span className="flex-1 min-w-0 truncate font-medium">{p.nickname ?? p.name}</span>
-              <span className="text-[11px] text-muted-foreground font-mono">
+              <span className="text-xs tabular-nums text-muted-foreground font-mono">
                 C$ {(p.price ?? 0).toFixed(1)}
               </span>
             </button>
@@ -247,7 +247,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
             {/* ── Round + Budget ─────────────────────────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="round-num" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Label htmlFor="round-num" className="text-xs font-medium text-muted-foreground">
                   Rodada *
                 </Label>
                 <Input
@@ -261,7 +261,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="budget" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Label htmlFor="budget" className="text-xs font-medium text-muted-foreground">
                   Cartoletas gastas
                 </Label>
                 <Input
@@ -279,7 +279,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
             {/* ── Field players search ───────────────────────────────────── */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Label className="text-xs font-medium text-muted-foreground">
                   Jogadores de campo *
                 </Label>
                 <span className={`text-xs font-mono ${fieldPlayers.length === FIELD_PLAYER_COUNT ? "text-positive" : "text-muted-foreground"}`}>
@@ -303,7 +303,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                   {fieldPlayers.map(({ player, position, price }) => (
                     <div
                       key={player.id}
-                      className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${
+                      className={`flex items-center gap-2 p-2 rounded-xl border motion-safe:transition-colors ${
                         captainId === player.id
                           ? "bg-attention/8 border-attention/25"
                           : "bg-secondary/50 border-border/30"
@@ -314,7 +314,8 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                         type="button"
                         title="Marcar como capitão"
                         onClick={() => setCaptainId((prev) => (prev === player.id ? null : player.id))}
-                        className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+                        aria-label={`${captainId === player.id ? "Desmarcar capitão" : "Marcar como capitão"}: ${player.nickname ?? player.name}`}
+                        className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           captainId === player.id
                             ? "bg-attention/20 text-attention"
                             : "bg-secondary text-muted-foreground hover:text-attention"
@@ -327,7 +328,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                       <select
                         value={position}
                         onChange={(e) => updatePosition(player.id, e.target.value)}
-                        className={`text-[10px] font-mono font-semibold w-12 h-6 rounded-md border bg-transparent text-center appearance-none cursor-pointer ${getPositionColor(position)}`}
+                        className={`text-xs font-mono font-semibold w-12 h-6 rounded-md border bg-transparent text-center appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${getPositionColor(position)}`}
                         style={{ borderColor: "color-mix(in srgb, currentColor 30%, transparent)" }}
                       >
                         {FIELD_POSITIONS.map((p) => (
@@ -348,7 +349,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                         step="0.1"
                         value={price}
                         onChange={(e) => updatePrice(player.id, e.target.value)}
-                        className="w-16 h-6 rounded-md border border-border/40 bg-secondary text-[11px] font-mono text-center text-muted-foreground"
+                        className="w-16 h-6 rounded-md border border-border/40 bg-secondary text-xs tabular-nums font-mono text-center text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         placeholder="C$"
                         title="Cartoletas"
                       />
@@ -357,7 +358,8 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                       <button
                         type="button"
                         onClick={() => removePlayer(player.id)}
-                        className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label={`Remover ${player.nickname ?? player.name}`}
+                        className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -383,17 +385,18 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
 
             {/* ── TEC (coach) ────────────────────────────────────────────── */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <Label className="text-xs font-medium text-muted-foreground">
                 Técnico (opcional)
               </Label>
               {tec ? (
                 <div className="flex items-center gap-2 p-2 rounded-xl bg-secondary/50 border border-border/30">
-                  <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">TEC</Badge>
+                  <Badge variant="outline" className="text-xs font-mono border-primary/30 text-primary">TEC</Badge>
                   <span className="flex-1 text-sm text-foreground truncate">{tec.nickname ?? tec.name}</span>
                   <button
                     type="button"
                     onClick={() => setTec(null)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    aria-label="Remover técnico"
+                    className="text-muted-foreground hover:text-destructive motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>

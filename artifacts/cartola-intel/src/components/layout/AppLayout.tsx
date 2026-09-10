@@ -51,7 +51,7 @@ export const AppSidebar = () => {
             <h1 className="font-display font-bold text-xl text-foreground tracking-tight leading-none">
               Mito<span className="text-primary">metro</span>
             </h1>
-            <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
               Escalação com explicação
             </p>
           </div>
@@ -116,7 +116,7 @@ function SidebarNavItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className={`mb-1 h-11 rounded-xl px-3 transition-all duration-200 ${
+        className={`mb-1 h-11 rounded-xl px-3 motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
           active
             ? "bg-primary/15 font-semibold text-primary hover:bg-primary/20"
             : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -127,7 +127,7 @@ function SidebarNavItem({
           <span className="flex-1">{showProBadge ? "Planos" : item.title}</span>
           {showProBadge && <ProBadge />}
           {badgeCount > 0 && (
-            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-danger-foreground">
+            <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-danger px-1 text-xs tabular-nums font-bold leading-none text-danger-foreground">
               {badgeCount > 99 ? "99+" : badgeCount}
             </span>
           )}
@@ -151,7 +151,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
         <div className="flex flex-col flex-1 min-w-0">
           <header className="h-16 flex items-center justify-between px-6 border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-40">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
             <div className="flex items-center gap-2">
               <NotificationBell />

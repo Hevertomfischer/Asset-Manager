@@ -81,7 +81,7 @@ function DeltaCell({
   const label = format ? format(value) : `${sign}${value.toFixed(2)}`;
 
   return (
-    <span className={`inline-flex items-center gap-0.5 font-bold text-xs ${color}`}>
+    <span className={`inline-flex items-center gap-0.5 font-bold text-xs tabular-nums ${color}`}>
       <Icon className="w-3 h-3 shrink-0" />
       {label}
     </span>
@@ -106,7 +106,7 @@ function MetricRow({
   return (
     <div className="flex items-center gap-2 py-2.5 border-b border-border/20 last:border-0">
       <span className="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
-      <div className="flex items-center gap-1.5 text-xs font-mono flex-1 min-w-0">
+      <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums flex-1 min-w-0">
         <span className="text-muted-foreground shrink-0">{fmt(before)}</span>
         <ArrowRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
         <span className="font-bold text-foreground shrink-0">{fmt(after)}</span>
@@ -133,7 +133,7 @@ function CandidateRow({
     <button
       onClick={onClick}
       disabled={isLoading}
-      className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-border/40 bg-card hover:bg-secondary/40 hover:border-primary/40 transition-all text-left group disabled:opacity-50"
+      className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-border/40 bg-card hover:bg-secondary/40 hover:border-primary/40 motion-safe:transition-all text-left group disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <PlayerCard
         variant="swap"
@@ -304,7 +304,7 @@ export function SwapSimulator({
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Badge
                   variant="outline"
-                  className={`text-[10px] font-mono ${posColor}`}
+                  className={`text-xs font-mono ${posColor}`}
                 >
                   {outPlayer.position}
                 </Badge>
@@ -352,7 +352,7 @@ export function SwapSimulator({
                       {simulateMutation.error?.message ?? "Erro ao simular"}
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">
+                   <p className="text-xs text-muted-foreground font-semibold mb-1">
                     {candidates.length} disponíveis · clique para simular
                   </p>
                   {candidates.map((c) => (
@@ -387,21 +387,21 @@ export function SwapSimulator({
               {/* Swap summary */}
               <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/40">
                 <div className="flex-1 min-w-0 text-center">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Saindo</p>
+                   <p className="text-xs text-muted-foreground mb-0.5">Saindo</p>
                   <p className="text-sm font-bold text-foreground truncate">
                     {outPlayer.nickname ?? outPlayer.name}
                   </p>
-                  <p className="text-[10px] font-mono text-muted-foreground">
+                   <p className="text-xs font-mono text-muted-foreground tabular-nums">
                     C$ {(outPlayer.price ?? 0).toFixed(2)}
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5 text-primary shrink-0" />
                 <div className="flex-1 min-w-0 text-center">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Entrando</p>
+                   <p className="text-xs text-muted-foreground mb-0.5">Entrando</p>
                   <p className="text-sm font-bold text-primary truncate">
                     {selectedCandidate.nickname ?? selectedCandidate.name}
                   </p>
-                  <p className="text-[10px] font-mono text-muted-foreground">
+                   <p className="text-xs font-mono text-muted-foreground tabular-nums">
                     C$ {(selectedCandidate.price ?? 0).toFixed(2)}
                   </p>
                 </div>
@@ -428,8 +428,8 @@ export function SwapSimulator({
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle2 className="w-4 h-4 text-positive" />
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                        Antes × Depois
+                      <p className="text-xs font-semibold text-foreground">
+                        Antes × depois
                       </p>
                     </div>
                     <div className="bg-secondary/30 rounded-xl border border-border/40 px-4 py-1">
@@ -438,7 +438,7 @@ export function SwapSimulator({
                         before={simulateResult.before.expectedPoints}
                         after={simulateResult.after.expectedPoints}
                         delta={simulateResult.delta.expectedPoints}
-                        fmt={(n) => `${n.toFixed(1)} pts`}
+                         fmt={(n) => `${n.toFixed(1)} pts`}
                       />
                       <MetricRow
                         label="Risco médio"
@@ -472,7 +472,7 @@ export function SwapSimulator({
                   {/* Budget remaining info */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
                     <span>Orçamento disponível</span>
-                    <span className="font-mono font-bold text-foreground">
+                         <span className="font-mono font-bold text-foreground tabular-nums">
                       C$ {(budget - simulateResult.after.costUsed).toFixed(2)} restante
                     </span>
                   </div>

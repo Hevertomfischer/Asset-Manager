@@ -61,12 +61,12 @@ export function PlayerBadges({ badges }: { badges: PlayerBadge[] }) {
       {badges.map((b) =>
         b.requiresPro ? (
           <ProGate key={b.label} variant="inline">
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${CHIP_CLASS[b.kind]}`}>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-semibold ${CHIP_CLASS[b.kind]}`}>
               {b.label}
             </span>
           </ProGate>
         ) : (
-          <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-semibold ${CHIP_CLASS[b.kind]}`}>
+          <span key={b.label} className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-semibold ${CHIP_CLASS[b.kind]}`}>
             {b.label}
           </span>
         )
@@ -112,7 +112,7 @@ export function ClubBadge({
         src={getBadgeUrl(abbr, url) ?? undefined}
         style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
       />
-      <AvatarFallback className="bg-secondary text-[10px] font-semibold">
+      <AvatarFallback className="bg-secondary text-xs font-semibold">
         {abbr?.slice(0, 2) ?? "??"}
       </AvatarFallback>
     </Avatar>
@@ -130,7 +130,7 @@ export type PlayerCardVariant = "compact" | "full" | "pitch" | "swap" | "compare
 export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVariant }) {
   if (variant === "pitch") {
     return (
-      <div className="flex flex-col items-center w-20 animate-pulse">
+      <div className="flex flex-col items-center w-20 motion-safe:animate-pulse">
         <div className="w-12 h-12 rounded-full bg-white/10" />
         <div className="mt-1 w-full h-8 rounded-md bg-white/10" />
       </div>
@@ -139,12 +139,12 @@ export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVa
   if (variant === "swap") {
     return (
       <>
-        <div className="w-8 h-8 rounded-full bg-secondary shrink-0 animate-pulse" />
-        <div className="flex-1 space-y-1.5 animate-pulse">
+        <div className="w-8 h-8 rounded-full bg-secondary shrink-0 motion-safe:animate-pulse" />
+        <div className="flex-1 space-y-1.5 motion-safe:animate-pulse">
           <div className="h-3 bg-secondary rounded w-24" />
           <div className="h-2.5 bg-secondary/60 rounded w-20" />
         </div>
-        <div className="space-y-1.5 shrink-0 animate-pulse">
+        <div className="space-y-1.5 shrink-0 motion-safe:animate-pulse">
           <div className="h-3 bg-secondary rounded w-12" />
           <div className="h-2.5 bg-secondary/60 rounded w-10" />
         </div>
@@ -153,7 +153,7 @@ export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVa
   }
   if (variant === "full") {
     return (
-      <div className="flex items-center gap-3 animate-pulse">
+      <div className="flex items-center gap-3 motion-safe:animate-pulse">
         <div className="w-9 h-9 rounded-full bg-secondary shrink-0" />
         <div className="flex-1 space-y-1.5">
           <div className="h-3 bg-secondary rounded w-28" />
@@ -167,7 +167,7 @@ export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVa
   }
   if (variant === "compare") {
     return (
-      <div className="text-center animate-pulse">
+      <div className="text-center motion-safe:animate-pulse">
         <div className="w-8 h-8 rounded-full bg-secondary mx-auto mb-2" />
         <div className="h-3 bg-secondary rounded w-20 mx-auto" />
         <div className="h-2.5 bg-secondary/60 rounded w-14 mx-auto mt-1" />
@@ -181,14 +181,14 @@ export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVa
   if (variant === "lineup") {
     return (
       <>
-        <div className="flex items-start justify-between gap-2 mb-2 animate-pulse">
+        <div className="flex items-start justify-between gap-2 mb-2 motion-safe:animate-pulse">
           <div className="flex-1 space-y-1.5">
             <div className="h-3.5 bg-secondary rounded w-24" />
             <div className="h-2.5 bg-secondary/60 rounded w-16" />
           </div>
           <div className="h-4 bg-secondary rounded w-8 shrink-0" />
         </div>
-        <div className="flex justify-between animate-pulse">
+        <div className="flex justify-between motion-safe:animate-pulse">
           <div className="h-3 bg-secondary/60 rounded w-14" />
           <div className="h-3 bg-secondary rounded w-10" />
         </div>
@@ -197,7 +197,7 @@ export function PlayerSkeleton({ variant = "compact" }: { variant?: PlayerCardVa
   }
   // compact (default)
   return (
-    <div className="flex items-center justify-between gap-2 animate-pulse">
+    <div className="flex items-center justify-between gap-2 motion-safe:animate-pulse">
       <div className="flex items-center gap-1.5">
         <div className="w-7 h-4 bg-secondary rounded-full" />
         <div className="h-3 bg-secondary rounded w-20" />
@@ -256,11 +256,11 @@ export function PlayerCard({
   if (variant === "pitch") {
     return (
       <div
-        className={`flex flex-col items-center group relative z-10 w-20 ${className}`}
+        className={`flex flex-col items-center group relative z-10 w-20 ${onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""} ${className}`}
         onClick={onClick}
       >
         <div
-          className={`relative rounded-full p-0.5 border-2 bg-black/40 backdrop-blur-md transition-transform duration-300 group-hover:scale-110 ${
+         className={`relative rounded-full p-0.5 border-2 bg-black/40 backdrop-blur-md motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-110 ${
             isCaptain
               ? "border-attention shadow-[0_0_15px_hsl(var(--attention)/0.6)]"
               : "border-white/20"
@@ -279,15 +279,15 @@ export function PlayerCard({
           </Avatar>
         </div>
         <div className="mt-1 flex flex-col items-center bg-black/60 backdrop-blur-md rounded-md px-1.5 py-0.5 border border-white/10 w-full">
-          <span className="text-[10px] font-bold text-white truncate w-full text-center tracking-tight">
+           <span className="text-xs font-bold text-white truncate w-full text-center tracking-tight">
             {displayName}
           </span>
           <div className="flex gap-1 items-center mt-0.5">
-            <span className={`text-[9px] font-mono px-1 rounded-sm ${posColor}`}>
+             <span className={`text-xs font-mono px-1 rounded-sm ${posColor}`}>
               {player.position}
             </span>
             {player.expectedPoints != null && (
-              <span className="text-[9px] text-primary font-bold">
+               <span className="text-xs text-primary font-bold tabular-nums">
                 {player.expectedPoints.toFixed(1)}
               </span>
             )}
@@ -305,20 +305,20 @@ export function PlayerCard({
       <>
         <Avatar className={`w-8 h-8 border border-border shrink-0 bg-white/10 [&_img]:object-contain ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
           <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
-          <AvatarFallback className="bg-secondary text-[10px]">
+          <AvatarFallback className="bg-secondary text-xs">
             {player.club?.abbreviation?.slice(0, 2) ?? "??"}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+            <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary motion-safe:transition-colors">
               {displayName}
             </p>
             {playProbability != null && playProbability < 0.5 && (
               <AlertTriangle className="w-3 h-3 text-attention shrink-0" />
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground">
+           <p className="text-xs text-muted-foreground">
             {player.club?.name ?? ""}
             {playProbability != null
               ? ` · ${(playProbability * 100).toFixed(0)}% jogo`
@@ -326,10 +326,10 @@ export function PlayerCard({
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-primary font-mono">
+          <p className="text-sm font-bold text-primary font-mono tabular-nums">
             {(player.expectedPoints ?? 0).toFixed(1)} pts
           </p>
-          <p className="text-[10px] text-muted-foreground font-mono">
+           <p className="text-xs text-muted-foreground font-mono tabular-nums">
             C$ {(player.price ?? 0).toFixed(2)}
           </p>
         </div>
@@ -340,7 +340,7 @@ export function PlayerCard({
   // ── compare: div centrada (PlayerHeader no desktop, comparar.tsx) ──────────
   if (variant === "compare") {
     return (
-      <div className={`text-center ${className}`} onClick={onClick}>
+        <div className={`text-center ${onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""} ${className}`} onClick={onClick}>
         <Avatar className={`w-8 h-8 mx-auto mb-2 border border-border/30 [&_img]:object-contain bg-white/10 ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
           <AvatarImage src={getBadgeUrl(player.club?.abbreviation, player.club?.badgeUrl)} style={getBadgeScale(player.club?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(player.club?.abbreviation)})` } : undefined} />
           <AvatarFallback className="bg-secondary text-xs font-semibold">
@@ -350,14 +350,14 @@ export function PlayerCard({
         <p className="font-semibold text-sm text-foreground leading-tight">
           {displayName}
         </p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
+         <p className="text-xs text-muted-foreground mt-0.5">
           {player.club?.abbreviation ?? player.club?.name ?? "—"}
         </p>
         <div className="flex items-center justify-center gap-2 mt-1.5">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${posColor}`}>
+           <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${posColor}`}>
             {player.position}
           </span>
-          <span className="text-xs font-mono text-muted-foreground">
+          <span className="text-xs font-mono text-muted-foreground tabular-nums">
             C$ {(player.price ?? 0).toFixed(1)}
           </span>
         </div>
@@ -378,14 +378,14 @@ export function PlayerCard({
             {isCoach && !isCaptain && <Star className="w-4 h-4 text-primary shrink-0" />}
             <div className="min-w-0">
               <p className="font-bold text-sm text-foreground truncate">{displayName}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {player.club?.abbreviation ?? player.club?.name ?? ""}
               </p>
             </div>
           </div>
           <Badge
             variant="outline"
-            className={`font-mono text-[10px] shrink-0 ${posColor}`}
+            className={`font-mono text-xs shrink-0 ${posColor}`}
           >
             {player.position}
           </Badge>
@@ -394,7 +394,7 @@ export function PlayerCard({
           <span className="text-muted-foreground">
             C$ {player.price?.toFixed(2) ?? "-"}
           </span>
-          <span className="font-bold text-primary font-mono">
+          <span className="font-bold text-primary font-mono tabular-nums">
             {player.expectedPoints?.toFixed(1) ?? "-"} pts
           </span>
         </div>
@@ -407,14 +407,14 @@ export function PlayerCard({
     return (
       <div
         className={`flex items-center justify-between gap-2 text-xs ${
-          onClick ? "cursor-pointer" : ""
+          onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""
         } ${className}`}
         onClick={onClick}
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <Badge
             variant="outline"
-            className={`text-[9px] shrink-0 px-1.5 py-0 font-bold ${posColor}`}
+               className={`text-xs shrink-0 px-1.5 py-0 font-bold ${posColor}`}
           >
             {player.position}
           </Badge>
@@ -426,7 +426,7 @@ export function PlayerCard({
             {displayName}
           </span>
           {player.club?.abbreviation && (
-            <span className="text-muted-foreground/50 shrink-0 text-[10px] hidden sm:inline">
+             <span className="text-muted-foreground/50 shrink-0 text-xs hidden sm:inline">
               {player.club.abbreviation}
             </span>
           )}
@@ -434,7 +434,7 @@ export function PlayerCard({
         <div className="flex items-center gap-2 shrink-0">
           {children}
           {player.expectedPoints != null && (
-            <span className="font-mono text-primary shrink-0 text-[11px]">
+             <span className="font-mono text-primary shrink-0 text-xs tabular-nums">
               {player.expectedPoints.toFixed(1)}
             </span>
           )}
@@ -446,7 +446,7 @@ export function PlayerCard({
   // ── full: avatar + nome + clube + badges + preço ───────────────────────────
   return (
     <div
-      className={`flex items-center gap-3 ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`flex items-center gap-3 ${onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""} ${className}`}
       onClick={onClick}
     >
       <Avatar className={`w-9 h-9 border border-border shrink-0 bg-white/10 [&_img]:object-contain ${getBadgeScale(player.club?.abbreviation) !== 1 ? "overflow-visible" : ""}`}>
@@ -459,7 +459,7 @@ export function PlayerCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 flex-wrap">
           <p
-            className={`font-semibold truncate group-hover:text-primary transition-colors ${
+            className={`font-semibold truncate group-hover:text-primary motion-safe:transition-colors ${
               highlighted ? "text-primary" : "text-foreground"
             }`}
           >
@@ -477,12 +477,12 @@ export function PlayerCard({
         <div className="text-right shrink-0">
           {player.price != null && (
             <div className="flex items-center justify-end gap-1">
-              <span className="font-mono text-sm text-foreground">
+              <span className="font-mono text-sm text-foreground tabular-nums">
                 C$ {player.price.toFixed(2)}
               </span>
               {player.priceVariation != null && player.priceVariation !== 0 && (
                 <span
-                  className={`flex items-center gap-0.5 text-[10px] font-bold ${
+                  className={`flex items-center gap-0.5 text-xs font-bold tabular-nums ${
                     player.priceVariation > 0 ? "text-positive" : "text-danger"
                   }`}
                 >

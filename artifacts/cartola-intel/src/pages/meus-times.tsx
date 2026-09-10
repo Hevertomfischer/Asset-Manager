@@ -58,7 +58,7 @@ function CreateTeamDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         </DialogHeader>
         <div className="space-y-3 pt-1">
           <div className="space-y-1.5">
-            <Label htmlFor="team-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <Label htmlFor="team-name" className="text-xs font-medium text-muted-foreground">
               Nome do time
             </Label>
             <Input
@@ -90,7 +90,7 @@ function CreateTeamDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 function TeamCard({ team }: { team: { id: number; name: string; createdAt: string; roundCount: number; seasonPoints: number } }) {
   return (
     <Link to={`/meus-times/${team.id}`}>
-      <Card className="group hover:border-primary/40 hover:bg-card/80 transition-all cursor-pointer border-border/50">
+      <Card className="group hover:border-primary/40 hover:bg-card/80 motion-safe:transition-all cursor-pointer border-border/50">
         <CardContent className="p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
@@ -98,7 +98,7 @@ function TeamCard({ team }: { team: { id: number; name: string; createdAt: strin
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                <p className="font-semibold text-foreground truncate group-hover:text-primary motion-safe:transition-colors">
                   {team.name}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -108,18 +108,18 @@ function TeamCard({ team }: { team: { id: number; name: string; createdAt: strin
             </div>
             <div className="flex items-center gap-4 shrink-0">
               <div className="text-right hidden sm:block">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pontos na temp.</p>
-                <p className="text-xl font-bold font-mono text-primary">
+                <p className="text-xs text-muted-foreground">Pontos na temp.</p>
+                <p className="text-xl font-bold font-mono tabular-nums text-primary">
                   {team.seasonPoints.toFixed(1)}
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <ChevronRight aria-hidden="true" className="w-4 h-4 text-muted-foreground group-hover:text-primary motion-safe:transition-colors" />
             </div>
           </div>
           {/* mobile points */}
           <div className="flex items-center gap-2 mt-3 sm:hidden">
             <TrendingUp className="w-3.5 h-3.5 text-primary" />
-            <span className="text-sm font-mono font-bold text-primary">{team.seasonPoints.toFixed(1)} pts</span>
+            <span className="text-sm font-mono font-bold tabular-nums text-primary">{team.seasonPoints.toFixed(1)} pts</span>
             <span className="text-xs text-muted-foreground">na temporada</span>
           </div>
         </CardContent>
@@ -147,7 +147,7 @@ export default function MeusTimes() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 motion-safe:animate-in fade-in motion-safe:duration-300">
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -164,7 +164,7 @@ export default function MeusTimes() {
         {user && (
           <Button
             onClick={handleNewTeam}
-            className="rounded-xl bg-gradient-to-r from-primary to-accent font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all self-start sm:self-auto"
+             className="rounded-xl bg-gradient-to-r from-primary to-accent font-semibold shadow-lg shadow-primary/20 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all self-start sm:self-auto"
           >
             {!isPro && teams.length >= 1 ? (
               <Sparkles className="w-4 h-4 mr-2" />
@@ -196,7 +196,7 @@ export default function MeusTimes() {
         </Card>
       ) : teams.length === 0 ? (
         // Empty state
-        <Card className="border-dashed border-border/50 hover:border-primary/30 transition-colors">
+           <Card className="border-dashed border-border/50 hover:border-primary/30 motion-safe:transition-colors">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-5">
             <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
               <ClipboardList className="w-10 h-10 text-primary opacity-50" />
@@ -233,7 +233,7 @@ export default function MeusTimes() {
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
               <span className="text-muted-foreground">
                 Usuários gratuitos podem ter 1 time.{" "}
-                <button className="text-primary font-semibold hover:underline" onClick={openPaywall}>
+                 <button className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={openPaywall}>
                   Assine o Pro
                 </button>{" "}
                 para times ilimitados.

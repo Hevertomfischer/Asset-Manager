@@ -45,7 +45,7 @@ interface RoundData {
 function PosBadge({ pos }: { pos: string }) {
   const cls = getPositionColor(pos);
   return (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border ${cls}`}>
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold border ${cls}`}>
       {pos}
     </span>
   );
@@ -117,7 +117,7 @@ export default function RodadaPage() {
       <div className="border-b border-border/40 bg-card/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
           <div className="flex flex-wrap items-center gap-3 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Cartola FC</span>
+            <span className="text-xs font-semibold text-muted-foreground">Cartola FC</span>
             {data && (
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
                 data.isClosed
@@ -146,7 +146,7 @@ export default function RodadaPage() {
         {isLoading && (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-card/60 animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-card/60 motion-safe:animate-pulse" />
             ))}
           </div>
         )}
@@ -181,9 +181,9 @@ export default function RodadaPage() {
                   <div key={label} className="bg-card border border-border/50 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Icon className={`w-3.5 h-3.5 ${color}`} />
-                      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</span>
+                      <span className="text-xs text-muted-foreground font-medium">{label}</span>
                     </div>
-                    <span className={`text-xl font-bold font-mono ${color}`}>{value}</span>
+                     <span className={`text-xl font-bold font-mono tabular-nums ${color}`}>{value}</span>
                   </div>
                 ))}
               </div>
@@ -196,7 +196,7 @@ export default function RodadaPage() {
                   <div className="bg-card border border-positive/20 rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <Zap className="w-3.5 h-3.5 text-positive" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-positive">Diferencial da rodada</span>
+                      <span className="text-xs font-bold text-positive">Diferencial da rodada</span>
                     </div>
                     <div className="flex items-center gap-3">
                       {getBadgeUrl(data.topDiferencial.club.abbreviation, data.topDiferencial.club.badgeUrl) && (
@@ -205,7 +205,7 @@ export default function RodadaPage() {
                       <div className="flex-1 min-w-0">
                         <Link
                           to={`/jogador/${data.topDiferencial.slug}`}
-                          className="font-bold text-foreground hover:text-primary transition-colors truncate block"
+                          className="font-bold text-foreground hover:text-primary motion-safe:transition-colors truncate block"
                         >
                           {data.topDiferencial.nickname ?? data.topDiferencial.name}
                         </Link>
@@ -217,10 +217,10 @@ export default function RodadaPage() {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xl font-bold text-primary font-mono">{data.topDiferencial.expectedPoints.toFixed(1)}</p>
-                        <p className="text-[10px] text-muted-foreground">pts proj.</p>
+                         <p className="text-xl font-bold text-primary font-mono tabular-nums">{data.topDiferencial.expectedPoints.toFixed(1)}</p>
+                        <p className="text-xs text-muted-foreground">pts proj.</p>
                         {data.isClosed && data.topDiferencial.actualPoints != null && (
-                          <p className={`text-sm font-bold font-mono ${data.topDiferencial.actualPoints >= data.topDiferencial.expectedPoints * 0.9 ? "text-positive" : "text-danger"}`}>
+                           <p className={`text-sm font-bold font-mono tabular-nums ${data.topDiferencial.actualPoints >= data.topDiferencial.expectedPoints * 0.9 ? "text-positive" : "text-danger"}`}>
                             {data.topDiferencial.actualPoints.toFixed(1)} real
                           </p>
                         )}
@@ -233,7 +233,7 @@ export default function RodadaPage() {
                   <div className="bg-card border border-danger/20 rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <AlertTriangle className="w-3.5 h-3.5 text-danger" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-danger">Armadilha da rodada</span>
+                      <span className="text-xs font-bold text-danger">Armadilha da rodada</span>
                     </div>
                     <div className="flex items-center gap-3">
                       {getBadgeUrl(data.topArmadilha.club.abbreviation, data.topArmadilha.club.badgeUrl) && (
@@ -242,7 +242,7 @@ export default function RodadaPage() {
                       <div className="flex-1 min-w-0">
                         <Link
                           to={`/jogador/${data.topArmadilha.slug}`}
-                          className="font-bold text-foreground hover:text-danger transition-colors truncate block"
+                          className="font-bold text-foreground hover:text-danger motion-safe:transition-colors truncate block"
                         >
                           {data.topArmadilha.nickname ?? data.topArmadilha.name}
                         </Link>
@@ -254,10 +254,10 @@ export default function RodadaPage() {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-xl font-bold text-danger font-mono">{(data.topArmadilha.popularity * 100).toFixed(0)}%</p>
-                        <p className="text-[10px] text-muted-foreground">escalação</p>
+                         <p className="text-xl font-bold text-danger font-mono tabular-nums">{(data.topArmadilha.popularity * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground">escalação</p>
                         {data.isClosed && data.topArmadilha.actualPoints != null && (
-                          <p className={`text-sm font-bold font-mono ${data.topArmadilha.actualPoints >= data.topArmadilha.expectedPoints * 0.9 ? "text-positive" : "text-danger"}`}>
+                           <p className={`text-sm font-bold font-mono tabular-nums ${data.topArmadilha.actualPoints >= data.topArmadilha.expectedPoints * 0.9 ? "text-positive" : "text-danger"}`}>
                             {data.topArmadilha.actualPoints.toFixed(1)} real
                           </p>
                         )}
@@ -282,13 +282,13 @@ export default function RodadaPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border/40">
-                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pos</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Jogador</th>
-                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Preço</th>
-                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Escalação</th>
-                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Projeção</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Pos</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Jogador</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Preço</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground hidden md:table-cell">Escalação</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Projeção</th>
                       {data.isClosed && (
-                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Real</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Real</th>
                       )}
                     </tr>
                   </thead>
@@ -300,7 +300,7 @@ export default function RodadaPage() {
                       return (
                         <tr
                           key={player.playerId}
-                          className={`hover:bg-muted/30 transition-colors ${
+                             className={`hover:bg-muted/30 motion-safe:transition-colors ${
                             player.isDifferencial ? "bg-positive/3" : player.isTrap ? "bg-danger/3" : ""
                           }`}
                         >
@@ -315,28 +315,28 @@ export default function RodadaPage() {
                               <div className="min-w-0">
                                 <Link
                                   to={`/jogador/${player.slug}`}
-                                  className="font-medium text-foreground hover:text-primary transition-colors truncate block max-w-[130px] sm:max-w-[200px]"
+                                  className="font-medium text-foreground hover:text-primary motion-safe:transition-colors truncate block max-w-[130px] sm:max-w-[200px]"
                                 >
                                   {player.nickname ?? player.name}
                                 </Link>
-                                <span className="text-[10px] text-muted-foreground">{player.club.abbreviation}</span>
+                                <span className="text-xs text-muted-foreground">{player.club.abbreviation}</span>
                               </div>
                               {player.isDifferencial && <Zap className="w-3 h-3 text-positive shrink-0" />}
                               {player.isTrap && <AlertTriangle className="w-3 h-3 text-danger shrink-0" />}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground font-mono text-xs hidden sm:table-cell">
+                           <td className="px-4 py-3 text-right text-muted-foreground font-mono tabular-nums text-xs hidden sm:table-cell">
                             C$ {(player.price ?? 0).toFixed(1)}
                           </td>
                           <td className="px-4 py-3 text-right hidden md:table-cell">
-                            <span className={`text-xs font-mono ${
+                               <span className={`text-xs font-mono tabular-nums ${
                               player.popularity < 0.15 ? "text-positive" : player.popularity >= 0.4 ? "text-attention" : "text-muted-foreground"
                             }`}>
                               {(player.popularity * 100).toFixed(0)}%
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <span className="font-bold font-mono text-primary">{player.expectedPoints.toFixed(1)}</span>
+                             <span className="font-bold font-mono tabular-nums text-primary">{player.expectedPoints.toFixed(1)}</span>
                           </td>
                           {data.isClosed && (
                             <td className="px-4 py-3 text-right">
@@ -347,7 +347,7 @@ export default function RodadaPage() {
                                   ) : flopped ? (
                                     <TrendingDown className="w-3 h-3 text-danger" />
                                   ) : null}
-                                  <span className={`font-bold font-mono ${beat ? "text-positive" : flopped ? "text-danger" : "text-foreground"}`}>
+                                   <span className={`font-bold font-mono tabular-nums ${beat ? "text-positive" : flopped ? "text-danger" : "text-foreground"}`}>
                                     {player.actualPoints.toFixed(1)}
                                   </span>
                                 </div>
@@ -393,7 +393,7 @@ export default function RodadaPage() {
 
             {/* ── Footer ─────────────────────────────────────────────────────── */}
             <div className="text-center text-xs text-muted-foreground py-4">
-              <Link to="/" className="hover:text-foreground transition-colors">mitometro.com.br</Link>
+              <Link to="/" className="hover:text-foreground motion-safe:transition-colors">mitometro.com.br</Link>
               {" · "}Dados Cartola FC · Temporada 2025
             </div>
           </>

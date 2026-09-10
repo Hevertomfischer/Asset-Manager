@@ -59,11 +59,11 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{label}</span>
-        <span className="font-mono font-bold">{pct}%</span>
+        <span className="font-mono tabular-nums font-bold">{pct}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${color}`}
+          className={`h-full rounded-full motion-safe:transition-all ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -72,7 +72,7 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
 }
 
 function FormStrip({ form }: { form: string[] | null }) {
-  if (!form || form.length === 0) return <span className="text-[10px] text-muted-foreground/50">—</span>;
+  if (!form || form.length === 0) return <span className="text-xs text-muted-foreground/50">—</span>;
   return (
     <div className="flex items-center gap-0.5">
       {form.slice(0, 5).map((result, i) => {
@@ -112,7 +112,7 @@ function DifficultyBadge({ level }: { level: "fácil" | "médio" | "difícil" })
 
 function ConfrontoCard({ c }: { c: Confronto }) {
   return (
-    <Card className="bg-card border-border/50 overflow-hidden hover:border-border/80 transition-colors">
+    <Card className="bg-card border-border/50 overflow-hidden hover:border-border/80 motion-safe:transition-colors">
       <div className="h-1 w-full bg-gradient-to-r from-primary/60 via-accent/40 to-primary/20" />
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
@@ -122,26 +122,26 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             )}
             <div className="min-w-0">
               <p className="font-bold text-sm truncate">{c.homeClub?.name ?? "?"}</p>
-              <p className="text-[10px] text-muted-foreground">Casa</p>
+              <p className="text-xs text-muted-foreground">Casa</p>
             </div>
           </div>
 
           <div className="flex flex-col items-center shrink-0">
             <span className="text-xs font-bold text-muted-foreground bg-secondary px-3 py-1 rounded-lg">vs</span>
             {c.matchDate && (
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {new Date(c.matchDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
               </p>
             )}
             {c.stadium && (
-              <p className="text-[9px] text-muted-foreground/70 truncate max-w-24 text-center">{c.stadium}</p>
+              <p className="text-xs text-muted-foreground/70 truncate max-w-24 text-center">{c.stadium}</p>
             )}
           </div>
 
           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
             <div className="min-w-0 text-right">
               <p className="font-bold text-sm truncate">{c.awayClub?.name ?? "?"}</p>
-              <p className="text-[10px] text-muted-foreground">Visitante</p>
+              <p className="text-xs text-muted-foreground">Visitante</p>
             </div>
             {getBadgeUrl(c.awayClub?.abbreviation, c.awayClub?.badgeUrl) && (
               <img src={getBadgeUrl(c.awayClub?.abbreviation, c.awayClub?.badgeUrl)} alt="" className="w-8 h-8 object-contain shrink-0" style={getBadgeScale(c.awayClub?.abbreviation) !== 1 ? { transform: `scale(${getBadgeScale(c.awayClub?.abbreviation)})` } : undefined} onError={(e) => { e.currentTarget.style.display = "none"; }} />
@@ -155,20 +155,20 @@ function ConfrontoCard({ c }: { c: Confronto }) {
           {/* Home side */}
           <div className="space-y-3 p-3 rounded-xl bg-secondary/30 border border-border/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {c.homeClub?.abbreviation ?? c.homeClub?.name}
               </span>
               <DifficultyBadge level={c.homeDifficulty} />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
+              <span className="text-xs text-muted-foreground shrink-0">Forma:</span>
               <FormStrip form={c.homeForm} />
             </div>
             {c.homeStats && (
               <div className="space-y-2">
                 <StrengthBar value={c.homeStats.offensiveStrength} label="Ataque" color="bg-danger" />
                 <StrengthBar value={c.homeStats.defensiveStrength} label="Defesa" color="bg-differential" />
-                <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
+                <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>{c.homeStats.avgGoalsScored.toFixed(1)} gols/jogo</span>
                   <span>{c.homeStats.avgGoalsConceded.toFixed(1)} sofridos</span>
                 </div>
@@ -176,18 +176,18 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             )}
             <div className="flex items-center gap-1 flex-wrap">
               <Target className="w-3 h-3 text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground">Explorar:</span>
+              <span className="text-xs text-muted-foreground">Explorar:</span>
               {c.recommendedPositionsHome.length > 0
                 ? c.recommendedPositionsHome.map((pos) => (
-                    <Badge key={pos} variant="outline" className={`text-[9px] px-1 py-0 ${getPositionColor(pos)} border`}>
+                    <Badge key={pos} variant="outline" className={`text-xs px-1 py-0 ${getPositionColor(pos)} border`}>
                       {pos}
                     </Badge>
                   ))
-                : <span className="text-[10px] text-muted-foreground">—</span>
+                : <span className="text-xs text-muted-foreground">—</span>
               }
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {c.xgSource === "xg_article" ? (
                   <span className="inline-flex items-center gap-0.5">
                     <Zap className="w-2.5 h-2.5 text-attention" />
@@ -195,7 +195,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
                   </span>
                 ) : "Expectativa de gols"}
               </p>
-              <p className="text-xl font-bold font-mono text-foreground">
+              <p className="text-xl font-bold font-mono tabular-nums text-foreground">
                 {c.homeXg != null ? c.homeXg.toFixed(2) : c.homeGoalExpectation.toFixed(2)}
               </p>
             </div>
@@ -204,20 +204,20 @@ function ConfrontoCard({ c }: { c: Confronto }) {
           {/* Away side */}
           <div className="space-y-3 p-3 rounded-xl bg-secondary/30 border border-border/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-xs font-semibold text-muted-foreground">
                 {c.awayClub?.abbreviation ?? c.awayClub?.name}
               </span>
               <DifficultyBadge level={c.awayDifficulty} />
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground shrink-0">Forma:</span>
+              <span className="text-xs text-muted-foreground shrink-0">Forma:</span>
               <FormStrip form={c.awayForm} />
             </div>
             {c.awayStats && (
               <div className="space-y-2">
                 <StrengthBar value={c.awayStats.offensiveStrength} label="Ataque" color="bg-danger" />
                 <StrengthBar value={c.awayStats.defensiveStrength} label="Defesa" color="bg-differential" />
-                <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
+                <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>{c.awayStats.avgGoalsScored.toFixed(1)} gols/jogo</span>
                   <span>{c.awayStats.avgGoalsConceded.toFixed(1)} sofridos</span>
                 </div>
@@ -225,18 +225,18 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             )}
             <div className="flex items-center gap-1 flex-wrap">
               <Target className="w-3 h-3 text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground">Explorar:</span>
+              <span className="text-xs text-muted-foreground">Explorar:</span>
               {c.recommendedPositionsAway.length > 0
                 ? c.recommendedPositionsAway.map((pos) => (
-                    <Badge key={pos} variant="outline" className={`text-[9px] px-1 py-0 ${getPositionColor(pos)} border`}>
+                    <Badge key={pos} variant="outline" className={`text-xs px-1 py-0 ${getPositionColor(pos)} border`}>
                       {pos}
                     </Badge>
                   ))
-                : <span className="text-[10px] text-muted-foreground">—</span>
+                : <span className="text-xs text-muted-foreground">—</span>
               }
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {c.xgSource === "xg_article" ? (
                   <span className="inline-flex items-center gap-0.5">
                     <Zap className="w-2.5 h-2.5 text-attention" />
@@ -244,7 +244,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
                   </span>
                 ) : "Expectativa de gols"}
               </p>
-              <p className="text-xl font-bold font-mono text-foreground">
+              <p className="text-xl font-bold font-mono tabular-nums text-foreground">
                 {c.awayXg != null ? c.awayXg.toFixed(2) : c.awayGoalExpectation.toFixed(2)}
               </p>
             </div>
@@ -270,7 +270,7 @@ export default function Confrontos() {
   ).length;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -292,8 +292,8 @@ export default function Confrontos() {
               <CardContent className="p-3 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-positive" />
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Favoráveis</p>
-                  <p className="text-xl font-bold font-mono text-positive">{easyMatches}</p>
+                  <p className="text-xs text-muted-foreground">Favoráveis</p>
+                  <p className="text-xl font-bold font-mono tabular-nums text-positive">{easyMatches}</p>
                 </div>
               </CardContent>
             </Card>
@@ -301,8 +301,8 @@ export default function Confrontos() {
               <CardContent className="p-3 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-accent" />
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Partidas</p>
-                  <p className="text-xl font-bold font-mono">{confrontos.length}</p>
+                  <p className="text-xs text-muted-foreground">Partidas</p>
+                  <p className="text-xl font-bold font-mono tabular-nums">{confrontos.length}</p>
                 </div>
               </CardContent>
             </Card>
@@ -313,7 +313,7 @@ export default function Confrontos() {
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-card border-border/50 h-64 animate-pulse" />
+            <Card key={i} className="bg-card border-border/50 h-64 motion-safe:animate-pulse" />
           ))}
         </div>
       ) : isError ? (
@@ -321,7 +321,7 @@ export default function Confrontos() {
           <AlertCircle className="w-5 h-5 shrink-0" />
           <div>
             <p className="font-semibold">Erro ao carregar confrontos</p>
-            <p className="text-sm opacity-80">Certifique-se de que os dados foram sincronizados no painel Admin.</p>
+            <p className="text-sm opacity-80">Certifique-se de que os dados foram sincronizados no painel admin.</p>
           </div>
         </div>
       ) : confrontos.length === 0 ? (
@@ -329,7 +329,7 @@ export default function Confrontos() {
           <CardContent className="p-12 flex flex-col items-center gap-3 text-center">
             <Swords className="w-12 h-12 text-muted-foreground/30" />
             <p className="font-semibold text-muted-foreground">Nenhum confronto disponível</p>
-            <p className="text-sm text-muted-foreground/70">Sincronize os dados na página Admin para carregar os confrontos da rodada.</p>
+            <p className="text-sm text-muted-foreground/70">Sincronize os dados na página admin para carregar os confrontos da rodada.</p>
           </CardContent>
         </Card>
       ) : (

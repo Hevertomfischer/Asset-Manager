@@ -97,7 +97,7 @@ export function NotificationItem({
   return (
     <button
       onClick={() => isUnread && onRead(notification.id)}
-      className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors ${
+      className={`w-full text-left flex items-start gap-3 px-4 py-3 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         isPersonal ? "border-l-2 border-primary" : "border-l-2 border-transparent"
       } ${
         isUnread
@@ -117,7 +117,7 @@ export function NotificationItem({
               {notification.title}
             </p>
             {isPersonal && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-accent/15 text-accent text-[9px] font-bold border border-accent/20 shrink-0">
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-accent/15 text-accent text-xs font-bold border border-accent/20 shrink-0">
                 <User className="w-2.5 h-2.5" />
                 Para você
               </span>
@@ -130,7 +130,7 @@ export function NotificationItem({
         <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
           {notification.body}
         </p>
-        <p className="text-[10px] text-muted-foreground/60 mt-1">
+        <p className="text-xs text-muted-foreground/60 mt-1">
           {timeAgo(notification.createdAt)}
         </p>
       </div>
@@ -143,7 +143,7 @@ export function NotificationItem({
 function SectionHeader({ label }: { label: string }) {
   return (
     <div className="sticky top-0 z-10 px-4 py-1.5 bg-secondary/70 backdrop-blur-sm border-b border-border/20">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+      <p className="text-xs font-semibold text-muted-foreground/70">
         {label}
       </p>
     </div>
@@ -232,12 +232,12 @@ export function NotificationBell() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="relative flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+          className="relative flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Notificações"
         >
           <Bell className="w-5 h-5" />
           {hasUnread && (
-            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-danger text-danger-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-danger text-danger-foreground text-xs tabular-nums font-bold flex items-center justify-center leading-none">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -258,7 +258,7 @@ export function NotificationBell() {
                 Notificações
               </span>
               {hasUnread && (
-                <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-bold">
                   {unreadCount} nova{unreadCount !== 1 ? "s" : ""}
                 </span>
               )}
@@ -295,7 +295,7 @@ export function NotificationBell() {
                   <button
                     key={tab}
                     onClick={() => setFilter(tab)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isActive
                         ? "bg-primary/20 text-primary border border-primary/30"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent"
@@ -377,7 +377,7 @@ export function NotificationBell() {
           <>
             <Separator className="opacity-30" />
             <div className="px-4 py-2 text-center">
-              <p className="text-[10px] text-muted-foreground/60">
+              <p className="text-xs text-muted-foreground/60">
                 {filter !== "all"
                   ? `${visibleNotifications.length} de ${notifications.length} notificações`
                   : `Últimas ${notifications.length} notificações`}

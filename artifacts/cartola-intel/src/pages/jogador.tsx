@@ -163,7 +163,7 @@ export default function JogadorPage() {
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     {data.player.position} · {data.player.club.abbreviation ?? "—"}
                   </span>
                 </div>
@@ -193,7 +193,7 @@ export default function JogadorPage() {
         {isLoading && (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-card/60 animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-card/60 motion-safe:animate-pulse" />
             ))}
           </div>
         )}
@@ -220,7 +220,7 @@ export default function JogadorPage() {
                   { label: "Erro médio (MAE)", value: stats.mae != null ? `${stats.mae.toFixed(1)} pts` : "—", color: "text-muted-foreground" },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="bg-card border border-border/50 rounded-xl p-4">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-1">{label}</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1">{label}</p>
                     <p className={`text-xl font-bold font-mono ${color}`}>{value}</p>
                   </div>
                 ))}
@@ -263,7 +263,7 @@ export default function JogadorPage() {
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                <p className="text-xs text-muted-foreground text-center mt-2">
                   Linha tracejada = média histórica do jogador
                 </p>
               </div>
@@ -287,12 +287,12 @@ export default function JogadorPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border/40">
-                        <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Rodada</th>
-                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Projeção</th>
-                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Real</th>
-                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Erro</th>
-                        <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Risco</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tags</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Rodada</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Projeção</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Real</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Erro</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Risco</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-muted-foreground">Tags</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/20">
@@ -300,11 +300,11 @@ export default function JogadorPage() {
                         const beat = h.actual != null && h.actual >= h.expectedPoints * 0.9;
                         const flopped = h.actual != null && h.actual < h.expectedPoints * 0.5;
                         return (
-                          <tr key={h.round} className={`hover:bg-muted/30 transition-colors ${h.isDifferencial ? "bg-positive/3" : h.isTrap ? "bg-attention/3" : ""}`}>
+                          <tr key={h.round} className={`hover:bg-muted/30 motion-safe:transition-colors ${h.isDifferencial ? "bg-positive/3" : h.isTrap ? "bg-attention/3" : ""}`}>
                             <td className="px-4 py-3">
                               <Link
                                 to={`/rodada/${h.round}`}
-                                className="font-semibold text-foreground hover:text-primary transition-colors"
+                                className="font-semibold text-foreground hover:text-primary motion-safe:transition-colors"
                               >
                                 Rodada {h.round}
                               </Link>
@@ -343,12 +343,12 @@ export default function JogadorPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1.5">
                                 {h.isDifferencial && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-positive bg-positive/10 border border-positive/20 rounded px-1.5 py-0.5">
+                                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-positive bg-positive/10 border border-positive/20 rounded px-1 py-0.5">
                                     <Zap className="w-2.5 h-2.5" /> Dif
                                   </span>
                                 )}
                                 {h.isTrap && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-attention bg-attention/10 border border-attention/20 rounded px-1.5 py-0.5">
+                                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-attention bg-attention/10 border border-attention/20 rounded px-1 py-0.5">
                                     <AlertTriangle className="w-2.5 h-2.5" /> Trap
                                   </span>
                                 )}
@@ -386,7 +386,7 @@ export default function JogadorPage() {
 
             {/* ── Footer ─────────────────────────────────────────────────────── */}
             <div className="text-center text-xs text-muted-foreground py-4">
-              <Link to="/" className="hover:text-foreground transition-colors">mitometro.com.br</Link>
+              <Link to="/" className="hover:text-foreground motion-safe:transition-colors">mitometro.com.br</Link>
               {" · "}Dados Cartola FC · Temporada 2025
             </div>
           </>

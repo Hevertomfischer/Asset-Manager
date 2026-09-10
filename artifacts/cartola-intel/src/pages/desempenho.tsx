@@ -95,7 +95,7 @@ function MaeTooltip({
       <p className="font-semibold text-foreground mb-1">Rodada {label}</p>
       {payload.map((p, i) => (
         <p key={i} className="text-muted-foreground">
-          {p.name}: <span className="text-foreground font-mono font-bold">{p.value?.toFixed(2)} pts</span>
+          {p.name}: <span className="text-foreground font-mono tabular-nums font-bold">{p.value?.toFixed(2)} pts</span>
         </p>
       ))}
     </div>
@@ -117,7 +117,7 @@ function CalibrationTooltip({
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }}>
-          {p.name}: <span className="font-mono font-bold">{p.value?.toFixed(2)} pts</span>
+          {p.name}: <span className="font-mono tabular-nums font-bold">{p.value?.toFixed(2)} pts</span>
         </p>
       ))}
     </div>
@@ -156,16 +156,16 @@ function StatCard({
     <Card className={`bg-card/60 border ${colorMap[variant]} rounded-2xl flex-1 min-w-0`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold leading-tight max-w-[140px]">
+          <p className="text-xs text-muted-foreground font-semibold leading-tight max-w-[140px]">
             {label}
           </p>
           <Icon className={`w-4 h-4 shrink-0 ${iconMap[variant]}`} />
         </div>
-        <p className={`text-3xl font-mono font-bold ${colorMap[variant].split(" ")[0]}`}>
+        <p className={`text-3xl font-mono tabular-nums font-bold ${colorMap[variant].split(" ")[0]}`}>
           {value}
         </p>
         {sub && (
-          <p className="text-[11px] text-muted-foreground mt-1.5 leading-tight">{sub}</p>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-tight">{sub}</p>
         )}
       </CardContent>
     </Card>
@@ -253,7 +253,7 @@ export default function Desempenho() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="bg-primary/20 p-1.5 rounded-lg border border-primary/30 group-hover:bg-primary/30 transition-colors">
+            <div className="bg-primary/20 p-1.5 rounded-lg border border-primary/30 group-hover:bg-primary/30 motion-safe:transition-colors">
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <span className="font-display font-bold text-lg text-foreground leading-none">
@@ -291,7 +291,7 @@ export default function Desempenho() {
           <div className="flex items-center justify-center gap-2 mb-2">
             <Badge
               variant="outline"
-              className="border-primary/40 text-primary bg-primary/5 gap-1.5 text-xs font-semibold uppercase tracking-wide"
+              className="border-primary/40 text-primary bg-primary/5 gap-1.5 text-xs font-semibold"
             >
               <Eye className="w-3 h-3" />
               Transparência
@@ -343,7 +343,7 @@ export default function Desempenho() {
                 {isSharing ? "Gerando imagem…" : "Compartilhar desempenho"}
               </Button>
               {shareError && (
-                <p className="text-[11px] text-destructive">{shareError}</p>
+                <p className="text-xs text-destructive">{shareError}</p>
               )}
             </div>
 
@@ -396,8 +396,8 @@ export default function Desempenho() {
                     </div>
                     {seasonMae !== null && (
                       <div className="shrink-0 text-right">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Média da temporada</p>
-                        <p className="text-2xl font-mono font-bold text-primary mt-0.5">
+                        <p className="text-xs text-muted-foreground font-semibold">Média da temporada</p>
+                        <p className="text-2xl font-mono tabular-nums font-bold text-primary mt-0.5">
                           {seasonMae} pts
                         </p>
                       </div>
@@ -460,7 +460,7 @@ export default function Desempenho() {
                           />
                         </ComposedChart>
                       </ResponsiveContainer>
-                      <p className="text-center text-[11px] text-muted-foreground -mt-1">
+                      <p className="text-center text-xs text-muted-foreground -mt-1">
                         Erro médio absoluto (pts) por rodada
                       </p>
                     </>
@@ -537,7 +537,7 @@ export default function Desempenho() {
                           />
                         </BarChart>
                       </ResponsiveContainer>
-                      <p className="text-center text-[11px] text-muted-foreground mt-1">
+                      <p className="text-center text-xs text-muted-foreground mt-1">
                         Pontuação média (pts) por faixa de projeção
                       </p>
                     </>
@@ -611,7 +611,7 @@ export default function Desempenho() {
             </section>
 
             {/* ── Disclaimer técnico ──────────────────────────────────────────── */}
-            <div className="flex items-start gap-2 text-[11px] text-muted-foreground/60 leading-relaxed max-w-3xl mx-auto">
+            <div className="flex items-start gap-2 text-xs text-muted-foreground/60 leading-relaxed max-w-3xl mx-auto">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-attention/50" />
               <span>{data.meta.disclaimer}</span>
             </div>
@@ -621,7 +621,7 @@ export default function Desempenho() {
 
               {/* MAE hero */}
               <div style={{ padding: "20px 20px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: "8px" }}>
+                <div style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))", fontWeight: 600, marginBottom: "8px" }}>
                   Erro Médio da Temporada (MAE)
                 </div>
                 <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: data.season.mae <= 3 ? "hsl(var(--positive))" : data.season.mae <= 5 ? "hsl(var(--attention))" : "hsl(var(--danger))" }}>
@@ -663,7 +663,7 @@ export default function Desempenho() {
           <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-8 sm:p-12 text-center space-y-5">
             <Badge
               variant="outline"
-              className="border-primary/30 text-primary bg-primary/5 uppercase text-xs tracking-wide font-bold"
+              className="border-primary/30 text-primary bg-primary/5 text-xs font-bold"
             >
               <Sparkles className="w-3 h-3 mr-1.5" />
               Comece agora
@@ -680,7 +680,7 @@ export default function Desempenho() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Button
                 size="lg"
-                className="h-12 px-8 text-base font-bold bg-gradient-to-r from-primary to-accent shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all"
+              className="h-12 px-8 text-base font-bold bg-gradient-to-r from-primary to-accent shadow-lg shadow-primary/25 hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all"
                 onClick={() => navigate("/")}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -696,7 +696,7 @@ export default function Desempenho() {
                 Já tenho conta
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground/50">
+            <p className="text-xs text-muted-foreground/50">
               Sem cartão de crédito para o plano gratuito.
             </p>
           </div>

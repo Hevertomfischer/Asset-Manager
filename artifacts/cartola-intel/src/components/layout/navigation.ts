@@ -44,7 +44,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
   {
     label: "Meu desempenho",
     items: [
-      { title: "Meus Times", url: "/meus-times", icon: Trophy },
+      { title: "Meus times", url: "/meus-times", icon: Trophy },
       { title: "Histórico", url: "/historico", icon: History },
     ],
   },
