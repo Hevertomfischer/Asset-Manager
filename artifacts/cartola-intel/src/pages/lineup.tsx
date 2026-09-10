@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { useGenerateLineup, useSaveLineup, type LineupSuggestion, type LineupPlayer, type LineupReservePlayer } from "@workspace/api-client-react";
+import {
+  useGenerateLineup,
+  useSaveLineup,
+  type LineupGenerateRequestStrategy,
+  type LineupSuggestion,
+  type LineupPlayer,
+  type LineupReservePlayer,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,10 +21,11 @@ import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
+import { ProBadge } from "@/components/ProBadge";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useTrack } from "@/hooks/useTrack";
-import { type ExplanationJson, getTopBadges, explainPlayer, normalizeMatchup } from "@/lib/explainPlayer";
+import { type ExplanationJson, type InsightKind, getTopBadges, explainPlayer, normalizeMatchup } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
 import { LineupProbabilities } from "@/components/LineupProbabilities";
@@ -51,7 +59,7 @@ function LineupPlayerCard({
     <div
       className={`p-4 rounded-xl border transition-all ${
         isCaptain
-          ? "border-yellow-500/50 bg-yellow-500/5 shadow-[0_0_15px_rgba(234,179,8,0.1)]"
+          ? "border-attention/50 bg-attention/5 shadow-[0_0_15px_hsl(var(--attention)/0.1)]"
           : isCoach
             ? "border-primary/40 bg-primary/5"
             : "border-border/50 bg-card"
@@ -72,7 +80,7 @@ function LineupPlayerCard({
       />
 
       {isCaptain && (
-        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-500 text-[10px] font-bold uppercase tracking-wider text-center">
+        <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-attention/20 text-attention text-[10px] font-bold uppercase tracking-wider text-center">
           Capitão
         </div>
       )}
@@ -88,12 +96,12 @@ function LineupPlayerCard({
           {strategy === "valorizacao" && player.valorizacaoMargin != null && (
             <div className="flex items-center gap-1">
               {player.valorizacaoMargin >= 0 ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-positive/15 text-positive text-[10px] font-semibold">
                   <TrendingUp className="w-3 h-3" />
                   folga +{player.valorizacaoMargin.toFixed(1)} pts
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/10 text-red-400 text-[10px] font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-danger/10 text-danger text-[10px] font-semibold">
                   falta {Math.abs(player.valorizacaoMargin).toFixed(1)} pts
                 </span>
               )}
@@ -162,15 +170,28 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
 
 const VALID_STRATEGIES = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"] as const;
 type ValidStrategy = (typeof VALID_STRATEGIES)[number];
+const PRO_STRATEGIES = new Set<ValidStrategy>(["aggressive", "cost-benefit", "antimassa", "valorizacao"]);
+const STRATEGY_NAMES: Record<ValidStrategy, string> = {
+  safe: "Seguro",
+  aggressive: "Agressivo",
+  "cost-benefit": "Custo-Benefício",
+  antimassa: "Antimassa",
+  valorizacao: "Valorização",
+};
+
+function parseStrategy(value: string | null): ValidStrategy | null {
+  return value && (VALID_STRATEGIES as readonly string[]).includes(value)
+    ? value as ValidStrategy
+    : null;
+}
 
 export default function Lineup() {
   const [searchParams] = useSearchParams();
 
-  const urlStrategy = searchParams.get("strategy") as ValidStrategy | null;
+  const urlStrategy = parseStrategy(searchParams.get("strategy"));
+  const requestedParam = parseStrategy(searchParams.get("requested"));
   const initialStrategy: ValidStrategy =
-    urlStrategy && (VALID_STRATEGIES as readonly string[]).includes(urlStrategy)
-      ? urlStrategy
-      : "cost-benefit";
+    urlStrategy ?? "cost-benefit";
 
   const [formation, setFormation] = useState("4-3-3");
   const [strategy, setStrategy] = useState<ValidStrategy>(initialStrategy);
@@ -179,7 +200,7 @@ export default function Lineup() {
 
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
-  const { isPro } = useAuth();
+  const { isPro, isLoading: isAuthLoading } = useAuth();
   const track = useTrack();
   const generateLineupMutation = useGenerateLineup();
   const saveLineupMutation = useSaveLineup();
@@ -197,6 +218,13 @@ export default function Lineup() {
   });
 
   const autoGenerateRef = useRef(false);
+  const requestedProStrategy =
+    requestedParam && PRO_STRATEGIES.has(requestedParam)
+      ? requestedParam
+      : urlStrategy && PRO_STRATEGIES.has(urlStrategy)
+        ? urlStrategy
+        : null;
+  const downgradedStrategy = !isAuthLoading && !isPro ? requestedProStrategy : null;
   const shareCardRef = useRef<HTMLDivElement>(null);
   const { share: handleShare, isSharing } = useShareCard(
     shareCardRef,
@@ -205,16 +233,25 @@ export default function Lineup() {
   );
 
   useEffect(() => {
-    if (searchParams.get("autoGenerate") !== "true" || autoGenerateRef.current) return;
+    if (
+      isAuthLoading ||
+      searchParams.get("autoGenerate") !== "true" ||
+      autoGenerateRef.current
+    ) return;
     autoGenerateRef.current = true;
+    const generationStrategy: ValidStrategy = downgradedStrategy ? "safe" : strategy;
+    if (downgradedStrategy) {
+      setStrategy("safe");
+      track("onboarding_strategy_downgraded", { requested: downgradedStrategy });
+    }
     const timer = setTimeout(() => {
       generateLineupMutation.mutate(
-        { data: { budget, formation, strategy } },
+        { data: { budget, formation, strategy: generationStrategy as LineupGenerateRequestStrategy } },
         {
           onSuccess: (data) => {
             if (data.lineup) {
               setCurrentLineup(data.lineup);
-              track("lineup_generated", { strategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "auto" });
+              track("lineup_generated", { strategy: generationStrategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "auto" });
               toast({
                 title: "Escalação Gerada",
                 description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,
@@ -222,10 +259,6 @@ export default function Lineup() {
             }
           },
           onError: (error) => {
-            if ((error as { status?: number }).status === 402) {
-              openPaywall();
-              return;
-            }
             toast({
               title: "Falha na geração",
               description: error.message || "Não foi possível gerar escalação",
@@ -236,12 +269,15 @@ export default function Lineup() {
       );
     }, 500);
     return () => clearTimeout(timer);
+  // The URL and form defaults are fixed for this one-shot onboarding action.
+  // Depending on `strategy` here would cancel the timer when the downgrade
+  // updates the visible selection to "safe".
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthLoading, isPro]);
 
   const handleGenerate = () => {
     generateLineupMutation.mutate(
-      { data: { budget, formation, strategy } },
+      { data: { budget, formation, strategy: strategy as LineupGenerateRequestStrategy } },
       {
         onSuccess: (data) => {
           if (data.lineup) {
@@ -389,7 +425,7 @@ export default function Lineup() {
   const strategies: { value: ValidStrategy; label: string; icon: typeof Shield; desc: string; requiresPro?: boolean }[] = [
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade.", requiresPro: true },
-    { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cruzeiro.", requiresPro: true },
+    { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cartoleta.", requiresPro: true },
     { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação.", requiresPro: true },
     { value: "valorizacao", label: "Valorização", icon: TrendingUp, desc: "Prioriza jogadores com tendência de subir de preço.", requiresPro: true },
   ];
@@ -421,6 +457,21 @@ export default function Lineup() {
           </h1>
           <p className="text-muted-foreground mt-1">Gere escalações otimizadas com IA baseadas nas suas restrições.</p>
         </div>
+
+        {downgradedStrategy && (
+          <div className="flex flex-col gap-2 rounded-xl border border-attention/30 bg-attention/10 p-3 text-sm">
+            <p className="text-foreground">
+              Montamos no modo Seguro. O modo {STRATEGY_NAMES[downgradedStrategy]} faz parte do Pro.
+            </p>
+            <button
+              type="button"
+              onClick={openPaywall}
+              className="self-start text-xs font-semibold text-primary hover:underline"
+            >
+              Conhecer o Pro
+            </button>
+          </div>
+        )}
 
         <Card className="bg-card shadow-xl border-border/50 rounded-2xl overflow-hidden">
           <CardHeader className="bg-secondary/30 border-b border-border/50 py-2.5 px-4">
@@ -495,9 +546,7 @@ export default function Lineup() {
                               {s.label}
                             </span>
                             {s.requiresPro && (
-                              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 uppercase tracking-wide shrink-0">
-                                Pro
-                              </span>
+                              <ProBadge className="shrink-0" />
                             )}
                           </button>
                         </TooltipTrigger>
@@ -572,7 +621,7 @@ export default function Lineup() {
                 <div className="w-px h-6 bg-border/50" />
                 <div className="text-center">
                   <p className="text-[9px] text-muted-foreground uppercase font-semibold leading-none mb-0.5">Risco</p>
-                  <p className="text-sm font-mono font-bold text-yellow-500 leading-none">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
+                  <p className="text-sm font-mono font-bold text-attention leading-none">{(currentLineup.riskScore ?? 0).toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -628,10 +677,10 @@ export default function Lineup() {
 
             {/* Valorization strategy banner — compact */}
             {strategy === "valorizacao" && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-positive/10 border border-positive/30">
+                <TrendingUp className="w-3.5 h-3.5 text-positive shrink-0" />
                 <p className="text-[11px] text-muted-foreground leading-tight">
-                  <span className="text-emerald-400 font-semibold">Valorização</span> — jogadores com maior folga acima do MPV.
+                  <span className="text-positive font-semibold">Valorização</span> — jogadores com maior folga acima do MPV.
                 </p>
               </div>
             )}
@@ -775,7 +824,7 @@ export default function Lineup() {
                         <span className="text-xs text-muted-foreground">{p.clubAbbr}</span>
                       )}
                       {isCaptain && (
-                        <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/15 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-bold text-attention bg-attention/15 px-1.5 py-0.5 rounded">
                           ★ Capitão
                         </span>
                       )}
@@ -801,10 +850,10 @@ export default function Lineup() {
                     <div className="space-y-3 bg-secondary/30 rounded-xl p-4 border border-border/40 mb-4">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Métricas</p>
                       {[
-                        { label: "Forma", pct: formPct, sublabel: `${formScore.toFixed(1)} pts`, color: formPct >= 70 ? "bg-green-500" : formPct >= 45 ? "bg-yellow-500" : "bg-red-500" },
-                        { label: "Confronto", pct: matchupPct, sublabel: `×${matchupScore.toFixed(2)}`, color: matchupPct >= 65 ? "bg-green-500" : matchupPct >= 42 ? "bg-yellow-500" : "bg-red-500" },
-                        { label: "Risco", pct: riskPct, sublabel: riskPct < 30 ? "Baixo" : riskPct < 60 ? "Médio" : "Alto", color: riskPct < 30 ? "bg-green-500" : riskPct < 60 ? "bg-yellow-500" : "bg-red-500" },
-                        ...(exp.playProbability != null ? [{ label: "Prob. jogo", pct: playProb, sublabel: `${Math.round(playProb)}%`, color: playProb >= 70 ? "bg-green-500" : playProb >= 40 ? "bg-yellow-500" : "bg-red-500" }] : []),
+                        { label: "Forma", pct: formPct, sublabel: `${formScore.toFixed(1)} pts`, color: formPct >= 70 ? "bg-positive" : formPct >= 45 ? "bg-attention" : "bg-danger" },
+                        { label: "Confronto", pct: matchupPct, sublabel: `×${matchupScore.toFixed(2)}`, color: matchupPct >= 65 ? "bg-positive" : matchupPct >= 42 ? "bg-attention" : "bg-danger" },
+                        { label: "Risco", pct: riskPct, sublabel: riskPct < 30 ? "Baixo" : riskPct < 60 ? "Médio" : "Alto", color: riskPct < 30 ? "bg-positive" : riskPct < 60 ? "bg-attention" : "bg-danger" },
+                        ...(exp.playProbability != null ? [{ label: "Prob. jogo", pct: playProb, sublabel: `${Math.round(playProb)}%`, color: playProb >= 70 ? "bg-positive" : playProb >= 40 ? "bg-attention" : "bg-danger" }] : []),
                       ].map(({ label, pct, sublabel, color }) => (
                         <div key={label} className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
@@ -832,7 +881,13 @@ export default function Lineup() {
                     <div className="space-y-1 mb-4">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Fatores</p>
                       {insights.slice(0, 4).map((ins, i) => {
-                        const colors = { positive: "text-green-500", warning: "text-yellow-500", neutral: "text-muted-foreground", info: "text-blue-400" };
+                        const colors: Record<InsightKind, string> = {
+                          positive: "text-positive",
+                          attention: "text-attention",
+                          danger: "text-danger",
+                          differential: "text-differential",
+                          neutral: "text-muted-foreground",
+                        };
                         return (
                           <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/20 last:border-0">
                             <span className={`text-sm leading-snug ${colors[ins.kind]}`}>{ins.text}</span>
@@ -864,7 +919,7 @@ export default function Lineup() {
                 {!isCoach && !isCaptain && (
                   <Button
                     variant="outline"
-                    className="w-full rounded-xl border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
+                    className="w-full rounded-xl border-attention/40 text-attention hover:bg-attention/10"
                     onClick={() => handleSetCaptain(p.playerId!)}
                   >
                     <Crown className="w-4 h-4 mr-2" />

@@ -26,13 +26,14 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ProBadge } from "@/components/ProBadge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
   Settings, RefreshCw, Database, TerminalSquare, Save, Loader2, Play,
   AlertCircle, Zap, Clock, RotateCcw, MessageSquare, Bug, Lightbulb, Star, HelpCircle,
-  ChevronLeft, ChevronRight, Users, Search, Crown, UserCircle,
+  ChevronLeft, ChevronRight, Users, Search, UserCircle,
 } from "lucide-react";
 
 // ── Feedback helpers ──────────────────────────────────────────────────────────
@@ -45,9 +46,9 @@ const STATUS_LABELS: Record<FeedbackStatus, string> = {
 };
 
 const STATUS_COLORS: Record<FeedbackStatus, string> = {
-  novo: "text-blue-400 border-blue-500/30 bg-blue-500/10",
-  em_analise: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10",
-  resolvido: "text-green-400 border-green-500/30 bg-green-500/10",
+  novo: "text-differential border-differential/30 bg-differential/10",
+  em_analise: "text-attention border-attention/30 bg-attention/10",
+  resolvido: "text-positive border-positive/30 bg-positive/10",
   arquivado: "text-muted-foreground border-border/40 bg-secondary/30",
 };
 
@@ -66,10 +67,10 @@ const TYPE_ICONS: Record<FeedbackType, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<FeedbackType, string> = {
-  bug: "text-red-400 border-red-500/30 bg-red-500/10",
+  bug: "text-danger border-danger/30 bg-danger/10",
   ideia: "text-purple-400 border-purple-500/30 bg-purple-500/10",
-  elogio: "text-green-400 border-green-500/30 bg-green-500/10",
-  duvida: "text-orange-400 border-orange-500/30 bg-orange-500/10",
+  elogio: "text-positive border-positive/30 bg-positive/10",
+  duvida: "text-attention border-attention/30 bg-attention/10",
 };
 
 const FEEDBACK_LIMIT = 15;
@@ -231,10 +232,7 @@ function UsersTab() {
                         </TableCell>
                         <TableCell>
                           {isPro ? (
-                            <Badge variant="outline" className="text-[10px] flex items-center gap-1 w-fit text-yellow-400 border-yellow-500/30 bg-yellow-500/10">
-                              <Crown className="w-3 h-3" />
-                              Pro
-                            </Badge>
+                            <ProBadge />
                           ) : (
                             <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/40 bg-secondary/30">
                               Free
@@ -663,7 +661,7 @@ export default function Admin() {
             ? <>Última sincronização: <span className="font-medium text-foreground">{new Date(syncStatus.lastSyncAt).toLocaleString("pt-BR")}</span></>
             : "Aguardando primeira sincronização..."}
           {syncStatus.marketStatus && (
-            <Badge variant="outline" className={`ml-2 text-[10px] ${syncStatus.marketStatus === "open" ? "border-green-500/50 text-green-400" : "border-muted-foreground/30 text-muted-foreground"}`}>
+            <Badge variant="outline" className={`ml-2 text-[10px] ${syncStatus.marketStatus === "open" ? "border-positive/50 text-positive" : "border-muted-foreground/30 text-muted-foreground"}`}>
               Mercado {syncStatus.marketStatus === "open" ? "aberto" : "fechado"}
             </Badge>
           )}
@@ -743,7 +741,7 @@ export default function Admin() {
                   {isAdmin && (
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-orange-400" />
+                        <Clock className="w-4 h-4 text-attention" />
                         Alerta de dados xG após X dias
                       </Label>
                       <div className="flex items-center gap-3">
@@ -761,7 +759,7 @@ export default function Admin() {
                           onClick={handleSaveConfig}
                           disabled={updateConfig.isPending}
                           variant="outline"
-                          className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+                          className="border-attention/40 text-attention hover:bg-attention/10"
                         >
                           {updateConfig.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
                           Salvar
@@ -804,7 +802,7 @@ export default function Admin() {
             <Card className="bg-card shadow-lg border-border/50">
               <CardHeader className="bg-secondary/20 border-b border-border/50">
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-400" />
+                  <Zap className="w-5 h-5 text-attention" />
                   Pipeline de Dados
                 </CardTitle>
                 <CardDescription>
@@ -834,11 +832,11 @@ export default function Admin() {
                             variant="outline"
                             className={`text-[10px] uppercase border ${
                               p.status === "ok" || p.status === "success"
-                                ? "text-green-500 border-green-500/30 bg-green-500/10"
+                                ? "text-positive border-positive/30 bg-positive/10"
                                 : p.status === "error"
-                                  ? "text-red-500 border-red-500/30 bg-red-500/10"
+                                  ? "text-danger border-danger/30 bg-danger/10"
                                   : p.status === "degraded"
-                                    ? "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                                    ? "text-attention border-attention/30 bg-attention/10"
                                     : "text-muted-foreground border-border/40"
                             }`}
                           >
@@ -860,15 +858,15 @@ export default function Admin() {
                     {syncFull.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                     Sync Completo
                   </Button>
-                  <Button onClick={handleSyncMarket} disabled={syncMarket.isPending} variant="outline" className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-bold">
+                  <Button onClick={handleSyncMarket} disabled={syncMarket.isPending} variant="outline" className="border-differential/40 text-differential hover:bg-differential/10 font-bold">
                     {syncMarket.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                     Mercado
                   </Button>
-                  <Button onClick={handleSyncCurrentRound} disabled={syncCurrentRound.isPending} variant="outline" className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-bold">
+                  <Button onClick={handleSyncCurrentRound} disabled={syncCurrentRound.isPending} variant="outline" className="border-positive/40 text-positive hover:bg-positive/10 font-bold">
                     {syncCurrentRound.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                     Rodada Atual
                   </Button>
-                  <Button onClick={handleRecalc} disabled={recalcProjections.isPending} variant="outline" className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 font-bold">
+                  <Button onClick={handleRecalc} disabled={recalcProjections.isPending} variant="outline" className="border-attention/40 text-attention hover:bg-attention/10 font-bold">
                     {recalcProjections.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                     Recalcular
                   </Button>
@@ -878,7 +876,7 @@ export default function Admin() {
           </div>
 
           {/* xG Sync */}
-          {isAdmin && <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-yellow-500/50" : "border-border/50"}`}>
+          {isAdmin && <Card className={`bg-card shadow-lg ${lastXgResult?.degraded ? "border-attention/50" : "border-border/50"}`}>
             <CardHeader className="bg-secondary/20 border-b border-border/50">
               <CardTitle className="flex items-center gap-2 flex-wrap">
                 <Zap className="w-5 h-5 text-accent" />
@@ -886,7 +884,7 @@ export default function Admin() {
                 {lastXgResult && (
                   <Badge
                     variant="outline"
-                    className={`text-[10px] ml-auto ${lastXgResult.degraded ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10" : "text-green-400 border-green-500/30 bg-green-500/10"}`}
+                    className={`text-[10px] ml-auto ${lastXgResult.degraded ? "text-attention border-attention/30 bg-attention/10" : "text-positive border-positive/30 bg-positive/10"}`}
                   >
                     {lastXgResult.degraded ? "Degradado" : "OK"} — {lastXgResult.clubsMapped} clubes
                   </Badge>
@@ -926,7 +924,7 @@ export default function Admin() {
           {isAdmin && <Card className="bg-card shadow-lg border-border/50">
             <CardHeader className="bg-secondary/20 border-b border-border/50">
               <CardTitle className="flex items-center gap-2">
-                <RefreshCw className="w-5 h-5 text-blue-400" />
+                <RefreshCw className="w-5 h-5 text-differential" />
                 Sincronizar Pontuação Histórica
               </CardTitle>
               <CardDescription>
@@ -949,7 +947,7 @@ export default function Admin() {
                 <Button
                   onClick={handleSyncHistorical}
                   disabled={historicalSyncing || !historicalRound}
-                  className="h-10 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40 font-bold"
+                  className="h-10 bg-differential/20 hover:bg-differential/30 text-differential border border-differential/40 font-bold"
                   variant="outline"
                 >
                   {historicalSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
@@ -1012,10 +1010,10 @@ export default function Admin() {
                                 variant="outline"
                                 className={`text-[10px] uppercase border ${
                                   log.status === "success" || log.status === "ok"
-                                    ? "text-green-500 border-green-500/30 bg-green-500/10"
+                                    ? "text-positive border-positive/30 bg-positive/10"
                                     : log.status === "error"
-                                      ? "text-red-500 border-red-500/30 bg-red-500/10"
-                                      : "text-yellow-500 border-yellow-500/30 bg-yellow-500/10"
+                                      ? "text-danger border-danger/30 bg-danger/10"
+                                      : "text-attention border-attention/30 bg-attention/10"
                                 }`}
                               >
                                 {{ success: "Sucesso", ok: "OK", error: "Erro", degraded: "Degradado", info: "Info", never_synced: "Nunca sincronizado" }[log.status ?? ""] ?? log.status}

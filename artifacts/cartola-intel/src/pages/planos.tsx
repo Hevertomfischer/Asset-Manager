@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ProBadge } from "@/components/ProBadge";
 
 interface SubscriptionData {
   plan: string;
@@ -99,9 +100,9 @@ function BillingBanner({ status }: { status: string }) {
   }
   if (status === "pending") {
     return (
-      <Alert className="mb-6 border-yellow-500/40 bg-yellow-500/10">
-        <Clock className="h-4 w-4 text-yellow-500" />
-        <AlertDescription className="text-yellow-200">
+      <Alert className="mb-6 border-attention/40 bg-attention/10">
+        <Clock className="h-4 w-4 text-attention" />
+        <AlertDescription className="text-attention-foreground">
           Pagamento em análise. Você receberá uma confirmação quando for aprovado.
         </AlertDescription>
       </Alert>
@@ -204,7 +205,7 @@ export default function Planos() {
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-4">
           <Sparkles className="w-3.5 h-3.5" />
-          Mitometro Pro
+           <ProBadge />
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
           Escale melhor. Pontue mais.
@@ -310,7 +311,7 @@ export default function Planos() {
                     variant="secondary"
                   >
                     <Check className="w-4 h-4 mr-1.5" />
-                    Você já é Pro
+                     <span>Você já é</span> <ProBadge />
                   </Button>
                 ) : (
                   <Button

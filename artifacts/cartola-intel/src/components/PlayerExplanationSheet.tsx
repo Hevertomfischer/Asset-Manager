@@ -28,16 +28,18 @@ import {
 
 const kindIcon: Record<InsightKind, typeof CheckCircle2> = {
   positive: CheckCircle2,
-  warning: AlertTriangle,
+  attention: AlertTriangle,
+  danger: AlertTriangle,
   neutral: Home,
-  info: Info,
+  differential: Info,
 };
 
 const kindColor: Record<InsightKind, string> = {
-  positive: "text-green-500",
-  warning: "text-yellow-500",
+  positive: "text-positive",
+  attention: "text-attention",
+  danger: "text-danger",
   neutral: "text-muted-foreground",
-  info: "text-blue-400",
+  differential: "text-differential",
 };
 
 function BarRow({
@@ -117,11 +119,11 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
   const playProb = (exp.playProbability ?? 1) * 100;
 
   const formColor =
-    formPct >= 70 ? "bg-green-500" : formPct >= 45 ? "bg-yellow-500" : "bg-red-500";
+    formPct >= 70 ? "bg-positive" : formPct >= 45 ? "bg-attention" : "bg-danger";
   const matchupColor =
-    matchupPct >= 65 ? "bg-green-500" : matchupPct >= 42 ? "bg-yellow-500" : "bg-red-500";
+    matchupPct >= 65 ? "bg-positive" : matchupPct >= 42 ? "bg-attention" : "bg-danger";
   const riskColor =
-    riskPct < 30 ? "bg-green-500" : riskPct < 60 ? "bg-yellow-500" : "bg-red-500";
+    riskPct < 30 ? "bg-positive" : riskPct < 60 ? "bg-attention" : "bg-danger";
 
   return (
     <>
@@ -180,7 +182,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
               <BarRow
                 label="Prob. de jogo"
                 value={playProb}
-                color={playProb >= 70 ? "bg-green-500" : playProb >= 40 ? "bg-yellow-500" : "bg-red-500"}
+                color={playProb >= 70 ? "bg-positive" : playProb >= 40 ? "bg-attention" : "bg-danger"}
                 sublabel={`${Math.round(playProb)}%`}
               />
             )}
@@ -222,11 +224,11 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
               )}
               {exp.priceVariation != null && (
                 <div className={`rounded-lg p-2.5 text-center ${
-                  exp.priceVariation > 0 ? "bg-green-500/10" : exp.priceVariation < 0 ? "bg-red-500/10" : "bg-secondary/30"
+                  exp.priceVariation > 0 ? "bg-positive/10" : exp.priceVariation < 0 ? "bg-danger/10" : "bg-secondary/30"
                 }`}>
                   <p className="text-[10px] text-muted-foreground">Variação</p>
                   <p className={`font-bold text-sm ${
-                    exp.priceVariation > 0 ? "text-green-500" : exp.priceVariation < 0 ? "text-red-500" : "text-foreground"
+                    exp.priceVariation > 0 ? "text-positive" : exp.priceVariation < 0 ? "text-danger" : "text-foreground"
                   }`}>
                     {exp.priceVariation > 0 ? "+" : ""}C$ {exp.priceVariation.toFixed(2)}
                   </p>
@@ -236,15 +238,15 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
             {(minimoParaValorizar != null || baseAverage != null) && (
               <div className="grid grid-cols-2 gap-2">
                 {minimoParaValorizar != null && (
-                  <div className="bg-amber-500/10 rounded-lg p-2.5 text-center" title="Pontuação mínima para o jogador aumentar de preço na próxima rodada">
+                  <div className="bg-attention/10 rounded-lg p-2.5 text-center" title="Pontuação mínima para o jogador aumentar de preço na próxima rodada">
                     <p className="text-[10px] text-muted-foreground">Mín. para valorizar</p>
-                    <p className="font-bold text-sm text-amber-500">↑{minimoParaValorizar.toFixed(1)} pts</p>
+                    <p className="font-bold text-sm text-attention">↑{minimoParaValorizar.toFixed(1)} pts</p>
                   </div>
                 )}
                 {baseAverage != null && (
-                  <div className="bg-blue-400/10 rounded-lg p-2.5 text-center" title="Média de pontos excluindo Gols (G×8), Assistências (A×5) e Saldo de Gols (SG×5) — representa o quanto o jogador pontua sem eventos de gol">
+                  <div className="bg-differential/10 rounded-lg p-2.5 text-center" title="Média de pontos excluindo Gols (G×8), Assistências (A×5) e Saldo de Gols (SG×5) — representa o quanto o jogador pontua sem eventos de gol">
                     <p className="text-[10px] text-muted-foreground">Média base (sem G/A/SG)</p>
-                    <p className="font-bold text-sm text-blue-400">{baseAverage.toFixed(1)} pts</p>
+                    <p className="font-bold text-sm text-differential">{baseAverage.toFixed(1)} pts</p>
                   </div>
                 )}
               </div>

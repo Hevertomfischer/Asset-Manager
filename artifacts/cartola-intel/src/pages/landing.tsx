@@ -74,7 +74,7 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
   return (
     <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/60 p-4 text-center transition-colors hover:border-primary/30 hover:bg-card/80">
       {rank === 1 && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-yellow-500/40 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yellow-400">
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-attention/40 bg-attention/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-attention">
           # Maior projeção
         </span>
       )}
@@ -108,7 +108,7 @@ function TopPlayerCard({ player, rank }: { player: TopPlayer; rank: number }) {
           </Badge>
         )}
         {player.playProbability != null && player.playProbability < 0.6 && (
-          <AlertTriangle className="w-3 h-3 text-yellow-500" />
+          <AlertTriangle className="w-3 h-3 text-attention" />
         )}
       </div>
 
@@ -141,15 +141,15 @@ function StatBubble({
 }) {
   const colorMap = {
     default: "text-foreground border-border/50",
-    good: "text-emerald-400 border-emerald-500/30",
-    warn: "text-yellow-400 border-yellow-500/30",
-    info: "text-blue-400 border-blue-500/30",
+    good: "text-positive border-positive/30",
+    warn: "text-attention border-attention/30",
+    info: "text-differential border-differential/30",
   };
   const iconColor = {
     default: "text-muted-foreground",
-    good: "text-emerald-400",
-    warn: "text-yellow-400",
-    info: "text-blue-400",
+    good: "text-positive",
+    warn: "text-attention",
+    info: "text-differential",
   };
   return (
     <Card className={`bg-card/60 border ${colorMap[variant]} rounded-2xl flex-1 min-w-0`}>

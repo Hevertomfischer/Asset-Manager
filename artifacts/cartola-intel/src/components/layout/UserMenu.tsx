@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProBadge } from "@/components/ProBadge";
 
 function getInitials(name: string | null, email: string): string {
   if (name) {
@@ -72,7 +73,7 @@ function DevLoginPopover() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30 border border-amber-300 dark:border-amber-700">
+        <Button variant="ghost" size="sm" className="gap-1.5 text-attention hover:text-attention hover:bg-attention/10 border border-attention/40">
           <FlaskConical className="w-3.5 h-3.5" />
           <span className="hidden sm:inline text-xs font-medium">Dev</span>
         </Button>
@@ -80,7 +81,7 @@ function DevLoginPopover() {
       <PopoverContent align="end" className="w-72 p-4">
         <div className="mb-3">
           <p className="text-sm font-semibold flex items-center gap-1.5">
-            <FlaskConical className="w-3.5 h-3.5 text-amber-500" />
+            <FlaskConical className="w-3.5 h-3.5 text-attention" />
             Dev Login
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">Apenas em ambiente de desenvolvimento</p>
@@ -128,11 +129,11 @@ function DevLoginPopover() {
                 onClick={() => setPlan("pro")}
                 className={`flex-1 h-8 rounded-md border text-xs font-medium transition-colors ${
                   plan === "pro"
-                    ? "bg-amber-500 text-white border-amber-500"
+                    ? "bg-primary text-primary-foreground border-primary"
                     : "border-input bg-background hover:bg-accent"
                 }`}
               >
-                Pro
+                <ProBadge />
               </button>
             </div>
           </div>

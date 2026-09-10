@@ -214,9 +214,9 @@ export default function JogadorPage() {
             {stats && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "Rodadas com dados", value: `${data.history.length}`, color: "text-blue-400" },
+                  { label: "Rodadas com dados", value: `${data.history.length}`, color: "text-differential" },
                   { label: "Média projetada", value: stats.avgProj != null ? `${stats.avgProj.toFixed(1)} pts` : "—", color: "text-primary" },
-                  { label: "Média real", value: stats.avgActual != null ? `${stats.avgActual.toFixed(1)} pts` : "—", color: "text-amber-400" },
+                  { label: "Média real", value: stats.avgActual != null ? `${stats.avgActual.toFixed(1)} pts` : "—", color: "text-attention" },
                   { label: "Erro médio (MAE)", value: stats.mae != null ? `${stats.mae.toFixed(1)} pts` : "—", color: "text-muted-foreground" },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="bg-card border border-border/50 rounded-xl p-4">
@@ -236,28 +236,28 @@ export default function JogadorPage() {
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card))" vertical={false} />
                     <XAxis
                       dataKey="round"
-                      tick={{ fill: "#64748b", fontSize: 10 }}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v) => `R${v}`}
                     />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTooltip />} />
                     <Legend
                       iconType="circle"
                       iconSize={8}
-                      wrapperStyle={{ fontSize: "11px", color: "#64748b", paddingTop: "8px" }}
+                      wrapperStyle={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", paddingTop: "8px" }}
                     />
-                    <ReferenceLine y={data.player.averagePoints ?? 0} stroke="#475569" strokeDasharray="4 4" />
-                    <Bar dataKey="Real" fill="#f59e0b" radius={[3, 3, 0, 0]} maxBarSize={32} opacity={0.85} />
+                    <ReferenceLine y={data.player.averagePoints ?? 0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
+                    <Bar dataKey="Real" fill="hsl(var(--attention))" radius={[3, 3, 0, 0]} maxBarSize={32} opacity={0.85} />
                     <Line
                       dataKey="Projeção"
-                      stroke="#10b981"
+                      stroke="hsl(var(--positive))"
                       strokeWidth={2}
-                      dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
+                      dot={{ r: 3, fill: "hsl(var(--positive))", strokeWidth: 0 }}
                       activeDot={{ r: 5 }}
                       connectNulls
                     />
@@ -300,7 +300,7 @@ export default function JogadorPage() {
                         const beat = h.actual != null && h.actual >= h.expectedPoints * 0.9;
                         const flopped = h.actual != null && h.actual < h.expectedPoints * 0.5;
                         return (
-                          <tr key={h.round} className={`hover:bg-muted/30 transition-colors ${h.isDifferencial ? "bg-emerald-500/3" : h.isTrap ? "bg-yellow-500/3" : ""}`}>
+                          <tr key={h.round} className={`hover:bg-muted/30 transition-colors ${h.isDifferencial ? "bg-positive/3" : h.isTrap ? "bg-attention/3" : ""}`}>
                             <td className="px-4 py-3">
                               <Link
                                 to={`/rodada/${h.round}`}
@@ -316,11 +316,11 @@ export default function JogadorPage() {
                               {h.actual != null ? (
                                 <div className="flex items-center justify-end gap-1">
                                   {beat ? (
-                                    <TrendingUp className="w-3 h-3 text-emerald-400" />
+                                    <TrendingUp className="w-3 h-3 text-positive" />
                                   ) : flopped ? (
-                                    <TrendingDown className="w-3 h-3 text-red-400" />
+                                    <TrendingDown className="w-3 h-3 text-danger" />
                                   ) : null}
-                                  <span className={`font-mono font-bold ${beat ? "text-emerald-400" : flopped ? "text-red-400" : "text-foreground"}`}>
+                                  <span className={`font-mono font-bold ${beat ? "text-positive" : flopped ? "text-danger" : "text-foreground"}`}>
                                     {h.actual.toFixed(1)}
                                   </span>
                                 </div>
@@ -330,25 +330,25 @@ export default function JogadorPage() {
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground hidden sm:table-cell">
                               {h.error != null ? (
-                                <span className={h.error > 0 ? "text-orange-400" : "text-emerald-400"}>
+                                <span className={h.error > 0 ? "text-attention" : "text-positive"}>
                                   {h.error > 0 ? "+" : ""}{h.error.toFixed(1)}
                                 </span>
                               ) : "—"}
                             </td>
                             <td className="px-4 py-3 text-right hidden sm:table-cell">
-                              <span className={`text-xs font-mono ${h.riskScore >= 0.6 ? "text-red-400" : h.riskScore >= 0.4 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                              <span className={`text-xs font-mono ${h.riskScore >= 0.6 ? "text-danger" : h.riskScore >= 0.4 ? "text-attention" : "text-muted-foreground"}`}>
                                 {(h.riskScore * 100).toFixed(0)}%
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1.5">
                                 {h.isDifferencial && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1.5 py-0.5">
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-positive bg-positive/10 border border-positive/20 rounded px-1.5 py-0.5">
                                     <Zap className="w-2.5 h-2.5" /> Dif
                                   </span>
                                 )}
                                 {h.isTrap && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded px-1.5 py-0.5">
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-attention bg-attention/10 border border-attention/20 rounded px-1.5 py-0.5">
                                     <AlertTriangle className="w-2.5 h-2.5" /> Trap
                                   </span>
                                 )}
@@ -375,7 +375,7 @@ export default function JogadorPage() {
                 Análise detalhada de matchup, forma, teto e probabilidade de escalar. Escalação otimizada por ILP incluída.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <Button asChild className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 gap-1.5">
+                <Button asChild className="bg-positive hover:bg-positive text-positive-foreground shadow-lg shadow-positive/20 gap-1.5">
                   <Link to="/">Criar conta grátis <ArrowRight className="w-3.5 h-3.5" /></Link>
                 </Button>
                 <Button variant="ghost" size="sm" asChild className="text-muted-foreground">

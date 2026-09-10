@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTrack } from "@/hooks/useTrack";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ProBadge } from "@/components/ProBadge";
 import { Shield, Scale, Zap, BarChart2, Brain, Lightbulb, Loader2, ArrowRight, Check } from "lucide-react";
 
 type Strategy = "safe" | "cost-benefit" | "aggressive";
@@ -43,13 +45,13 @@ const STRATEGY_OPTIONS: {
     sublabel: "Alto Piso",
     desc: "Seleciona jogadores consistentes para minimizar o risco de pontuação baixa.",
     icon: Shield,
-    color: "text-blue-400",
+    color: "text-differential",
   },
   {
     value: "cost-benefit",
     label: "Equilibrado",
     sublabel: "Custo-Benefício",
-    desc: "Prioriza a melhor relação pontos por cruzeiro investido.",
+    desc: "Prioriza a melhor relação pontos por cartoleta investida.",
     icon: Scale,
     color: "text-primary",
   },
@@ -59,7 +61,7 @@ const STRATEGY_OPTIONS: {
     sublabel: "Alto Teto",
     desc: "Maximiza o potencial de pontos aceitando mais volatilidade.",
     icon: Zap,
-    color: "text-amber-400",
+    color: "text-attention",
   },
 ];
 
@@ -83,6 +85,7 @@ export function OnboardingDialog({ onClose }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const track = useTrack();
+  const { isPro } = useAuth();
 
   async function handleSkip() {
     try {
@@ -102,7 +105,11 @@ export function OnboardingDialog({ onClose }: Props) {
       await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       track("onboarding_completed", { method: "finish", strategy: selected });
       onClose();
-      navigate(`/escalacao?strategy=${selected}&autoGenerate=true`);
+      const requiresPro = selected === "cost-benefit" || selected === "aggressive";
+      const query = !isPro && requiresPro
+        ? `strategy=safe&autoGenerate=true&requested=${encodeURIComponent(selected)}`
+        : `strategy=${encodeURIComponent(selected)}&autoGenerate=true`;
+      navigate(`/escalacao?${query}`);
     } catch {
       track("onboarding_completed", { method: "finish_error", strategy: selected ?? "none" });
       onClose();
@@ -188,6 +195,7 @@ export function OnboardingDialog({ onClose }: Props) {
             <div className="space-y-3">
               {STRATEGY_OPTIONS.map(({ value, label, sublabel, desc, icon: Icon, color }) => {
                 const isSelected = selected === value;
+                const showProBadge = !isPro && value !== "safe";
                 return (
                   <button
                     key={value}
@@ -212,6 +220,9 @@ export function OnboardingDialog({ onClose }: Props) {
                           <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
                             {sublabel}
                           </span>
+                          {showProBadge && (
+                            <ProBadge />
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
                       </div>

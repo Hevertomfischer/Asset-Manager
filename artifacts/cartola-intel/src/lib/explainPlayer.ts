@@ -58,7 +58,7 @@ export interface ExplanationJson {
   missingGames?: number;
 }
 
-export type InsightKind = "positive" | "warning" | "neutral" | "info";
+export type InsightKind = "positive" | "attention" | "danger" | "differential" | "neutral";
 
 export interface Insight {
   text: string;
@@ -100,7 +100,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   if (isTrapPlayer(exp)) {
     insights.push({
       text: "Popular mas com queda de forma — risco de armadilha",
-      kind: "warning",
+      kind: "danger",
       badgeLabel: "Armadilha",
       requiresPro: true,
     });
@@ -110,7 +110,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   if (exp.lowConfidence) {
     insights.push({
       text: `Poucos jogos registrados (${exp.gamesPlayed ?? 0}) — projeção incerta`,
-      kind: "warning",
+      kind: "attention",
     });
   }
 
@@ -129,7 +129,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
       // Threshold: ≥ 30% abaixo da média — queda expressiva
       insights.push({
         text: `Queda de forma (${shortAvg.toFixed(1)} vs ${mediumAvg.toFixed(1)} na média)`,
-        kind: "warning",
+        kind: "danger",
         badgeLabel: "Queda de forma",
       });
     }
@@ -149,7 +149,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
       // ≤ 7% abaixo de neutro — adversário forte
       insights.push({
         text: `Confronto difícil (${loc}, índice ${exp.matchupScore.toFixed(2)})`,
-        kind: "warning",
+        kind: "danger",
         badgeLabel: "Confronto difícil",
       });
     } else if (exp.isHome) {
@@ -187,7 +187,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
     // Threshold: < 15% de escalação geral — jogador diferencial
     insights.push({
       text: `Diferencial: ${Math.round((exp.popularity ?? 0) * 100)}% de escalação`,
-      kind: "info",
+      kind: "differential",
       badgeLabel: "Diferencial",
       requiresPro: true,
     });
@@ -205,7 +205,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
     // Threshold: perdeu mais de C$ 1,00 na rodada anterior
     insights.push({
       text: `Desvalorizando: C$ ${(exp.priceVariation ?? 0).toFixed(2)} na última rodada`,
-      kind: "warning",
+      kind: "danger",
     });
   }
 

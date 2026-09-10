@@ -282,7 +282,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Jogadores de campo *
                 </Label>
-                <span className={`text-xs font-mono ${fieldPlayers.length === FIELD_PLAYER_COUNT ? "text-green-400" : "text-muted-foreground"}`}>
+                <span className={`text-xs font-mono ${fieldPlayers.length === FIELD_PLAYER_COUNT ? "text-positive" : "text-muted-foreground"}`}>
                   {fieldPlayers.length}/{FIELD_PLAYER_COUNT}
                 </span>
               </div>
@@ -305,7 +305,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                       key={player.id}
                       className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${
                         captainId === player.id
-                          ? "bg-yellow-500/8 border-yellow-500/25"
+                          ? "bg-attention/8 border-attention/25"
                           : "bg-secondary/50 border-border/30"
                       }`}
                     >
@@ -316,8 +316,8 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                         onClick={() => setCaptainId((prev) => (prev === player.id ? null : player.id))}
                         className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
                           captainId === player.id
-                            ? "bg-yellow-500/20 text-yellow-400"
-                            : "bg-secondary text-muted-foreground hover:text-yellow-400"
+                            ? "bg-attention/20 text-attention"
+                            : "bg-secondary text-muted-foreground hover:text-attention"
                         }`}
                       >
                         <Crown className="w-3 h-3" />
@@ -338,7 +338,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
                       </select>
 
                       {/* Name */}
-                      <span className={`flex-1 min-w-0 text-sm truncate ${captainId === player.id ? "text-yellow-400 font-semibold" : "text-foreground"}`}>
+                      <span className={`flex-1 min-w-0 text-sm truncate ${captainId === player.id ? "text-attention font-semibold" : "text-foreground"}`}>
                         {player.nickname ?? player.name}
                       </span>
 
@@ -375,7 +375,7 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
 
             {/* ── Caption note ───────────────────────────────────────────── */}
             {fieldPlayers.length > 0 && captainId === null && (
-              <p className="text-xs text-yellow-500/80 flex items-center gap-1.5">
+              <p className="text-xs text-attention/80 flex items-center gap-1.5">
                 <Crown className="w-3 h-3 shrink-0" />
                 Clique no ícone de coroa para marcar o capitão.
               </p>
@@ -415,15 +415,15 @@ export function ManualRoundDialog({ teamId, open, onOpenChange }: Props) {
         <div className="px-6 py-4 border-t border-border/30 flex items-center justify-between gap-3">
           {/* Validation summary */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className={fieldPlayers.length === FIELD_PLAYER_COUNT ? "text-green-400" : ""}>
+            <span className={fieldPlayers.length === FIELD_PLAYER_COUNT ? "text-positive" : ""}>
               {fieldPlayers.length === FIELD_PLAYER_COUNT ? (
                 <Check className="inline w-3.5 h-3.5 mr-1" />
               ) : null}
               {fieldPlayers.length}/{FIELD_PLAYER_COUNT} jogadores
             </span>
-            <span className={captainId !== null ? "text-green-400" : ""}>
+            <span className={captainId !== null ? "text-positive" : ""}>
               {captainId !== null ? (
-                <Crown className="inline w-3.5 h-3.5 mr-1 text-yellow-400" />
+                <Crown className="inline w-3.5 h-3.5 mr-1 text-attention" />
               ) : null}
               {captainId !== null ? "Capitão ✓" : "Sem capitão"}
             </span>

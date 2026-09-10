@@ -302,7 +302,7 @@ export default function Players() {
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Mín. Val. máx. (pts)</Label>
             <div className="relative">
-              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-attention" />
               <Input 
                 type="number"
                 placeholder="ex: 5.0"
@@ -317,7 +317,7 @@ export default function Players() {
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase">Média Base mín. (pts)</Label>
             <div className="relative">
-              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+              <ArrowUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-differential" />
               <Input 
                 type="number"
                 placeholder="ex: 2.0"
@@ -345,10 +345,10 @@ export default function Players() {
                 id="valoriza" 
                 checked={valorizaOnly} 
                 onCheckedChange={(v) => { setValorizaOnly(v); setPage(0); }} 
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-positive"
               />
               <Label className="text-sm font-medium cursor-pointer flex items-center gap-1" htmlFor="valoriza">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                <Sparkles className="w-3.5 h-3.5 text-positive" />
                 Apenas Valorizando
               </Label>
             </div>
@@ -362,11 +362,11 @@ export default function Players() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Diferencial da rodada */}
           {topDiferencial && (
-            <div className="bg-card border border-emerald-500/20 rounded-2xl p-4 shadow-lg shadow-black/5">
+            <div className="bg-card border border-positive/20 rounded-2xl p-4 shadow-lg shadow-black/5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Diferencial da rodada</span>
+                  <Zap className="w-3.5 h-3.5 text-positive" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-positive">Diferencial da rodada</span>
                 </div>
                 <Button
                   size="sm"
@@ -402,11 +402,11 @@ export default function Players() {
 
           {/* Armadilha da rodada */}
           {topArmadilha && (
-            <div className="bg-card border border-yellow-500/20 rounded-2xl p-4 shadow-lg shadow-black/5">
+            <div className="bg-card border border-attention/20 rounded-2xl p-4 shadow-lg shadow-black/5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Armadilha da rodada</span>
+                  <AlertTriangle className="w-3.5 h-3.5 text-attention" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-attention">Armadilha da rodada</span>
                 </div>
                 <Button
                   size="sm"
@@ -430,7 +430,7 @@ export default function Players() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-yellow-400 font-mono">
+                  <p className="text-lg font-bold text-attention font-mono">
                     {(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%
                   </p>
                   <p className="text-[10px] text-muted-foreground">escalação</p>
@@ -452,28 +452,28 @@ export default function Players() {
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
                       {topDiferencial.nickname ?? topDiferencial.name}
                     </div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                    <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))" }}>
                       {topDiferencial.position} · {topDiferencial.club?.abbreviation ?? "—"} · C$ {(topDiferencial.price ?? 0).toFixed(1)}
                     </div>
                   </div>
                 </div>
-                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid #10b981" }}>
-                  <div style={{ fontSize: "10px", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid hsl(var(--positive))" }}>
+                  <div style={{ fontSize: "10px", color: "hsl(var(--positive))", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
                     Baixa escalação · Alto potencial
                   </div>
-                  <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
                     Jogador com alta probabilidade de superar a média com pouca exposição nas escalações.
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                   {[
-                    { label: "Projeção", value: `${(topDiferencial.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "#10b981" },
-                    { label: "Teto",     value: `${(topDiferencial.projection?.ceilingPoints ?? 0).toFixed(1)} pts`,  color: "#60a5fa" },
+                    { label: "Projeção", value: `${(topDiferencial.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "hsl(var(--positive))" },
+                    { label: "Teto",     value: `${(topDiferencial.projection?.ceilingPoints ?? 0).toFixed(1)} pts`,  color: "hsl(var(--differential))" },
                     { label: "Score",    value: `${(topDiferencial.projection?.recommendationScore ?? 0).toFixed(0)}`,  color: "#a855f7" },
                   ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: "#1e293b", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                    <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
                       <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "#64748b", marginTop: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
                     </div>
                   ))}
                 </div>
@@ -492,28 +492,28 @@ export default function Players() {
                     <div style={{ fontWeight: 700, fontSize: "18px", color: "#f1f5f9" }}>
                       {topArmadilha.nickname ?? topArmadilha.name}
                     </div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>
+                    <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))" }}>
                       {topArmadilha.position} · {topArmadilha.club?.abbreviation ?? "—"} · C$ {(topArmadilha.price ?? 0).toFixed(1)}
                     </div>
                   </div>
                 </div>
-                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid #eab308" }}>
-                  <div style={{ fontSize: "10px", color: "#fbbf24", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px", borderLeft: "3px solid hsl(var(--attention))" }}>
+                  <div style={{ fontSize: "10px", color: "hsl(var(--attention))", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
                     Alta escalação · Alto risco
                   </div>
-                  <div style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", lineHeight: 1.5 }}>
                     Jogador amplamente escalado com risco elevado de decepcionar na rodada.
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                   {[
-                    { label: "Escalação", value: `${(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%`, color: "#eab308" },
-                    { label: "Projeção",  value: `${(topArmadilha.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "#f87171" },
-                    { label: "Risco",     value: `${((topArmadilha.projection?.riskScore ?? 0) * 100).toFixed(0)}%`,     color: "#f87171" },
+                    { label: "Escalação", value: `${(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%`, color: "hsl(var(--attention))" },
+                    { label: "Projeção",  value: `${(topArmadilha.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "hsl(var(--danger))" },
+                    { label: "Risco",     value: `${((topArmadilha.projection?.riskScore ?? 0) * 100).toFixed(0)}%`,     color: "hsl(var(--danger))" },
                   ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: "#1e293b", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                    <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
                       <div style={{ fontSize: "16px", fontWeight: 800, color }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "#64748b", marginTop: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "3px" }}>{label}</div>
                     </div>
                   ))}
                 </div>
@@ -587,7 +587,7 @@ export default function Players() {
                           }}
                           badges={getTopBadges((player.projection?.explanationJson ?? {}) as ExplanationJson)}
                         >
-                          {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
+                          {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-attention shrink-0" />}
                           <PlayerExplanationSheet
                             exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
                             playerName={player.nickname ?? player.name ?? ""}
@@ -607,7 +607,7 @@ export default function Players() {
                           <span>C$ {player.price?.toFixed(2) ?? '-'}</span>
                           {player.priceVariation != null && player.priceVariation !== 0 && (
                             <span className={`flex items-center gap-0.5 text-[10px] font-bold ${
-                              player.priceVariation > 0 ? 'text-green-500' : 'text-red-500'
+                              player.priceVariation > 0 ? 'text-positive' : 'text-danger'
                             }`}>
                               {player.priceVariation > 0
                                 ? <TrendingUp className="w-3 h-3" />
@@ -622,12 +622,12 @@ export default function Players() {
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm" title="Mínimo para valorizar: pontuação mínima para aumentar de preço">
                         {player.minimoParaValorizar != null
-                          ? <span className="text-amber-500 font-semibold">↑{player.minimoParaValorizar.toFixed(1)}</span>
+                          ? <span className="text-attention font-semibold">↑{player.minimoParaValorizar.toFixed(1)}</span>
                           : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm" title="Média base: pontuação sem contar Gols, Assistências e SG">
                         {player.baseAverage != null
-                          ? <span className="text-blue-400">{player.baseAverage.toFixed(1)}</span>
+                          ? <span className="text-differential">{player.baseAverage.toFixed(1)}</span>
                           : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       <TableCell className="text-right">
@@ -649,9 +649,9 @@ export default function Players() {
                         <ProGate variant="inline">
                           {riskScore !== null ? (
                             <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                              riskScore < 0.3 ? 'bg-green-500/10 text-green-500' :
-                              riskScore < 0.6 ? 'bg-yellow-500/10 text-yellow-500' :
-                              'bg-red-500/10 text-red-500'
+                              riskScore < 0.3 ? 'bg-positive/10 text-positive' :
+                              riskScore < 0.6 ? 'bg-attention/10 text-attention' :
+                              'bg-danger/10 text-danger'
                             }`}>
                               {riskScore.toFixed(2)}
                             </div>
@@ -662,9 +662,9 @@ export default function Players() {
                         <ProGate variant="inline">
                           {prob !== null ? (
                             <div className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${
-                              prob >= 0.7 ? 'bg-green-500/10 text-green-500' :
-                              prob >= 0.4 ? 'bg-yellow-500/10 text-yellow-500' :
-                              'bg-red-500/10 text-red-500'
+                              prob >= 0.7 ? 'bg-positive/10 text-positive' :
+                              prob >= 0.4 ? 'bg-attention/10 text-attention' :
+                              'bg-danger/10 text-danger'
                             }`}>
                               {(prob * 100).toFixed(0)}%
                             </div>
@@ -681,7 +681,7 @@ export default function Players() {
                           const diff = exp - min;
                           if (diff >= 0) {
                             return (
-                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" title={`Projeção supera o mínimo por ${diff.toFixed(1)} pts`}>
+                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-positive/10 text-positive border border-positive/20" title={`Projeção supera o mínimo por ${diff.toFixed(1)} pts`}>
                                 <Sparkles className="w-3 h-3" />
                                 +{diff.toFixed(1)}
                               </div>

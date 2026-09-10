@@ -78,10 +78,10 @@ function FormStrip({ form }: { form: string[] | null }) {
       {form.slice(0, 5).map((result, i) => {
         const dotStyle =
           result === "v"
-            ? "bg-green-500 border-green-600"
+            ? "bg-positive border-positive"
             : result === "e"
-            ? "bg-yellow-500 border-yellow-600"
-            : "bg-red-500 border-red-600";
+            ? "bg-attention border-attention"
+            : "bg-danger border-danger";
         const title = result === "v" ? "Vitória" : result === "e" ? "Empate" : "Derrota";
         return (
           <span
@@ -97,9 +97,9 @@ function FormStrip({ form }: { form: string[] | null }) {
 
 function DifficultyBadge({ level }: { level: "fácil" | "médio" | "difícil" }) {
   const config = {
-    fácil: { className: "bg-green-500/15 text-green-500 border-green-500/30", icon: TrendingUp },
-    médio: { className: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30", icon: Minus },
-    difícil: { className: "bg-red-500/15 text-red-500 border-red-500/30", icon: TrendingDown },
+    fácil: { className: "bg-positive/15 text-positive border-positive/30", icon: TrendingUp },
+    médio: { className: "bg-attention/15 text-attention border-attention/30", icon: Minus },
+    difícil: { className: "bg-danger/15 text-danger border-danger/30", icon: TrendingDown },
   };
   const { className, icon: Icon } = config[level];
   return (
@@ -166,8 +166,8 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             </div>
             {c.homeStats && (
               <div className="space-y-2">
-                <StrengthBar value={c.homeStats.offensiveStrength} label="Ataque" color="bg-red-500" />
-                <StrengthBar value={c.homeStats.defensiveStrength} label="Defesa" color="bg-blue-500" />
+                <StrengthBar value={c.homeStats.offensiveStrength} label="Ataque" color="bg-danger" />
+                <StrengthBar value={c.homeStats.defensiveStrength} label="Defesa" color="bg-differential" />
                 <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
                   <span>{c.homeStats.avgGoalsScored.toFixed(1)} gols/jogo</span>
                   <span>{c.homeStats.avgGoalsConceded.toFixed(1)} sofridos</span>
@@ -190,7 +190,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               <p className="text-[10px] text-muted-foreground">
                 {c.xgSource === "xg_article" ? (
                   <span className="inline-flex items-center gap-0.5">
-                    <Zap className="w-2.5 h-2.5 text-yellow-400" />
+                    <Zap className="w-2.5 h-2.5 text-attention" />
                     xG esperado
                   </span>
                 ) : "Expectativa de gols"}
@@ -215,8 +215,8 @@ function ConfrontoCard({ c }: { c: Confronto }) {
             </div>
             {c.awayStats && (
               <div className="space-y-2">
-                <StrengthBar value={c.awayStats.offensiveStrength} label="Ataque" color="bg-red-500" />
-                <StrengthBar value={c.awayStats.defensiveStrength} label="Defesa" color="bg-blue-500" />
+                <StrengthBar value={c.awayStats.offensiveStrength} label="Ataque" color="bg-danger" />
+                <StrengthBar value={c.awayStats.defensiveStrength} label="Defesa" color="bg-differential" />
                 <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
                   <span>{c.awayStats.avgGoalsScored.toFixed(1)} gols/jogo</span>
                   <span>{c.awayStats.avgGoalsConceded.toFixed(1)} sofridos</span>
@@ -239,7 +239,7 @@ function ConfrontoCard({ c }: { c: Confronto }) {
               <p className="text-[10px] text-muted-foreground">
                 {c.xgSource === "xg_article" ? (
                   <span className="inline-flex items-center gap-0.5">
-                    <Zap className="w-2.5 h-2.5 text-yellow-400" />
+                    <Zap className="w-2.5 h-2.5 text-attention" />
                     xG esperado
                   </span>
                 ) : "Expectativa de gols"}
@@ -290,10 +290,10 @@ export default function Confrontos() {
           <div className="flex gap-3">
             <Card className="bg-card border-border/50">
               <CardContent className="p-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
+                <TrendingUp className="w-4 h-4 text-positive" />
                 <div>
                   <p className="text-[10px] text-muted-foreground">Favoráveis</p>
-                  <p className="text-xl font-bold font-mono text-green-500">{easyMatches}</p>
+                  <p className="text-xl font-bold font-mono text-positive">{easyMatches}</p>
                 </div>
               </CardContent>
             </Card>
@@ -336,24 +336,24 @@ export default function Confrontos() {
         <>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground bg-card border border-border/50 rounded-2xl p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              <span><span className="font-semibold text-green-500">Fácil</span> — adversário fraco</span>
+              <TrendingUp className="w-4 h-4 text-positive" />
+              <span><span className="font-semibold text-positive">Fácil</span> — adversário fraco</span>
             </div>
             <div className="flex items-center gap-2">
-              <Minus className="w-4 h-4 text-yellow-500" />
-              <span><span className="font-semibold text-yellow-500">Médio</span> — confronto equilibrado</span>
+              <Minus className="w-4 h-4 text-attention" />
+              <span><span className="font-semibold text-attention">Médio</span> — confronto equilibrado</span>
             </div>
             <div className="flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-red-500" />
-              <span><span className="font-semibold text-red-500">Difícil</span> — adversário forte</span>
+              <TrendingDown className="w-4 h-4 text-danger" />
+              <span><span className="font-semibold text-danger">Difícil</span> — adversário forte</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex gap-0.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 border border-green-600" />
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-600" />
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 border border-red-600" />
+                <span className="w-2.5 h-2.5 rounded-full bg-positive border border-positive" />
+                <span className="w-2.5 h-2.5 rounded-full bg-attention border border-attention" />
+                <span className="w-2.5 h-2.5 rounded-full bg-danger border border-danger" />
               </div>
-              <span>Forma: <span className="text-green-500">V</span> / <span className="text-yellow-500">E</span> / <span className="text-red-500">D</span> (últimos 5 jogos)</span>
+              <span>Forma: <span className="text-positive">V</span> / <span className="text-attention">E</span> / <span className="text-danger">D</span> (últimos 5 jogos)</span>
             </div>
           </div>
 

@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProGate } from "@/components/ProGate";
+import { ProBadge } from "@/components/ProBadge";
 import { useAuth } from "@/hooks/useAuth";
 import type { LineupSuggestion } from "@workspace/api-client-react";
 
@@ -346,7 +347,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
             </span>
             <span className="flex items-center gap-1.5">
               <span
-                className="w-5 inline-block border-t border-dashed border-amber-400"
+                className="w-5 inline-block border-t border-dashed border-attention"
                 style={{ verticalAlign: "middle" }}
               />
               Meta
@@ -369,14 +370,14 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                   dataKey="midpoint"
                   type="number"
                   domain={[domainMin, domainMax]}
-                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   tickFormatter={(v: number) => String(Math.round(v))}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: "#64748b" }}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
                   tickLine={false}
                   axisLine={false}
@@ -384,20 +385,20 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                 />
                 <Tooltip
                   content={<HistTooltip />}
-                  cursor={{ fill: "rgba(16,185,129,0.07)" }}
+                  cursor={{ fill: "hsl(var(--positive) / 0.07)" }}
                 />
 
                 {/* Reference line: team mean */}
                 <ReferenceLine
                   x={sim.mean}
-                  stroke="#10b981"
+                  stroke="hsl(var(--positive))"
                   strokeDasharray="4 3"
                   strokeWidth={1.5}
                   label={{
                     value: `Méd. ${fmt1(sim.mean)}`,
                     position: "insideTopRight",
                     fontSize: 9,
-                    fill: "#10b981",
+                    fill: "hsl(var(--positive))",
                     dy: -4,
                   }}
                 />
@@ -405,14 +406,14 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                 {/* Reference line: target */}
                 <ReferenceLine
                   x={DEFAULT_TARGET}
-                  stroke="#f59e0b"
+                  stroke="hsl(var(--attention))"
                   strokeDasharray="4 3"
                   strokeWidth={1.5}
                   label={{
                     value: `Meta ${DEFAULT_TARGET}`,
                     position: "insideTopLeft",
                     fontSize: 9,
-                    fill: "#f59e0b",
+                    fill: "hsl(var(--attention))",
                     dy: -4,
                   }}
                 />
@@ -423,8 +424,8 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                       key={idx}
                       fill={
                         entry.aboveTarget
-                          ? "#10b981"
-                          : "rgba(16,185,129,0.22)"
+                          ? "hsl(var(--positive))"
+                          : "hsl(var(--positive) / 0.22)"
                       }
                     />
                   ))}
@@ -468,7 +469,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
                   prob >= 0.5
                     ? "text-primary"
                     : prob >= 0.25
-                      ? "text-yellow-500"
+                      ? "text-attention"
                       : "text-muted-foreground/50";
                 return (
                   <div key={t} className="flex items-center gap-2 text-xs">
@@ -487,7 +488,7 @@ function LineupProbabilitiesInner({ lineup }: { lineup: LineupSuggestion }) {
 
           {/* ── Disclaimer ──────────────────────────────────────────────────── */}
           <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/30 border border-border/30 text-[10px] text-muted-foreground/70 leading-relaxed">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-yellow-600/60" />
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-attention/60" />
             <span>
               <strong className="text-muted-foreground">Estimativas do modelo, não garantias.</strong>{" "}
               {sim.disclaimer}
@@ -508,9 +509,7 @@ export function LineupProbabilities({ lineup }: { lineup: LineupSuggestion }) {
         <CardTitle className="text-lg flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-primary" />
           Probabilidades
-          <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border border-primary/30 ml-0.5 font-bold uppercase tracking-wide">
-            Pro
-          </Badge>
+          <ProBadge className="ml-0.5" />
         </CardTitle>
       </CardHeader>
       <CardContent className="p-5">

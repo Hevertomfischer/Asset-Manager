@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrendingUp, TrendingDown, Crown, Star, AlertTriangle } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
-import { getPositionColor } from "@/hooks/use-custom-api";
+import { getPositionColor } from "@/lib/positionColors";
 import type { InsightKind } from "@/lib/explainPlayer";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 
@@ -36,10 +36,11 @@ import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 // Única fonte de verdade para os chips de insight — importada pelas páginas.
 
 export const CHIP_CLASS: Record<InsightKind, string> = {
-  positive: "bg-green-500/10 text-green-500 border-green-500/20",
-  warning:  "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  info:     "bg-blue-400/10 text-blue-400 border-blue-400/20",
-  neutral:  "bg-secondary text-muted-foreground border-border/50",
+  positive: "bg-positive/10 text-positive border-positive/20",
+  attention: "bg-attention/10 text-attention border-attention/20",
+  danger: "bg-danger/10 text-danger border-danger/20",
+  differential: "bg-differential/10 text-differential border-differential/20",
+  neutral: "bg-secondary text-muted-foreground border-border/50",
 };
 
 // ── PlayerBadge type ───────────────────────────────────────────────────────────
@@ -261,12 +262,12 @@ export function PlayerCard({
         <div
           className={`relative rounded-full p-0.5 border-2 bg-black/40 backdrop-blur-md transition-transform duration-300 group-hover:scale-110 ${
             isCaptain
-              ? "border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.6)]"
+              ? "border-attention shadow-[0_0_15px_hsl(var(--attention)/0.6)]"
               : "border-white/20"
           }`}
         >
           {isCaptain && (
-            <div className="absolute -top-2 -right-2 bg-yellow-400 text-black w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold z-20">
+            <div className="absolute -top-2 -right-2 bg-attention text-attention-foreground w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold z-20">
               C
             </div>
           )}
@@ -314,7 +315,7 @@ export function PlayerCard({
               {displayName}
             </p>
             {playProbability != null && playProbability < 0.5 && (
-              <AlertTriangle className="w-3 h-3 text-yellow-500 shrink-0" />
+              <AlertTriangle className="w-3 h-3 text-attention shrink-0" />
             )}
           </div>
           <p className="text-[10px] text-muted-foreground">
@@ -373,7 +374,7 @@ export function PlayerCard({
       <>
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 min-w-0">
-            {isCaptain && <Crown className="w-4 h-4 text-yellow-500 shrink-0" />}
+            {isCaptain && <Crown className="w-4 h-4 text-attention shrink-0" />}
             {isCoach && !isCaptain && <Star className="w-4 h-4 text-primary shrink-0" />}
             <div className="min-w-0">
               <p className="font-bold text-sm text-foreground truncate">{displayName}</p>
@@ -482,7 +483,7 @@ export function PlayerCard({
               {player.priceVariation != null && player.priceVariation !== 0 && (
                 <span
                   className={`flex items-center gap-0.5 text-[10px] font-bold ${
-                    player.priceVariation > 0 ? "text-green-500" : "text-red-500"
+                    player.priceVariation > 0 ? "text-positive" : "text-danger"
                   }`}
                 >
                   {player.priceVariation > 0 ? (

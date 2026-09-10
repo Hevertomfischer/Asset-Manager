@@ -30,7 +30,7 @@ vi.mock("@/components/ProGate", () => ({
 vi.mock("@/hooks/use-custom-api", () => ({
   getPositionColor: (pos: string) =>
     pos === "ATA"
-      ? "text-red-400 border-red-400/30 bg-red-400/10"
+      ? "text-danger border-danger/30 bg-danger/10"
       : "text-muted-foreground",
 }));
 
@@ -152,7 +152,7 @@ describe("PlayerCard variant=pitch", () => {
       <PlayerCard variant="pitch" player={basePlayer} isCaptain />
     );
     expect(screen.getByText("C")).toBeInTheDocument();
-    expect(container.querySelector(".border-yellow-400")).toBeTruthy();
+    expect(container.querySelector(".border-attention")).toBeTruthy();
   });
 
   it("sem isCaptain não exibe badge 'C'", () => {
@@ -194,14 +194,14 @@ describe("PlayerCard variant=swap", () => {
     const { container } = render(
       wrap(<PlayerCard variant="swap" player={basePlayer} playProbability={0.3} />)
     );
-    expect(container.querySelector(".text-yellow-500")).toBeTruthy();
+    expect(container.querySelector(".text-attention")).toBeTruthy();
   });
 
   it("AlertTriangle ausente quando prob >= 0.5", () => {
     const { container } = render(
       wrap(<PlayerCard variant="swap" player={basePlayer} playProbability={0.6} />)
     );
-    expect(container.querySelector(".text-yellow-500")).toBeNull();
+    expect(container.querySelector(".text-attention")).toBeNull();
   });
 
   it("Avatar usa fallback quando sem badgeUrl", () => {
@@ -264,11 +264,11 @@ describe("PlayerCard variant=lineup", () => {
     expect(screen.getByText("9.2 pts")).toBeInTheDocument();
   });
 
-  it("isCaptain=true exibe ícone Crown (text-yellow-500)", () => {
+  it("isCaptain=true exibe ícone Crown (text-attention)", () => {
     const { container } = render(
       wrap(<PlayerCard variant="lineup" player={basePlayer} isCaptain />)
     );
-    expect(container.querySelector(".text-yellow-500")).toBeTruthy();
+    expect(container.querySelector(".text-attention")).toBeTruthy();
   });
 
   it("isCoach=true exibe ícone Star (text-primary)", () => {
@@ -284,7 +284,7 @@ describe("PlayerCard variant=lineup", () => {
     const { container } = render(
       wrap(<PlayerCard variant="lineup" player={basePlayer} isCaptain isCoach />)
     );
-    const yellows = container.querySelectorAll(".text-yellow-500");
+    const yellows = container.querySelectorAll(".text-attention");
     expect(yellows.length).toBeGreaterThan(0);
   });
 });
@@ -389,7 +389,7 @@ describe("PlayerBadges", () => {
       <PlayerBadges
         badges={[
           { label: "Bom momento", kind: "positive" },
-          { label: "Risco", kind: "warning" },
+          { label: "Risco", kind: "danger" },
         ]}
       />
     );

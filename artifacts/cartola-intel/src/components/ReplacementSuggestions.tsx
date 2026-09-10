@@ -106,7 +106,7 @@ export function ReplacementSuggestions({
                   </span>
                   <span className="text-right shrink-0">
                     <span className="block font-mono text-xs font-bold text-primary">{expectedPoints.toFixed(1)}</span>
-                    <span className={`block text-[10px] font-semibold ${positiveDelta ? "text-emerald-500" : "text-red-400"}`}>
+                    <span className={`block text-[10px] font-semibold ${positiveDelta ? "text-positive" : "text-danger"}`}>
                       {positiveDelta ? "+" : ""}{deltaExpectedPoints.toFixed(1)} pts
                     </span>
                   </span>

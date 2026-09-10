@@ -141,15 +141,15 @@ function StatCard({
 }) {
   const colorMap = {
     default: "text-foreground border-border/50",
-    good: "text-emerald-400 border-emerald-500/30",
-    warn: "text-yellow-400 border-yellow-500/30",
-    info: "text-blue-400 border-blue-500/30",
+    good: "text-positive border-positive/30",
+    warn: "text-attention border-attention/30",
+    info: "text-differential border-differential/30",
   };
   const iconMap = {
     default: "text-muted-foreground",
-    good: "text-emerald-400",
-    warn: "text-yellow-400",
-    info: "text-blue-400",
+    good: "text-positive",
+    warn: "text-attention",
+    info: "text-differential",
   };
 
   return (
@@ -421,30 +421,30 @@ export default function Desempenho() {
                           />
                           <XAxis
                             dataKey="round"
-                            tick={{ fontSize: 11, fill: "#64748b" }}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                             tickLine={false}
                             axisLine={false}
-                            label={{ value: "Rodada", position: "insideBottom", dy: 12, fontSize: 10, fill: "#64748b" }}
+                            label={{ value: "Rodada", position: "insideBottom", dy: 12, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                           />
                           <YAxis
-                            tick={{ fontSize: 11, fill: "#64748b" }}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                             tickLine={false}
                             axisLine={false}
                             tickFormatter={(v: number) => `${v}`}
                             width={36}
                           />
-                          <Tooltip content={<MaeTooltip />} cursor={{ fill: "rgba(16,185,129,0.06)" }} />
+                          <Tooltip content={<MaeTooltip />} cursor={{ fill: "hsl(var(--positive) / 0.06)" }} />
                           {seasonMae !== null && (
                             <ReferenceLine
                               y={seasonMae}
-                              stroke="#10b981"
+                              stroke="hsl(var(--positive))"
                               strokeDasharray="5 3"
                               strokeWidth={1.5}
                               label={{
                                 value: `Média ${seasonMae}`,
                                 position: "insideTopRight",
                                 fontSize: 10,
-                                fill: "#10b981",
+                                fill: "hsl(var(--positive))",
                                 dy: -4,
                               }}
                             />
@@ -453,10 +453,10 @@ export default function Desempenho() {
                             type="monotone"
                             dataKey="mae"
                             name="MAE"
-                            stroke="#10b981"
+                            stroke="hsl(var(--positive))"
                             strokeWidth={2}
-                            dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
-                            activeDot={{ r: 6, fill: "#10b981" }}
+                            dot={{ r: 4, fill: "hsl(var(--positive))", strokeWidth: 0 }}
+                            activeDot={{ r: 6, fill: "hsl(var(--positive))" }}
                           />
                         </ComposedChart>
                       </ResponsiveContainer>
@@ -480,9 +480,9 @@ export default function Desempenho() {
                   <p className="text-sm text-muted-foreground mt-1">
                     Jogadores divididos em 4 faixas por projeção. Um modelo calibrado tem
                     barras de{" "}
-                    <span className="text-emerald-400 font-semibold">pontuação real</span>{" "}
+                    <span className="text-positive font-semibold">pontuação real</span>{" "}
                     mais altas onde a{" "}
-                    <span className="text-blue-400 font-semibold">projeção</span> também é maior.
+                    <span className="text-differential font-semibold">projeção</span> também é maior.
                   </p>
                 </CardHeader>
                 <CardContent className="p-6">
@@ -503,12 +503,12 @@ export default function Desempenho() {
                           />
                           <XAxis
                             dataKey="shortLabel"
-                            tick={{ fontSize: 11, fill: "#64748b" }}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                             tickLine={false}
                             axisLine={false}
                           />
                           <YAxis
-                            tick={{ fontSize: 11, fill: "#64748b" }}
+                            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                             tickLine={false}
                             axisLine={false}
                             width={36}
@@ -517,21 +517,21 @@ export default function Desempenho() {
                           <Legend
                             iconType="circle"
                             iconSize={8}
-                            wrapperStyle={{ fontSize: 11, color: "#94a3b8", paddingTop: 12 }}
+                            wrapperStyle={{ fontSize: 11, color: "hsl(var(--muted-foreground))", paddingTop: 12 }}
                           />
                           <Bar
                             dataKey="avgProjected"
                             name="Projeção média"
-                            fill="rgba(96,165,250,0.5)"
-                            stroke="rgba(96,165,250,0.8)"
+                            fill="hsl(var(--differential) / 0.5)"
+                            stroke="hsl(var(--differential) / 0.8)"
                             strokeWidth={1}
                             radius={[4, 4, 0, 0]}
                           />
                           <Bar
                             dataKey="avgActual"
                             name="Pontuação real média"
-                            fill="rgba(16,185,129,0.6)"
-                            stroke="rgba(16,185,129,0.9)"
+                            fill="hsl(var(--positive) / 0.6)"
+                            stroke="hsl(var(--positive) / 0.9)"
                             strokeWidth={1}
                             radius={[4, 4, 0, 0]}
                           />
@@ -550,7 +550,7 @@ export default function Desempenho() {
             <section className="grid md:grid-cols-2 gap-6">
               <Card className="bg-card/60 border-border/40 rounded-2xl p-6 space-y-4">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  <AlertTriangle className="w-5 h-5 text-attention" />
                   <h2 className="font-display font-bold text-lg text-foreground">
                     Por que mostramos os erros?
                   </h2>
@@ -592,7 +592,7 @@ export default function Desempenho() {
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-positive shrink-0 mt-0.5" />
                     <span>
                       <strong className="text-foreground">Acerto de diferencial</strong> — dos
                       jogadores que mais recomendamos (top quartil), quantos efetivamente pontuaram
@@ -600,7 +600,7 @@ export default function Desempenho() {
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <XCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
                     <span>
                       <strong className="text-foreground">Taxa de armadilha</strong> — dos mais
                       recomendados, quantos decepcionaram com menos de 50% da pontuação projetada.
@@ -612,7 +612,7 @@ export default function Desempenho() {
 
             {/* ── Disclaimer técnico ──────────────────────────────────────────── */}
             <div className="flex items-start gap-2 text-[11px] text-muted-foreground/60 leading-relaxed max-w-3xl mx-auto">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-yellow-600/50" />
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-attention/50" />
               <span>{data.meta.disclaimer}</span>
             </div>
 
@@ -621,14 +621,14 @@ export default function Desempenho() {
 
               {/* MAE hero */}
               <div style={{ padding: "20px 20px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: "8px" }}>
+                <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: "8px" }}>
                   Erro Médio da Temporada (MAE)
                 </div>
-                <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: data.season.mae <= 3 ? "#10b981" : data.season.mae <= 5 ? "#eab308" : "#f87171" }}>
+                <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: data.season.mae <= 3 ? "hsl(var(--positive))" : data.season.mae <= 5 ? "hsl(var(--attention))" : "hsl(var(--danger))" }}>
                   {data.season.mae}
-                  <span style={{ fontSize: "18px", marginLeft: "4px", color: "#64748b", fontWeight: 500 }}>pts</span>
+                  <span style={{ fontSize: "18px", marginLeft: "4px", color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>pts</span>
                 </div>
-                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "6px" }}>
+                <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", marginTop: "6px" }}>
                   diferença média entre projeção e pontuação real
                 </div>
               </div>
@@ -636,20 +636,20 @@ export default function Desempenho() {
               {/* Stat grid */}
               <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                 {[
-                  { label: "Rodadas analisadas",   value: String(data.season.totalRounds),       color: "#60a5fa" },
-                  { label: "Acerto diferencial",    value: `${data.differentials.hitRate}%`,       color: "#10b981" },
-                  { label: "Taxa de armadilha",     value: `${data.traps.rate}%`,                  color: "#f87171" },
+                  { label: "Rodadas analisadas",   value: String(data.season.totalRounds),       color: "hsl(var(--differential))" },
+                  { label: "Acerto diferencial",    value: `${data.differentials.hitRate}%`,       color: "hsl(var(--positive))" },
+                  { label: "Taxa de armadilha",     value: `${data.traps.rate}%`,                  color: "hsl(var(--danger))" },
                 ].map(({ label, value, color }) => (
-                  <div key={label} style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                  <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
                     <div style={{ fontSize: "22px", fontWeight: 800, color }}>{value}</div>
-                    <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", lineHeight: 1.3 }}>{label}</div>
+                    <div style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", marginTop: "4px", lineHeight: 1.3 }}>{label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Quote */}
-              <div style={{ margin: "0 20px 14px", padding: "11px 14px", background: "#1e293b", borderRadius: "10px", borderLeft: "3px solid #10b981" }}>
-                <p style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic", lineHeight: 1.5, margin: 0 }}>
+              <div style={{ margin: "0 20px 14px", padding: "11px 14px", background: "hsl(var(--card))", borderRadius: "10px", borderLeft: "3px solid hsl(var(--positive))" }}>
+                <p style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))", fontStyle: "italic", lineHeight: 1.5, margin: 0 }}>
                   "Todo modelo erra. Aqui você vê exatamente quanto e quando o nosso erra — sem filtros, sem cherry-picking."
                 </p>
               </div>

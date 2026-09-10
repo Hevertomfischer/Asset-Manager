@@ -128,10 +128,10 @@ function TierCard({
     tier.totalRisk < 3 ? "Baixo" : tier.totalRisk < 6 ? "Médio" : "Alto";
   const riskColor =
     tier.totalRisk < 3
-      ? "text-green-400"
+      ? "text-positive"
       : tier.totalRisk < 6
-        ? "text-yellow-400"
-        : "text-red-400";
+        ? "text-attention"
+        : "text-danger";
 
   const visiblePlayers = isExpanded ? fieldPlayers : fieldPlayers.slice(0, 3);
 
@@ -185,10 +185,10 @@ function TierCard({
 
         {/* Captain */}
         {captain && (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-            <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-attention/10 border border-attention/20">
+            <Crown className="w-3.5 h-3.5 text-attention shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-yellow-500 truncate">{captain.nickname ?? captain.name}</p>
+              <p className="text-xs font-bold text-attention truncate">{captain.nickname ?? captain.name}</p>
               <p className="text-[10px] text-muted-foreground">
                 {captain.position} · {captain.expectedPoints.toFixed(1)} pts
               </p>

@@ -5,6 +5,7 @@ import { LogOut, Mail, User, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ProBadge } from "@/components/ProBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -122,7 +123,7 @@ export default function Conta() {
               </p>
             </div>
             {user.isPro ? (
-              <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">Pro</Badge>
+              <ProBadge />
             ) : (
               <Badge variant="secondary">Gratuito</Badge>
             )}

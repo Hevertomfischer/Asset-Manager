@@ -29,7 +29,7 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
           left: "-9999px",
           top: 0,
           width: `${width}px`,
-          backgroundColor: "#0f172a",
+          backgroundColor: "hsl(var(--card))",
           color: "#f1f5f9",
           fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           borderRadius: "16px",
@@ -39,7 +39,7 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
         {/* ── Header com logo ── */}
         <div
           style={{
-            background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
+            background: "linear-gradient(135deg, hsl(var(--positive) / 0.35) 0%, hsl(var(--positive) / 0.5) 100%)",
             padding: "14px 20px",
             display: "flex",
             alignItems: "center",
@@ -49,7 +49,7 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div
               style={{
-                background: "#10b981",
+                background: "hsl(var(--positive))",
                 borderRadius: "8px",
                 width: "26px",
                 height: "26px",
@@ -58,17 +58,17 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
                 justifyContent: "center",
               }}
             >
-              <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "13px" }}>M</span>
+              <span style={{ color: "hsl(var(--card))", fontWeight: 900, fontSize: "13px" }}>M</span>
             </div>
             <span style={{ fontSize: "17px", fontWeight: 700, color: "#f1f5f9" }}>
-              Mito<span style={{ color: "#10b981" }}>metro</span>
+              Mito<span style={{ color: "hsl(var(--positive))" }}>metro</span>
             </span>
           </div>
           <div style={{ textAlign: "right" }}>
             <div
               style={{
                 fontSize: "10px",
-                color: "#34d399",
+                color: "hsl(var(--positive))",
                 fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
@@ -76,7 +76,7 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
             >
               {subtitle}
             </div>
-            <div style={{ fontSize: "9px", color: "#6ee7b7", marginTop: "2px" }}>
+            <div style={{ fontSize: "9px", color: "hsl(var(--positive) / 0.8)", marginTop: "2px" }}>
               Cartola FC Intelligence
             </div>
           </div>
@@ -89,16 +89,16 @@ export const ShareCardFrame = forwardRef<HTMLDivElement, Props>(
         <div
           style={{
             padding: "9px 20px",
-            background: "#080e1a",
+            background: "hsl(var(--card))",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>
+          <span style={{ fontSize: "11px", color: "hsl(var(--positive))", fontWeight: 600 }}>
             mitometro.com.br
           </span>
-          <span style={{ fontSize: "9px", color: "#334155" }}>Cartola FC · Temporada 2025</span>
+          <span style={{ fontSize: "9px", color: "hsl(var(--border))" }}>Cartola FC · Temporada 2025</span>
         </div>
       </div>
     );

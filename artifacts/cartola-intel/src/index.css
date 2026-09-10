@@ -11,6 +11,14 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-positive: hsl(var(--positive));
+  --color-positive-foreground: hsl(var(--positive-foreground));
+  --color-attention: hsl(var(--attention));
+  --color-attention-foreground: hsl(var(--attention-foreground));
+  --color-danger: hsl(var(--danger));
+  --color-danger-foreground: hsl(var(--danger-foreground));
+  --color-differential: hsl(var(--differential));
+  --color-differential-foreground: hsl(var(--differential-foreground));
 
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
@@ -76,39 +84,47 @@
   --elevate-2: rgba(255,255,255, .09);
 
   /* Deep Professional Dark Theme */
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
+  --background: 221.5385 48.1481% 5.2941%;
+  --foreground: 212.7273 31.4286% 93.1373%;
 
-  --border: 216 34% 17%;
-  --input: 216 34% 17%;
-  --ring: 152 76% 36%;
+  --border: 216.7742 33.3333% 18.2353%;
+  --input: 216.7742 33.3333% 18.2353%;
+  --ring: 147.5 60.5042% 46.6667%;
 
-  --card: 222 47% 11%;
-  --card-foreground: 213 31% 91%;
-  --card-border: 216 34% 17%;
+  --card: 220.9091 44% 9.8039%;
+  --card-foreground: 212.7273 31.4286% 93.1373%;
+  --card-border: 216.7742 33.3333% 18.2353%;
 
-  --sidebar: 224 71% 4%;
-  --sidebar-foreground: 213 31% 91%;
-  --sidebar-border: 216 34% 17%;
-  --sidebar-primary: 152 76% 36%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 216 34% 17%;
-  --sidebar-accent-foreground: 213 31% 91%;
-  --sidebar-ring: 152 76% 36%;
+  --sidebar: 221.5385 48.1481% 5.2941%;
+  --sidebar-foreground: 212.7273 31.4286% 93.1373%;
+  --sidebar-border: 216.7742 33.3333% 18.2353%;
+  --sidebar-primary: 147.5 60.5042% 46.6667%;
+  --sidebar-primary-foreground: 148.2353 68% 4.902%;
+  --sidebar-accent: 216.7742 33.3333% 18.2353%;
+  --sidebar-accent-foreground: 212.7273 31.4286% 93.1373%;
+  --sidebar-ring: 147.5 60.5042% 46.6667%;
 
-  --popover: 222 47% 11%;
-  --popover-foreground: 213 31% 91%;
-  --popover-border: 216 34% 17%;
+  --popover: 220.9091 44% 9.8039%;
+  --popover-foreground: 212.7273 31.4286% 93.1373%;
+  --popover-border: 216.7742 33.3333% 18.2353%;
 
   /* Cartola Green */
-  --primary: 152 76% 36%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 147.5 60.5042% 46.6667%;
+  --primary-foreground: 148.2353 68% 4.902%;
+  --positive: 147.5 60.5042% 46.6667%;
+  --positive-foreground: 148.2353 68% 4.902%;
+  --attention: 45.3061 89.9083% 57.2549%;
+  --attention-foreground: 221.5385 48.1481% 5.2941%;
+  --danger: 357.3418 85.8696% 63.9216%;
+  --danger-foreground: 221.5385 48.1481% 5.2941%;
+  --differential: 197.5325 88.5057% 65.8824%;
+  --differential-foreground: 221.5385 48.1481% 5.2941%;
 
-  --secondary: 216 34% 17%;
+  --secondary: 215 28% 17%;
   --secondary-foreground: 210 40% 98%;
 
   --muted: 216 34% 17%;
-  --muted-foreground: 215 20.2% 65.1%;
+  --muted-foreground: 214.8387 20.2614% 70%;
 
   /* Teal Accent */
   --accent: 175 70% 41%;

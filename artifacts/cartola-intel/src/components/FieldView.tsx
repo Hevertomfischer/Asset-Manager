@@ -39,7 +39,7 @@ function Jersey({
   return (
     <div className="relative inline-block">
       {isCaptain && (
-        <div className="absolute -top-2 -right-1 z-10 w-5 h-5 rounded-full bg-yellow-400 text-black text-[10px] font-black flex items-center justify-center shadow-md ring-1 ring-yellow-300">
+        <div className="absolute -top-2 -right-1 z-10 w-5 h-5 rounded-full bg-attention text-attention-foreground text-[10px] font-black flex items-center justify-center shadow-md ring-1 ring-attention">
           C
         </div>
       )}
@@ -129,7 +129,7 @@ function JerseyCard({
           {displayName}
         </p>
         {player.price != null && (
-          <p className="text-[9px] sm:text-[10px] text-yellow-300 font-mono font-bold leading-none">
+          <p className="text-[9px] sm:text-[10px] text-attention font-mono font-bold leading-none">
             C$ {player.price.toFixed(2)}
           </p>
         )}
@@ -200,7 +200,7 @@ function ReserveJerseyCard({ reserve, onClick }: { reserve: LineupReservePlayer;
       <div className="bg-black/60 rounded px-1 py-0.5 text-center w-[52px] sm:w-[60px]">
         <p className="text-[9px] sm:text-[10px] font-semibold text-white/80 truncate leading-tight">{displayName}</p>
         {reserve.price != null && (
-          <p className="text-[8px] sm:text-[9px] text-yellow-300/80 font-mono leading-none">C${reserve.price.toFixed(2)}</p>
+          <p className="text-[8px] sm:text-[9px] text-attention/80 font-mono leading-none">C${reserve.price.toFixed(2)}</p>
         )}
       </div>
     </Wrapper>

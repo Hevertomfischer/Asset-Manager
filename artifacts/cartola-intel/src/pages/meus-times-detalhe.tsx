@@ -18,9 +18,9 @@ import { useGetUserTeamRounds, type UserTeamRound, type UserTeamRoundPlayer } fr
 // ── Efficiency colour helper (same scale as historico.tsx) ────────────────────
 function effColor(pct: number | null): string {
   if (pct === null) return "text-muted-foreground";
-  if (pct >= 80) return "text-green-400";
-  if (pct >= 60) return "text-yellow-400";
-  return "text-red-400";
+  if (pct >= 80) return "text-positive";
+  if (pct >= 60) return "text-attention";
+  return "text-danger";
 }
 
 // ── Player row ────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ function PlayerRow({ player }: { player: UserTeamRoundPlayer }) {
     <div
       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
         player.isCaptain
-          ? "bg-yellow-500/5 border border-yellow-500/20"
+          ? "bg-attention/5 border border-attention/20"
           : "bg-secondary/40 border border-transparent"
       }`}
     >
@@ -40,9 +40,9 @@ function PlayerRow({ player }: { player: UserTeamRoundPlayer }) {
         {player.position}
       </Badge>
       <div className="flex-1 min-w-0">
-        <span className={`text-sm truncate block ${player.isCaptain ? "text-yellow-400 font-semibold" : "text-foreground"}`}>
+        <span className={`text-sm truncate block ${player.isCaptain ? "text-attention font-semibold" : "text-foreground"}`}>
           {player.nickname ?? player.name}
-          {player.isCaptain && <Crown className="inline w-3 h-3 ml-1 text-yellow-400" />}
+          {player.isCaptain && <Crown className="inline w-3 h-3 ml-1 text-attention" />}
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -52,7 +52,7 @@ function PlayerRow({ player }: { player: UserTeamRoundPlayer }) {
           </span>
         )}
         {player.actualPoints !== null ? (
-          <span className={`text-sm font-mono font-bold ${player.actualPoints >= 0 ? "text-green-400" : "text-red-400"}`}>
+          <span className={`text-sm font-mono font-bold ${player.actualPoints >= 0 ? "text-positive" : "text-danger"}`}>
             {player.actualPoints > 0 ? "+" : ""}{player.actualPoints.toFixed(1)}
           </span>
         ) : (
@@ -146,17 +146,17 @@ function RoundCard({ round, defaultExpanded = false }: { round: UserTeamRound; d
                 <div
                   className={`absolute left-0 top-0 h-full rounded-full transition-all ${
                     round.efficiencyPct !== null && round.efficiencyPct >= 80
-                      ? "bg-green-500"
+                      ? "bg-positive"
                       : round.efficiencyPct !== null && round.efficiencyPct >= 60
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
+                        ? "bg-attention"
+                        : "bg-danger"
                   }`}
                   style={{ width: `${Math.min(round.efficiencyPct ?? 0, 100)}%` }}
                 />
               </div>
               <div className="flex items-center justify-between text-[10px] mt-1">
                 <span className="font-mono font-bold text-foreground">{round.actualTotal.toFixed(1)} pts</span>
-                <span className="font-mono font-bold text-yellow-400">{round.optimalActualPoints.toFixed(1)} pts</span>
+                <span className="font-mono font-bold text-attention">{round.optimalActualPoints.toFixed(1)} pts</span>
               </div>
             </div>
           </ProGate>
@@ -384,40 +384,40 @@ export default function MeusTimesDetalhe() {
               <div style={{ fontSize: "18px", fontWeight: 700, color: "#f1f5f9", marginBottom: "2px" }}>
                 {team?.name ?? ""}
               </div>
-              <div style={{ fontSize: "11px", color: "#64748b" }}>Rodada {latestRound.round}</div>
+              <div style={{ fontSize: "11px", color: "hsl(var(--muted-foreground))" }}>Rodada {latestRound.round}</div>
             </div>
 
             {/* Points hero */}
             <div style={{ padding: "0 20px 12px", display: "grid", gridTemplateColumns: latestRound.optimalActualPoints != null ? "1fr 1fr" : "1fr", gap: "10px" }}>
-              <div style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
-                <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Minha pontuação</div>
-                <div style={{ fontSize: "32px", fontWeight: 900, color: "#10b981", lineHeight: 1 }}>
+              <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Minha pontuação</div>
+                <div style={{ fontSize: "32px", fontWeight: 900, color: "hsl(var(--positive))", lineHeight: 1 }}>
                   {latestRound.actualTotal?.toFixed(1) ?? "—"}
                 </div>
-                <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>pts reais</div>
+                <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "2px" }}>pts reais</div>
               </div>
               {latestRound.optimalActualPoints != null && (
-                <div style={{ background: "#1e293b", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
-                  <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Time ótimo</div>
-                  <div style={{ fontSize: "32px", fontWeight: 900, color: "#eab308", lineHeight: 1 }}>
+                <div style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                  <div style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Time ótimo</div>
+                  <div style={{ fontSize: "32px", fontWeight: 900, color: "hsl(var(--attention))", lineHeight: 1 }}>
                     {latestRound.optimalActualPoints.toFixed(1)}
                   </div>
-                  <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>pts possíveis</div>
+                  <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", marginTop: "2px" }}>pts possíveis</div>
                 </div>
               )}
             </div>
 
             {/* Efficiency bar */}
             {latestRound.efficiencyPct != null && (
-              <div style={{ margin: "0 20px 12px", background: "#1e293b", borderRadius: "10px", padding: "10px 14px" }}>
+              <div style={{ margin: "0 20px 12px", background: "hsl(var(--card))", borderRadius: "10px", padding: "10px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "10px", color: "#94a3b8" }}>Eficiência vs time ótimo</span>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: latestRound.efficiencyPct >= 80 ? "#10b981" : latestRound.efficiencyPct >= 60 ? "#eab308" : "#f87171" }}>
+                  <span style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))" }}>Eficiência vs time ótimo</span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: latestRound.efficiencyPct >= 80 ? "hsl(var(--positive))" : latestRound.efficiencyPct >= 60 ? "hsl(var(--attention))" : "hsl(var(--danger))" }}>
                     {latestRound.efficiencyPct}%
                   </span>
                 </div>
-                <div style={{ background: "#334155", borderRadius: "999px", height: "6px", overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: "999px", width: `${Math.min(latestRound.efficiencyPct, 100)}%`, background: latestRound.efficiencyPct >= 80 ? "#10b981" : latestRound.efficiencyPct >= 60 ? "#eab308" : "#f87171" }} />
+                <div style={{ background: "hsl(var(--border))", borderRadius: "999px", height: "6px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: "999px", width: `${Math.min(latestRound.efficiencyPct, 100)}%`, background: latestRound.efficiencyPct >= 80 ? "hsl(var(--positive))" : latestRound.efficiencyPct >= 60 ? "hsl(var(--attention))" : "hsl(var(--danger))" }} />
                 </div>
               </div>
             )}
@@ -425,7 +425,7 @@ export default function MeusTimesDetalhe() {
             {/* Top players */}
             {latestRound.players.filter((p) => p.actualPoints != null).length > 0 && (
               <div style={{ margin: "0 20px 14px" }}>
-                <div style={{ fontSize: "9px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "6px" }}>
+                <div style={{ fontSize: "9px", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "6px" }}>
                   Escalação
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px" }}>
@@ -433,11 +433,11 @@ export default function MeusTimesDetalhe() {
                     .sort((a, b) => (b.actualPoints ?? 0) - (a.actualPoints ?? 0))
                     .slice(0, 8)
                     .map((p) => (
-                      <div key={p.playerId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", background: "#1e293b", borderRadius: "6px" }}>
-                        <span style={{ fontSize: "11px", color: p.isCaptain ? "#eab308" : "#94a3b8", fontWeight: p.isCaptain ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "90px" }}>
+                      <div key={p.playerId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", background: "hsl(var(--card))", borderRadius: "6px" }}>
+                        <span style={{ fontSize: "11px", color: p.isCaptain ? "hsl(var(--attention))" : "hsl(var(--muted-foreground))", fontWeight: p.isCaptain ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "90px" }}>
                           {p.nickname ?? p.name}
                         </span>
-                        <span style={{ fontSize: "11px", fontWeight: 700, color: (p.actualPoints ?? 0) >= 0 ? "#10b981" : "#f87171" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: (p.actualPoints ?? 0) >= 0 ? "hsl(var(--positive))" : "hsl(var(--danger))" }}>
                           {p.actualPoints != null ? ((p.actualPoints > 0 ? "+" : "") + p.actualPoints.toFixed(1)) : "—"}
                         </span>
                       </div>

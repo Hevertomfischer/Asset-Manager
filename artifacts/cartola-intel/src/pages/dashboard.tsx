@@ -174,7 +174,7 @@ export default function Dashboard() {
 
         <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-4 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm font-semibold shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm font-semibold shadow-[0_0_15px_hsl(var(--positive) / 0.2)]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -266,8 +266,8 @@ export default function Dashboard() {
         </Card>
         <Card className="bg-card border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-              <AlertTriangle className="w-5 h-5 text-yellow-500" />
+            <div className="p-2 rounded-xl bg-attention/10 border border-attention/20">
+              <AlertTriangle className="w-5 h-5 text-attention" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Alertas de Risco</p>
@@ -277,8 +277,8 @@ export default function Dashboard() {
         </Card>
         <Card className="bg-card border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <Calendar className="w-5 h-5 text-blue-500" />
+            <div className="p-2 rounded-xl bg-differential/10 border border-differential/20">
+              <Calendar className="w-5 h-5 text-differential" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Partidas</p>
@@ -337,16 +337,16 @@ export default function Dashboard() {
                     <div
                       className={`h-1 w-full bg-gradient-to-r ${
                         pos === "ATA"
-                          ? "from-red-500"
+                          ? "from-danger"
                           : pos === "MEI"
                             ? "from-purple-500"
                             : pos === "LAT"
                               ? "from-cyan-500"
                               : pos === "ZAG"
-                                ? "from-blue-500"
+                                ? "from-differential"
                                 : pos === "GOL"
-                                  ? "from-yellow-500"
-                                  : "from-green-500"
+                                  ? "from-attention"
+                                  : "from-positive"
                       } to-transparent`}
                     />
                     <CardHeader className="py-3 px-4 flex flex-row items-center justify-between bg-secondary/20">
@@ -403,7 +403,7 @@ export default function Dashboard() {
           ) : riskAlerts.length > 0 ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                <AlertTriangle className="w-5 h-5 text-attention" />
                 <h3 className="text-lg font-display font-bold">Alertas de Risco</h3>
                 <span className="text-xs text-muted-foreground">(jogadores com baixa probabilidade de jogar)</span>
               </div>
@@ -417,11 +417,11 @@ export default function Dashboard() {
                   return (
                     <div
                       key={alert.id ?? alert.playerId}
-                      className="flex items-center justify-between p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5"
+                      className="flex items-center justify-between p-3 rounded-xl border border-attention/20 bg-attention/5"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded-lg bg-yellow-500/20">
-                          <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+                        <div className="p-1.5 rounded-lg bg-attention/20">
+                          <AlertTriangle className="w-3.5 h-3.5 text-attention" />
                         </div>
                         <div>
                           <p className="font-semibold text-sm">{playerName}</p>
@@ -431,7 +431,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-mono font-bold text-yellow-500">{(numProb * 100).toFixed(0)}%</p>
+                        <p className="text-sm font-mono font-bold text-attention">{(numProb * 100).toFixed(0)}%</p>
                         {riskScore !== null && (
                           <p className="text-[10px] text-muted-foreground">risco: {riskScore.toFixed(2)}</p>
                         )}
@@ -550,10 +550,10 @@ export default function Dashboard() {
                           <div
                             className={`w-2.5 h-2.5 rounded-full ${
                               provider.status === "ok"
-                                ? "bg-primary shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                ? "bg-primary shadow-[0_0_8px_hsl(var(--positive) / 0.5)]"
                                 : provider.status === "error"
-                                  ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-                                  : "bg-yellow-500"
+                                  ? "bg-destructive shadow-[0_0_8px_hsl(var(--danger) / 0.5)]"
+                                  : "bg-attention"
                             }`}
                           />
                           <div>

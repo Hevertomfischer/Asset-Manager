@@ -51,15 +51,15 @@ interface NotificationsResponse {
 function typeIcon(type: string) {
   switch (type) {
     case "status_change":
-      return <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />;
+      return <AlertTriangle className="w-4 h-4 text-attention shrink-0 mt-0.5" />;
     case "price":
-      return <TrendingUp className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />;
+      return <TrendingUp className="w-4 h-4 text-differential shrink-0 mt-0.5" />;
     case "trap":
-      return <Zap className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />;
+      return <Zap className="w-4 h-4 text-attention shrink-0 mt-0.5" />;
     case "market_open":
-      return <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />;
+      return <CheckCircle2 className="w-4 h-4 text-positive shrink-0 mt-0.5" />;
     case "market_close":
-      return <Clock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />;
+      return <Clock className="w-4 h-4 text-danger shrink-0 mt-0.5" />;
     case "round_result":
       return <Trophy className="w-4 h-4 text-primary shrink-0 mt-0.5" />;
     default:
@@ -237,7 +237,7 @@ export function NotificationBell() {
         >
           <Bell className="w-5 h-5" />
           {hasUnread && (
-            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center leading-none">
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-danger text-danger-foreground text-[9px] font-bold flex items-center justify-center leading-none">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}

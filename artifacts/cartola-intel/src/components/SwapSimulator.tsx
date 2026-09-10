@@ -76,7 +76,7 @@ function DeltaCell({
 
   const isGood = lowerIsBetter ? value < 0 : value > 0;
   const sign = value > 0 ? "+" : "";
-  const color = isGood ? "text-green-500" : "text-red-500";
+  const color = isGood ? "text-positive" : "text-danger";
   const Icon = value > 0 ? TrendingUp : TrendingDown;
   const label = format ? format(value) : `${sign}${value.toFixed(2)}`;
 
@@ -427,7 +427,7 @@ export function SwapSimulator({
                 <>
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4 text-positive" />
                       <p className="text-xs font-semibold text-foreground uppercase tracking-wider">
                         Antes × Depois
                       </p>

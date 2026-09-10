@@ -205,7 +205,7 @@ export function FeedbackWidget() {
                 <Label htmlFor="fb-message" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Mensagem
                 </Label>
-                <span className={`text-[10px] font-mono tabular-nums ${charCount > MAX_LEN ? "text-red-400" : charCount > MAX_LEN * 0.85 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                <span className={`text-[10px] font-mono tabular-nums ${charCount > MAX_LEN ? "text-danger" : charCount > MAX_LEN * 0.85 ? "text-attention" : "text-muted-foreground"}`}>
                   {charCount}/{MAX_LEN}
                 </span>
               </div>
@@ -219,7 +219,7 @@ export function FeedbackWidget() {
                 maxLength={MAX_LEN + 50}
               />
               {charCount > 0 && charCount < MIN_LEN && (
-                <p className="text-[11px] text-yellow-500/80">
+                <p className="text-[11px] text-attention/80">
                   Mínimo {MIN_LEN} caracteres ({MIN_LEN - charCount} restante{MIN_LEN - charCount !== 1 ? "s" : ""})
                 </p>
               )}

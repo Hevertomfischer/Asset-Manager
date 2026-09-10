@@ -143,14 +143,14 @@ function Sparkline({ playerId }: { playerId: number }) {
         <AreaChart data={points} margin={{ top: 2, right: 4, left: 4, bottom: 2 }}>
           <defs>
             <linearGradient id={`sg-${playerId}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+              <stop offset="5%" stopColor="hsl(var(--positive))" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="hsl(var(--positive))" stopOpacity={0} />
             </linearGradient>
           </defs>
           <Area
             type="monotone"
             dataKey="expectedPoints"
-            stroke="#10b981"
+            stroke="hsl(var(--positive))"
             strokeWidth={1.5}
             fill={`url(#sg-${playerId})`}
             dot={false}
@@ -179,9 +179,9 @@ function Sparkline({ playerId }: { playerId: number }) {
 type SealKind = "teto" | "seguro" | "custo" | "diferencial";
 
 const SEAL_CONFIG: Record<SealKind, { label: string; color: string; Icon: typeof Trophy }> = {
-  teto:       { label: "Maior teto",         color: "text-yellow-400 border-yellow-500/30 bg-yellow-500/10", Icon: Trophy },
-  seguro:     { label: "Mais seguro",         color: "text-blue-400 border-blue-500/30 bg-blue-500/10",       Icon: Shield },
-  custo:      { label: "Melhor custo-benef.", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10", Icon: Sparkles },
+  teto:       { label: "Maior teto",         color: "text-attention border-attention/30 bg-attention/10", Icon: Trophy },
+  seguro:     { label: "Mais seguro",         color: "text-differential border-differential/30 bg-differential/10",       Icon: Shield },
+  custo:      { label: "Melhor custo-benef.", color: "text-positive border-positive/30 bg-positive/10", Icon: Sparkles },
   diferencial:{ label: "Diferencial",         color: "text-purple-400 border-purple-500/30 bg-purple-500/10",  Icon: Zap },
 };
 
@@ -226,13 +226,13 @@ function MetricRow({
             <span
               className={`font-mono text-sm font-semibold ${
                 i === bestIdx
-                  ? "text-emerald-400"
+                  ? "text-positive"
                   : "text-foreground/80"
               }`}
             >
               {format(v)}{suffix}
               {i === bestIdx && (
-                <span className="ml-1 text-emerald-400/70 text-[9px]">▲</span>
+                <span className="ml-1 text-positive/70 text-[9px]">▲</span>
               )}
             </span>
           )}
@@ -296,11 +296,11 @@ function MobileMetric({
       ) : (
         <span
           className={`font-mono text-sm font-semibold ${
-            isBest ? "text-emerald-400" : "text-foreground/80"
+            isBest ? "text-positive" : "text-foreground/80"
           }`}
         >
           {rawValue}
-          {isBest && <span className="ml-1 text-emerald-400/70 text-[9px]">▲</span>}
+          {isBest && <span className="ml-1 text-positive/70 text-[9px]">▲</span>}
         </span>
       )}
     </div>
@@ -444,11 +444,11 @@ function MobilePlayerCard({
         {recVal != null ? (
           <span
             className={`font-mono text-base font-bold ${
-              recBest ? "text-emerald-400" : "text-foreground/70"
+              recBest ? "text-positive" : "text-foreground/70"
             }`}
           >
             {recVal.toFixed(1)}
-            {recBest && <span className="ml-1 text-[10px] text-emerald-400/70">▲</span>}
+            {recBest && <span className="ml-1 text-[10px] text-positive/70">▲</span>}
           </span>
         ) : (
           <span className="text-muted-foreground/30 text-xs">—</span>
@@ -856,7 +856,7 @@ export default function Comparar() {
 
             {/* Legend */}
             <p className="text-center text-[11px] text-muted-foreground/50">
-              <span className="text-emerald-400 font-bold">▲</span>{" "}
+              <span className="text-positive font-bold">▲</span>{" "}
               = melhor valor · Risco e Preço: menor é melhor.
             </p>
           </div>
@@ -978,12 +978,12 @@ export default function Comparar() {
                         {v != null ? (
                           <span
                             className={`font-mono text-base font-bold ${
-                              i === bestIdx ? "text-emerald-400" : "text-foreground/70"
+                              i === bestIdx ? "text-positive" : "text-foreground/70"
                             }`}
                           >
                             {v.toFixed(1)}
                             {i === bestIdx && (
-                              <span className="ml-1 text-[10px] text-emerald-400/70">▲</span>
+                              <span className="ml-1 text-[10px] text-positive/70">▲</span>
                             )}
                           </span>
                         ) : (
@@ -1043,7 +1043,7 @@ export default function Comparar() {
           {/* Position legend */}
           <div className="border-t border-border/30 px-5 py-3 text-[11px] text-muted-foreground/50 flex items-center gap-4 flex-wrap">
             <span>
-              <span className="text-emerald-400 font-bold">▲</span> = melhor valor na linha
+              <span className="text-positive font-bold">▲</span> = melhor valor na linha
             </span>
             <span>Risco e Preço: menor é melhor.</span>
             <span>Score geral: 0–100, gerado pelo modelo.</span>
@@ -1059,7 +1059,7 @@ export default function Comparar() {
             const bestCeil = findBest(ceilVals);
             const bestScore = findBest(scoreVals);
             const sealColors: Record<string, string> = {
-              teto: "#eab308", seguro: "#60a5fa", custo: "#34d399", diferencial: "#a855f7",
+              teto: "hsl(var(--attention))", seguro: "hsl(var(--differential))", custo: "hsl(var(--positive))", diferencial: "#a855f7",
             };
             return (
               <ShareCardFrame ref={shareRef} subtitle="Comparação de Jogadores">
@@ -1070,17 +1070,17 @@ export default function Comparar() {
                     const seals = sealMap.get(p.id) ?? [];
                     const isWinner = idx === bestScore;
                     return (
-                      <div key={p.id} style={{ background: "#1e293b", borderRadius: "12px", padding: "12px", border: isWinner ? "1.5px solid #10b981" : "1px solid #334155" }}>
+                      <div key={p.id} style={{ background: "hsl(var(--card))", borderRadius: "12px", padding: "12px", border: isWinner ? "1.5px solid hsl(var(--positive))" : "1px solid hsl(var(--border))" }}>
                         <div style={{ fontWeight: 700, fontSize: "14px", color: "#f1f5f9", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.nickname ?? p.name}
                         </div>
-                        <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "10px" }}>
+                        <div style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))", marginBottom: "10px" }}>
                           {p.position} · {p.club?.abbreviation ?? "—"} · C${(p.price ?? 0).toFixed(1)}
                         </div>
                         {seals.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginBottom: "9px" }}>
                             {seals.map((s) => (
-                              <span key={s} style={{ fontSize: "8px", padding: "2px 5px", borderRadius: "999px", backgroundColor: (sealColors[s] ?? "#64748b") + "25", color: sealColors[s] ?? "#64748b", fontWeight: 700 }}>
+                              <span key={s} style={{ fontSize: "8px", padding: "2px 5px", borderRadius: "999px", backgroundColor: sealColors[s] ? `${sealColors[s]}25` : "hsl(var(--muted-foreground) / 0.15)", color: sealColors[s] ?? "hsl(var(--muted-foreground))", fontWeight: 700 }}>
                                 {SEAL_CONFIG[s as keyof typeof SEAL_CONFIG]?.label ?? s}
                               </span>
                             ))}
@@ -1092,8 +1092,8 @@ export default function Comparar() {
                           { label: "Score",    value: p.projection?.recommendationScore, best: idx === bestScore, suffix: "" },
                         ].map(({ label, value, best, suffix }) => (
                           <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                            <span style={{ fontSize: "10px", color: "#64748b" }}>{label}</span>
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: best ? "#10b981" : "#94a3b8" }}>
+                            <span style={{ fontSize: "10px", color: "hsl(var(--muted-foreground))" }}>{label}</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: best ? "hsl(var(--positive))" : "hsl(var(--muted-foreground))" }}>
                               {value != null ? value.toFixed(1) + suffix : "—"}
                               {best && <span style={{ marginLeft: "2px", fontSize: "8px" }}>▲</span>}
                             </span>

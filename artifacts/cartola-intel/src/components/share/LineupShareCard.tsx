@@ -49,7 +49,7 @@ function JerseyInline({
             width: 18,
             height: 18,
             borderRadius: "50%",
-            background: "#eab308",
+            background: "hsl(var(--attention))",
             color: "#000",
             fontSize: 9,
             fontWeight: 900,
@@ -57,7 +57,7 @@ function JerseyInline({
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
-            border: "1px solid #fde047",
+            border: "1px solid hsl(var(--attention))",
           }}
         >
           C
@@ -166,7 +166,7 @@ function PlayerSlot({
           {name}
         </div>
         {player.price != null && (
-          <div style={{ fontSize: 8, color: "#fde047", fontFamily: "monospace", fontWeight: 700, lineHeight: 1.1 }}>
+          <div style={{ fontSize: 8, color: "hsl(var(--attention))", fontFamily: "monospace", fontWeight: 700, lineHeight: 1.1 }}>
             C${player.price.toFixed(2)}
           </div>
         )}
@@ -240,7 +240,7 @@ function PitchBackground({ width, height }: { width: number; height: number }) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: "linear-gradient(180deg, #0d4a26 0%, #0a3d1f 50%, #0d4a26 100%)",
+        background: "linear-gradient(180deg, hsl(var(--positive) / 0.35) 0%, hsl(var(--positive) / 0.25) 50%, hsl(var(--positive) / 0.35) 100%)",
         overflow: "hidden",
       }}
     >
@@ -405,7 +405,7 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
           left: "-9999px",
           top: 0,
           width: CARD_WIDTH,
-          backgroundColor: "#0f172a",
+          backgroundColor: "hsl(var(--card))",
           color: "#f1f5f9",
           fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           borderRadius: 16,
@@ -415,7 +415,7 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
         {/* ── Header ── */}
         <div
           style={{
-            background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
+            background: "linear-gradient(135deg, hsl(var(--positive) / 0.35) 0%, hsl(var(--positive) / 0.5) 100%)",
             padding: "12px 18px",
             display: "flex",
             alignItems: "center",
@@ -425,7 +425,7 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
-                background: "#10b981",
+                background: "hsl(var(--positive))",
                 borderRadius: 7,
                 width: 24,
                 height: 24,
@@ -434,17 +434,17 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
                 justifyContent: "center",
               }}
             >
-              <span style={{ color: "#0f172a", fontWeight: 900, fontSize: 12 }}>M</span>
+              <span style={{ color: "hsl(var(--card))", fontWeight: 900, fontSize: 12 }}>M</span>
             </div>
             <span style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9" }}>
-              Mito<span style={{ color: "#10b981" }}>metro</span>
+              Mito<span style={{ color: "hsl(var(--positive))" }}>metro</span>
             </span>
           </div>
           <div style={{ textAlign: "right" }}>
             <div
               style={{
                 fontSize: 9,
-                color: "#34d399",
+                color: "hsl(var(--positive))",
                 fontWeight: 700,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
@@ -452,7 +452,7 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
             >
               {subtitle}
             </div>
-            <div style={{ fontSize: 8, color: "#6ee7b7", marginTop: 1 }}>Cartola FC Intelligence</div>
+            <div style={{ fontSize: 8, color: "hsl(var(--positive) / 0.8)", marginTop: 1 }}>Cartola FC Intelligence</div>
           </div>
         </div>
 
@@ -498,19 +498,19 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
             display: "flex",
             alignItems: "center",
             justifyContent: "space-evenly",
-            background: "#0d1f2d",
+            background: "hsl(var(--card))",
             padding: "10px 16px",
             gap: 8,
           }}
         >
           {[
-            { label: "Pts esp.", value: expectedPoints != null ? expectedPoints.toFixed(1) : "—", color: "#10b981" },
+            { label: "Pts esp.", value: expectedPoints != null ? expectedPoints.toFixed(1) : "—", color: "hsl(var(--positive))" },
             { label: "Custo", value: totalCost != null ? `C$ ${totalCost.toFixed(2)}` : "—", color: "#f1f5f9" },
             { label: "Formação", value: formation ?? "—", color: "#f1f5f9" },
           ].map((stat, i, arr) => (
             <div key={stat.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 8, color: "#94a3b8", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>{stat.label}</div>
+                <div style={{ fontSize: 8, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>{stat.label}</div>
                 <div style={{ fontSize: 13, fontFamily: "monospace", fontWeight: 700, color: stat.color, marginTop: 2 }}>{stat.value}</div>
               </div>
               {i < arr.length - 1 && <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.10)" }} />}
@@ -520,11 +520,11 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
 
         {/* ── Bench ── */}
         {sortedReserves.length > 0 && (
-          <div style={{ padding: "10px 14px 14px", background: "#0a1524" }}>
+          <div style={{ padding: "10px 14px 14px", background: "hsl(var(--card))" }}>
             <div
               style={{
                 fontSize: 8,
-                color: "#64748b",
+                color: "hsl(var(--muted-foreground))",
                 textTransform: "uppercase",
                 fontWeight: 700,
                 letterSpacing: "0.08em",
@@ -546,14 +546,14 @@ export const LineupShareCard = forwardRef<HTMLDivElement, LineupShareCardProps>(
         <div
           style={{
             padding: "8px 18px",
-            background: "#080e1a",
+            background: "hsl(var(--card))",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <span style={{ fontSize: 10, color: "#34d399", fontWeight: 600 }}>mitometro.com.br</span>
-          <span style={{ fontSize: 8, color: "#334155" }}>Cartola FC · Temporada 2025</span>
+          <span style={{ fontSize: 10, color: "hsl(var(--positive))", fontWeight: 600 }}>mitometro.com.br</span>
+          <span style={{ fontSize: 8, color: "hsl(var(--border))" }}>Cartola FC · Temporada 2025</span>
         </div>
       </div>
     );
