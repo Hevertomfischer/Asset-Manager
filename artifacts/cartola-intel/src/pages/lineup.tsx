@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   useGenerateLineup,
@@ -18,7 +17,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock, Share2 } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -34,8 +33,7 @@ import { RegisterRoundDialog } from "@/components/RegisterRoundDialog";
 import type { Player } from "@workspace/api-client-react";
 import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
 import { FieldView } from "@/components/FieldView";
-import { LineupShareCard } from "@/components/share/LineupShareCard";
-import { useShareCard } from "@/hooks/useShareCard";
+import { ExportLineupSheet } from "@/components/lineup/ExportLineupSheet";
 import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -235,13 +233,6 @@ export default function Lineup() {
         ? urlStrategy
         : null;
   const downgradedStrategy = !isAuthLoading && !isPro ? requestedProStrategy : null;
-  const shareCardRef = useRef<HTMLDivElement>(null);
-  const { share: handleShare, isSharing } = useShareCard(
-    shareCardRef,
-    () => `escalacao-rodada-${currentLineup?.round ?? "x"}.png`,
-    "lineup_share",
-  );
-
   useEffect(() => {
     if (
       isAuthLoading ||
@@ -684,17 +675,7 @@ export default function Lineup() {
                   <ClipboardList className="w-3 h-3" />
                   <span className="ml-1 hidden sm:inline">Meu time</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs rounded-lg border-border bg-secondary hover:bg-accent hover:text-accent-foreground motion-safe:transition-all"
-                  onClick={handleShare}
-                  disabled={isSharing}
-                  title="Baixar imagem da escalação"
-                >
-                  {isSharing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Share2 className="w-3 h-3" />}
-                  <span className="ml-1 hidden sm:inline">Compartilhar</span>
-                </Button>
+                <ExportLineupSheet lineup={currentLineup} />
               </div>
             </div>
 
@@ -1110,22 +1091,6 @@ export default function Lineup() {
         />
       )}
 
-      {/* Share card — renderizado via portal no document.body para evitar
-          clipping por overflow:hidden ou transforms de ancestrais */}
-      {createPortal(
-        <LineupShareCard
-          ref={shareCardRef}
-          players={currentLineup?.players ?? []}
-          reserves={currentLineup?.reserves ?? []}
-          captainId={currentLineup?.captainPlayerId}
-          coachId={currentLineup?.coachPlayerId}
-          formation={currentLineup?.formation}
-          expectedPoints={currentLineup?.expectedPoints}
-          totalCost={currentLineup?.totalCost}
-          round={currentLineup?.round}
-        />,
-        document.body,
-      )}
     </div>
   );
 }

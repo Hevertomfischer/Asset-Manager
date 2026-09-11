@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useTrack } from "./useTrack";
+import { downloadBlob, elementToPngBlob } from "@/lib/shareImage";
 
 /**
  * Hook reutilizável para gerar e baixar um card de compartilhamento via html-to-image.
@@ -23,13 +24,9 @@ export function useShareCard(
     setIsSharing(true);
     track("share_clicked", { cardType });
     try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(ref.current, { pixelRatio: 2, cacheBust: true });
+      const blob = await elementToPngBlob(ref.current);
       const name = typeof filename === "function" ? filename() : filename;
-      const a = document.createElement("a");
-      a.download = name;
-      a.href = dataUrl;
-      a.click();
+      downloadBlob(blob, name);
       track("share_completed", { cardType });
     } catch (err) {
       console.error("[useShareCard]", cardType, err);
