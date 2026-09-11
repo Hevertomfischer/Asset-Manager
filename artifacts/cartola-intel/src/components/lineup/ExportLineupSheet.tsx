@@ -240,28 +240,64 @@ export function ExportLineupSheet({ lineup }: ExportLineupSheetProps) {
             <div className="mx-auto w-full max-w-[432px] overflow-hidden rounded-2xl border border-border shadow-xl">
               <div
                 ref={imageRef}
-                className="flex aspect-[4/5] w-full flex-col bg-[#071510] p-[5%] text-white"
+                className="flex aspect-[4/5] w-full flex-col bg-[#071510] p-[4%] text-white"
+                style={{ containerType: "inline-size" }}
               >
-                <div className="mb-[3%] flex items-end justify-between">
+                <div className="mb-[2.5%] flex items-end justify-between">
                   <div>
-                    <p className="text-[clamp(10px,2.2vw,24px)] font-semibold text-[#8ce8bd]">MITÔMETRO</p>
-                    <h3 className="text-[clamp(18px,4.6vw,48px)] font-bold leading-tight">
+                    <p className="text-[2.2cqw] font-semibold text-[#8ce8bd]">MITÔMETRO</p>
+                    <h3 className="text-[4.6cqw] font-bold leading-tight">
                       Minha escalação
                     </h3>
                   </div>
-                  <p className="text-[clamp(11px,2.4vw,26px)] font-semibold">Rodada {lineup.round ?? "—"}</p>
+                  <p className="text-[2.4cqw] font-semibold">Rodada {lineup.round ?? "—"}</p>
                 </div>
-                <div className="min-h-0 flex-1">
-                  <Pitch formation={lineup.formation ?? "4-3-3"} players={pitchPlayers} />
+
+                <div className="flex min-h-0 flex-1 gap-[2.5%]">
+                  <div className="flex min-w-0 flex-1 items-center justify-center [&>div]:mx-0 [&>div]:h-full [&>div]:w-auto [&>div]:max-w-none [&>div]:aspect-[2/3]">
+                    <Pitch formation={lineup.formation ?? "4-3-3"} players={pitchPlayers} />
+                  </div>
+
+                  <div className="flex w-[29%] shrink-0 flex-col rounded-[2cqw] border border-white/10 bg-white/[0.04] p-[2%]">
+                    <p className="mb-[5%] text-[2.1cqw] font-bold text-[#8ce8bd]">RESERVAS</p>
+                    <div className="flex flex-1 flex-col justify-evenly gap-[1.5%]">
+                      {(lineup.reserves ?? []).map((reserve, index) => (
+                        <div
+                          key={reserve.playerId ?? index}
+                          className="rounded-[1.3cqw] border border-white/10 bg-black/25 px-[6%] py-[5%]"
+                        >
+                          <div className="flex items-start justify-between gap-[4%]">
+                            <div className="min-w-0">
+                              <p className="truncate text-[1.9cqw] font-bold leading-tight">
+                                {reserve.nickname ?? reserve.name ?? "Reserva"}
+                              </p>
+                              <p className="mt-[2%] text-[1.45cqw] font-semibold text-white/55">
+                                {reserve.position ?? "—"} · {reserve.clubAbbr ?? reserve.clubName ?? "—"}
+                              </p>
+                            </div>
+                            {reserve.isLuxuryReserve && (
+                              <span className="shrink-0 rounded-full bg-[#a855f7] px-[5%] py-[2%] text-[1.25cqw] font-bold">
+                                ★
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-[4%] font-mono text-[1.55cqw] font-semibold tabular-nums text-[#58e6a1]">
+                            {formatCartoletas(reserve.price ?? 0)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-[3%] flex items-end justify-between gap-4">
+
+                <div className="mt-[2.5%] flex items-end justify-between gap-4">
                   <div>
-                    <p className="text-[clamp(10px,2vw,22px)] text-white/65">Pontos esperados</p>
-                    <p className="font-mono text-[clamp(24px,6vw,64px)] font-bold tabular-nums text-[#58e6a1]">
+                    <p className="text-[2cqw] text-white/65">Pontos esperados</p>
+                    <p className="font-mono text-[5.5cqw] font-bold leading-none tabular-nums text-[#58e6a1]">
                       {(lineup.expectedPoints ?? 0).toFixed(1)}
                     </p>
                   </div>
-                  <p className="pb-1 text-[clamp(11px,2.4vw,26px)] font-semibold text-white/80">mitometro.com.br</p>
+                  <p className="pb-1 text-[2.4cqw] font-semibold text-white/80">mitometro.com.br</p>
                 </div>
               </div>
             </div>
