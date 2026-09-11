@@ -25,6 +25,9 @@ import { Button } from "@/components/ui/button";
 import { useShareCard } from "@/hooks/useShareCard";
 import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { Input } from "@/components/ui/input";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 import {
   ChevronDown,
   ChevronUp,
@@ -527,7 +530,13 @@ export default function Comparar() {
   const maxPlayers = isPro ? MAX_PRO : MAX_FREE;
 
   // ── Load all players for search ────────────────────────────────────────────
-  const { data: playersData } = useGetPlayers({ probableOnly: "false" });
+  const {
+    data: playersData,
+    isLoading: isPlayersLoading,
+    isError: isPlayersError,
+    error: playersError,
+    refetch: refetchPlayers,
+  } = useGetPlayers({ probableOnly: "false" });
   const allPlayers = playersData?.players ?? [];
 
   // ── Filtered search results ────────────────────────────────────────────────
@@ -693,6 +702,20 @@ export default function Comparar() {
 
   const canAddMore = selectedIds.length < maxPlayers;
 
+  if (isPlayersLoading) {
+    return <PageSkeleton variant="list" aria-label="Carregando jogadores para comparação" />;
+  }
+
+  if (isPlayersError) {
+    return (
+      <ErrorState
+        title="Não foi possível carregar os jogadores"
+        description={playersError instanceof Error ? playersError.message : "Tente novamente para buscar jogadores."}
+        onRetry={refetchPlayers}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
 
@@ -793,8 +816,18 @@ export default function Comparar() {
                 </div>
               )}
               {dropdownOpen && search.length >= 2 && searchResults.length === 0 && (
-                <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-xl shadow-xl z-50 px-4 py-3 text-sm text-muted-foreground">
-                  Nenhum jogador encontrado para "{search}"
+                <div className="absolute top-full mt-1 w-full z-50">
+                  <EmptyState
+                    icon={Search}
+                    title="Nenhum jogador encontrado"
+                    description={`Não encontramos jogadores para “${search}”.`}
+                    actionLabel="Limpar busca"
+                    onAction={() => {
+                      setSearch("");
+                      setDropdownOpen(false);
+                    }}
+                    className="bg-popover shadow-xl"
+                  />
                 </div>
               )}
             </div>

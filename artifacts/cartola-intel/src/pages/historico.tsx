@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, AlertCircle, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus, Star, CheckCircle2, XCircle } from "lucide-react";
+import { History, Trophy, Bomb, Info, BarChart2, Users, Crown, TrendingUp, TrendingDown, Minus, Star, CheckCircle2, XCircle } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ClubBadge } from "@/components/PlayerCard";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 import {
   LineChart,
   Line,
@@ -246,7 +249,7 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
             <div>
               <p className="text-sm font-medium text-muted-foreground">Pontuação real ainda não disponível</p>
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Os dados reais desta rodada ainda não foram sincronizados. Aguarde o encerramento da rodada e sincronize pelo Admin.
+                A rodada ainda não foi encerrada. Você pode consultar os parciais agora; o resultado completo aparecerá após o fechamento.
               </p>
             </div>
             <div className="mt-1 text-xs text-muted-foreground/50">
@@ -336,26 +339,12 @@ function LineupBacktestCard({ data, hideRoundTitle = false }: { data: LineupBack
   );
 }
 
-function GenericEmptyState({ message }: { message?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-      <BarChart2 className="w-12 h-12 text-muted-foreground/40" />
-      <div>
-        <p className="text-muted-foreground font-medium">Nenhum dado disponível</p>
-        <p className="text-sm text-muted-foreground/60 mt-1">
-          {message ?? "Aguarde a conclusão de ao menos uma rodada."}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function PlayerBacktestTab() {
   const [selectedRound, setSelectedRound] = useState<string>("all");
   const { openPaywall } = usePaywall();
-  const { data: roundsData } = useQuery({ queryKey: ["history-rounds"], queryFn: fetchRounds });
+  const { data: roundsData, refetch: refetchRounds } = useQuery({ queryKey: ["history-rounds"], queryFn: fetchRounds });
   const roundParam = selectedRound === "all" ? undefined : Number(selectedRound);
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["backtest", selectedRound],
     queryFn: () => fetchBacktest(roundParam),
   });
@@ -388,22 +377,11 @@ function PlayerBacktestTab() {
         </Select>
       </div>
 
-      {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="motion-safe:animate-pulse"><CardContent className="h-24 bg-muted/20 rounded-lg m-4" /></Card>
-          ))}
-        </div>
-      )}
+      {isLoading && <PageSkeleton variant="chart" />}
       {isError && (
-        <Card className="border-danger/30 bg-danger/5">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <AlertCircle className="w-5 h-5 text-danger shrink-0" />
-            <p className="text-sm text-danger">Falha ao carregar dados de backtest.</p>
-          </CardContent>
-        </Card>
+        (error as { status?: number })?.status !== 402 && <ErrorState title="Não foi possível carregar o backtest" description="Tente novamente para consultar os dados históricos." onRetry={() => Promise.all([refetch(), refetchRounds()])} />
       )}
-      {!isLoading && !isError && !hasData && <GenericEmptyState message={summary?.message ?? undefined} />}
+      {!isLoading && !isError && !hasData && <EmptyState icon={BarChart2} title="Nenhum dado disponível" description={summary?.message ?? "Aguarde a conclusão de ao menos uma rodada."} actionLabel="Ir para Escalação" actionHref="/escalacao" />}
       {!isLoading && !isError && hasData && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -655,9 +633,9 @@ function RoundStrategyGroup({ roundNum, lineups }: { roundNum: number; lineups: 
 function LineupBacktestTab() {
   const [selectedRound, setSelectedRound] = useState<string>("all");
   const { openPaywall } = usePaywall();
-  const { data: roundsData } = useQuery({ queryKey: ["lineup-rounds"], queryFn: fetchLineupRounds });
+  const { data: roundsData, refetch: refetchRounds } = useQuery({ queryKey: ["lineup-rounds"], queryFn: fetchLineupRounds });
   const roundParam = selectedRound === "all" ? undefined : Number(selectedRound);
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["lineup-backtest", selectedRound],
     queryFn: () => fetchLineupBacktest(roundParam),
   });
@@ -695,23 +673,12 @@ function LineupBacktestTab() {
         </Select>
       </div>
 
-      {isLoading && (
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i} className="motion-safe:animate-pulse"><CardContent className="h-40 bg-muted/20 rounded-lg m-4" /></Card>
-          ))}
-        </div>
-      )}
+      {isLoading && <PageSkeleton variant="cards" />}
       {isError && (
-        <Card className="border-danger/30 bg-danger/5">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <AlertCircle className="w-5 h-5 text-danger shrink-0" />
-            <p className="text-sm text-danger">Falha ao carregar backtest de escalação.</p>
-          </CardContent>
-        </Card>
+        (error as { status?: number })?.status !== 402 && <ErrorState title="Não foi possível carregar o backtest" description="Tente novamente para consultar suas escalações históricas." onRetry={() => Promise.all([refetch(), refetchRounds()])} />
       )}
       {!isLoading && !isError && sortedRoundKeys.length === 0 && (
-        <GenericEmptyState message={data?.message ?? "Gere uma escalação pela página de Escalação para que o backtest seja calculado."} />
+        <EmptyState icon={History} title="Nenhum backtest disponível" description={data?.message ?? "Gere uma escalação pela página de Escalação para que o backtest seja calculado."} actionLabel="Ir para Escalação" actionHref="/escalacao" />
       )}
       {!isLoading && !isError && sortedRoundKeys.length > 0 && (
         <div className="space-y-8">
@@ -778,7 +745,7 @@ const POSITION_ORDER = ["GOL", "ZAG", "LAT", "MEI", "ATA", "TEC"];
 function PerfectTeamTab() {
   const [selectedRound, setSelectedRound] = useState<string>("");
 
-  const { data: roundsData } = useQuery({
+  const { data: roundsData, refetch: refetchRounds } = useQuery({
     queryKey: ["perfect-team-rounds"],
     queryFn: fetchPerfectTeamRounds,
   });
@@ -792,7 +759,7 @@ function PerfectTeamTab() {
     }
   }, [rounds, selectedRound]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["perfect-team", selectedRound],
     queryFn: () => fetchPerfectTeam(Number(selectedRound)),
     enabled: !!selectedRound,
@@ -826,19 +793,17 @@ function PerfectTeamTab() {
         )}
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>}
+      {isLoading && <PageSkeleton variant="cards" />}
       {isError && (
-        <Card className="border-danger/30 bg-danger/5">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <AlertCircle className="w-5 h-5 text-danger shrink-0" />
-            <p className="text-sm text-danger">Falha ao carregar time perfeito.</p>
-          </CardContent>
-        </Card>
+        <ErrorState title="Não foi possível carregar o time perfeito" description="Tente novamente para consultar os resultados." onRetry={() => Promise.all([refetch(), refetchRounds()])} />
       )}
       {data?.message && !isLoading && (
-        <p className="text-sm text-muted-foreground text-center py-8">{data.message}</p>
+        <EmptyState icon={Trophy} title="Resultados ainda não disponíveis" description={`${data.message} Consulte os parciais ou aguarde o encerramento da rodada para ver os resultados completos.`} actionLabel="Ir para Escalação" actionHref="/escalacao" />
       )}
 
+      {!isLoading && !isError && !stats && !data?.message && (
+        <EmptyState icon={Trophy} title="Nenhum resultado disponível" description="Escolha outra rodada ou aguarde o encerramento para ver os resultados." actionLabel="Ir para Escalação" actionHref="/escalacao" />
+      )}
       {!isLoading && !isError && stats && (
         <>
           {/* Stats cards */}
@@ -1213,7 +1178,7 @@ function StrategyCompareCard({ s }: { s: BudgetOptimalStrategy }) {
 function BudgetOptimalTab() {
   const [selectedRound, setSelectedRound] = useState<string>("");
 
-  const { data: roundsData } = useQuery({
+  const { data: roundsData, refetch: refetchRounds } = useQuery({
     queryKey: ["lineup-rounds"],
     queryFn: fetchLineupRounds,
   });
@@ -1226,7 +1191,7 @@ function BudgetOptimalTab() {
     }
   }, [rounds, selectedRound]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["budget-optimal", selectedRound],
     queryFn: () => fetchBudgetOptimal(Number(selectedRound)),
     enabled: !!selectedRound,
@@ -1251,19 +1216,17 @@ function BudgetOptimalTab() {
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>}
+      {isLoading && <PageSkeleton variant="cards" />}
       {isError && (
-        <Card className="border-danger/30 bg-danger/5">
-          <CardContent className="flex items-center gap-3 pt-6">
-            <AlertCircle className="w-5 h-5 text-danger shrink-0" />
-            <p className="text-sm text-danger">Falha ao carregar comparativo.</p>
-          </CardContent>
-        </Card>
+        <ErrorState title="Não foi possível carregar o comparativo" description="Tente novamente para consultar os resultados." onRetry={() => Promise.all([refetch(), refetchRounds()])} />
       )}
       {data?.message && !isLoading && (
-        <p className="text-sm text-muted-foreground text-center py-8">{data.message}</p>
+        <EmptyState icon={BarChart2} title="Comparativo ainda não disponível" description={`${data.message} Os resultados aparecerão após o fechamento da rodada.`} actionLabel="Ir para Escalação" actionHref="/escalacao" />
       )}
 
+      {!isLoading && !isError && data && data.strategies.length === 0 && !data.message && (
+        <EmptyState icon={BarChart2} title="Nenhum comparativo disponível" description="Escolha outra rodada ou aguarde o encerramento para ver os resultados." actionLabel="Ir para Escalação" actionHref="/escalacao" />
+      )}
       {!isLoading && !isError && data && data.strategies.length > 0 && (
         <div className="space-y-4">
           {data.strategies.map((s) => (

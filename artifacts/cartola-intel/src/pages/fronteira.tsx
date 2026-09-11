@@ -26,7 +26,6 @@ import {
 import {
   Loader2,
   TrendingUp,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
   Crown,
@@ -35,6 +34,9 @@ import {
 } from "lucide-react";
 import { PlayerCard } from "@/components/PlayerCard";
 import { useToast } from "@/hooks/use-toast";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -402,17 +404,35 @@ export default function Fronteira() {
           </CardContent>
         </Card>
 
-        {/* Error state */}
         {mutation.isError && (
-          <Card className="border-destructive/40 bg-destructive/5">
-            <CardContent className="pt-4 flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
-              <p className="text-sm text-destructive">{(mutation.error as Error).message}</p>
-            </CardContent>
-          </Card>
+          <ErrorState
+            title="Não foi possível gerar a fronteira"
+            description={(mutation.error as Error).message}
+            onRetry={() => {
+              mutation.reset();
+              mutation.mutate();
+            }}
+          />
+        )}
+
+        {mutation.isPending && (
+          <PageSkeleton variant="chart" aria-label="Calculando fronteira eficiente" />
         )}
 
         {/* Results */}
+        {mutation.isSuccess && tiers.length === 0 && (
+          <EmptyState
+            icon={GitFork}
+            title="Nenhuma escalação encontrada"
+            description="Não encontramos combinações para esses parâmetros. Ajuste a formação ou o orçamento e tente novamente."
+            actionLabel="Ajustar parâmetros"
+            onAction={() => {
+              mutation.reset();
+              setExpandedTier(null);
+            }}
+          />
+        )}
+
         {tiers.length > 0 && (
           <div className="space-y-6">
             {/* Scatter chart */}

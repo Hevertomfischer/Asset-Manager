@@ -31,6 +31,9 @@ import { PlayerBadges } from "@/components/PlayerCard";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -98,13 +101,13 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: roundData, isLoading: roundLoading, isError: roundError } = useGetCurrentRound();
-  const { data: providersData, isError: providersError } = useGetProvidersStatus();
-  const { data: projectionsData, isLoading: projLoading, isError: projError } = useGetCurrentProjections({
+  const { data: roundData, isLoading: roundLoading, isError: roundError, refetch: refetchRound } = useGetCurrentRound();
+  const { data: providersData, isError: providersError, refetch: refetchProviders } = useGetProvidersStatus();
+  const { data: projectionsData, isLoading: projLoading, isError: projError, refetch: refetchProjections } = useGetCurrentProjections({
     round: roundData?.round ?? undefined,
   });
-  const { data: matchesData, isLoading: matchesLoading, isError: matchesError } = useGetCurrentMatches();
-  const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError } = useGetCurrentAvailability({});
+  const { data: matchesData, isLoading: matchesLoading, isError: matchesError, refetch: refetchMatches } = useGetCurrentMatches();
+  const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError, refetch: refetchAvailability } = useGetCurrentAvailability({});
   const { data: configData } = useGetAdminConfig();
 
   const providers = providersData?.providers ?? [];
@@ -163,6 +166,30 @@ export default function Dashboard() {
 
   const positions = ["ATA", "MEI", "LAT", "ZAG", "GOL", "TEC"];
 
+  const primaryLoading = roundLoading || projLoading || matchesLoading;
+  const primaryError = roundError || projError || matchesError;
+  if (primaryLoading) return <PageSkeleton variant="cards" aria-label="Carregando painel" />;
+  if (primaryError) {
+    return (
+      <ErrorState
+        title="Não foi possível carregar o painel"
+        description="Os dados principais do painel não puderam ser carregados."
+        onRetry={() => Promise.all([refetchRound(), refetchProjections(), refetchMatches()])}
+      />
+    );
+  }
+  if (projections.length === 0) {
+    return (
+      <EmptyState
+        icon={Activity}
+        title="Ainda não há projeções para esta rodada"
+        description="Consulte o histórico enquanto os dados da rodada são preparados."
+        actionLabel="Ver histórico"
+        actionHref="/historico"
+      />
+    );
+  }
+
   return (
     <div className="space-y-8 motion-safe:animate-in fade-in slide-in-from-bottom-4 motion-safe:duration-500">
       {/* Hero Section */}
@@ -201,15 +228,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {roundError ? (
-                <div className="flex items-center gap-2 text-destructive text-sm p-2 rounded bg-destructive/10">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  Erro ao carregar rodada
-                </div>
-              ) : roundLoading ? (
-                <div className="h-16 flex items-center justify-center text-muted-foreground">Carregando...</div>
-              ) : (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="flex items-baseline justify-between">
                     <span className="text-4xl font-display font-bold text-foreground">Rodada {roundData?.round ?? "?"}</span>
                     <Badge variant={roundData?.marketOpen ? "default" : "destructive"} className="shadow-lg font-bold px-3">
@@ -223,13 +242,12 @@ export default function Dashboard() {
                     </div>
                   )}
                   <Button className="w-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 motion-safe:transition-all font-bold group" asChild>
-                    <Link to="/escalacao">
-                      Otimizar Escalação
+                    <Link to={roundData?.marketOpen ? "/escalacao" : "/historico"}>
+                      {roundData?.marketOpen ? "Otimizar Escalação" : "Ver parciais e resultados"}
                       <ArrowRight className="w-4 h-4 ml-2 motion-safe:group-hover:translate-x-1 motion-safe:transition-transform" />
                     </Link>
                   </Button>
-                </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -245,11 +263,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-semibold">Jogadores disponíveis</p>
-              {availabilityError ? (
-                <p className="text-sm text-destructive font-medium">Erro</p>
-              ) : (
-                <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
-              )}
+              <p className="text-2xl font-mono tabular-nums font-bold text-foreground">{availableCount > 0 ? availableCount : projections.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -296,38 +310,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-display font-bold">Melhores projeções</h2>
           </div>
 
-          {projError ? (
-            user ? (
-              <div className="flex items-center gap-2 text-destructive text-sm p-4 rounded-2xl bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                Erro ao carregar projeções. Verifique se o sistema de dados está funcionando.
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-card border border-border/50 text-center">
-                <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-                  <Trophy className="w-7 h-7 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">Projeções disponíveis para membros</p>
-                  <p className="text-sm text-muted-foreground mt-1">Faça login para ver as melhores projeções e otimizar seu time no Cartola FC.</p>
-                </div>
-                <a
-                  href="/api/auth/google"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 text-sm font-bold motion-safe:transition-colors"
-                >
-                  Entrar com Google
-                </a>
-              </div>
-            )
-          ) : projLoading ? (
-            <div className="h-64 flex items-center justify-center text-muted-foreground bg-card rounded-2xl border border-border">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                Calculando projeções...
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {positions.map((pos) => {
                 const tops = getTopByPos(pos, 5);
                 if (!tops.length) return null;
@@ -386,20 +369,17 @@ export default function Dashboard() {
                   </Card>
                 );
               })}
-            </div>
-          )}
+          </div>
 
           {/* Risk Alerts */}
           {availabilityLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-              Carregando alertas de risco...
-            </div>
+            <PageSkeleton variant="list" aria-label="Carregando alertas de risco" />
           ) : availabilityError ? (
-            <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              Erro ao carregar dados de disponibilidade
-            </div>
+            <ErrorState
+              title="Disponibilidade indisponível"
+              description="Não foi possível carregar os alertas de disponibilidade."
+              onRetry={refetchAvailability}
+            />
           ) : riskAlerts.length > 0 ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -444,7 +424,7 @@ export default function Dashboard() {
           ) : null}
 
           {/* Diferenciais da Rodada */}
-          {!projLoading && !projError && diferenciais.length > 0 && (
+          {diferenciais.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent" />
@@ -485,7 +465,7 @@ export default function Dashboard() {
           )}
 
           {/* Armadilhas da Rodada */}
-          {!projLoading && !projError && armadilhas.length > 0 && (
+          {armadilhas.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bomb className="w-5 h-5 text-destructive" />
@@ -537,10 +517,11 @@ export default function Dashboard() {
               </div>
 
               {providersError ? (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  Erro ao carregar status dos provedores
-                </div>
+                <ErrorState
+                  title="Status dos provedores indisponível"
+                  description="Não foi possível carregar o status do pipeline."
+                  onRetry={refetchProviders}
+                />
               ) : (
                 <div className="space-y-3">
                   {providers.map((provider) => (
@@ -622,17 +603,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {matchesLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                Carregando partidas...
-              </div>
-            ) : matchesError ? (
-              <div className="flex items-center gap-2 text-destructive text-sm p-3 rounded-xl bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                Erro ao carregar partidas
-              </div>
-            ) : matches.length === 0 ? (
+            {matches.length === 0 ? (
               <p className="text-sm text-muted-foreground p-3">Nenhuma partida disponível para esta rodada.</p>
             ) : (
               <div className="space-y-2">

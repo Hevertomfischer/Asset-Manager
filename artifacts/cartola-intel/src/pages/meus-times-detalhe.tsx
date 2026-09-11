@@ -14,6 +14,9 @@ import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ManualRoundDialog } from "@/components/ManualRoundDialog";
 import { useGetUserTeamRounds, type UserTeamRound, type UserTeamRoundPlayer } from "@workspace/api-client-react";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 // ── Efficiency colour helper (same scale as historico.tsx) ────────────────────
 function effColor(pct: number | null): string {
@@ -120,6 +123,11 @@ function RoundCard({ round, defaultExpanded = false }: { round: UserTeamRound; d
                <p className={`text-lg font-bold font-mono tabular-nums ${hasPoints ? "text-foreground" : "text-muted-foreground"}`}>
                 {hasPoints ? round.actualTotal!.toFixed(1) : "—"}
               </p>
+              {!hasPoints && (
+                <p className="max-w-32 text-[10px] leading-tight text-muted-foreground">
+                  Parciais podem ser consultados; o resultado sai após o fechamento.
+                </p>
+              )}
             </div>
 
             {/* Efficiency — Pro only */}
@@ -200,7 +208,7 @@ function StatBox({ label, value, sub, accent = false }: { label: string; value: 
 export default function MeusTimesDetalhe() {
   const { id } = useParams<{ id: string }>();
   const teamId = id ? Number(id) : null;
-  const { data, isLoading, isError } = useGetUserTeamRounds(teamId);
+  const { data, isLoading, isError, refetch } = useGetUserTeamRounds(teamId);
   const [manualOpen, setManualOpen] = useState(false);
 
   const team = data?.team;
@@ -223,13 +231,11 @@ export default function MeusTimesDetalhe() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
+      <PageSkeleton variant="pitch" />
     );
   }
 
-  if (isError || !team) {
+  if (isError) {
     return (
       <div className="space-y-6">
         <Link to="/meus-times">
@@ -237,11 +243,26 @@ export default function MeusTimesDetalhe() {
             <ArrowLeft className="w-4 h-4" /> Meus Times
           </Button>
         </Link>
-        <Card className="border-destructive/30">
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Time não encontrado.
-          </CardContent>
-        </Card>
+        <ErrorState title="Não foi possível carregar o time" description="Tente novamente para consultar as rodadas registradas." onRetry={refetch} />
+      </div>
+    );
+  }
+
+  if (!team) {
+    return (
+      <div className="space-y-6">
+        <Link to="/meus-times">
+          <Button variant="ghost" size="sm" className="rounded-xl gap-2 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4" /> Meus Times
+          </Button>
+        </Link>
+        <EmptyState
+          icon={Trophy}
+          title="Time não encontrado"
+          description="Esse time pode ter sido removido ou o endereço não é válido."
+          actionLabel="Voltar para Meus Times"
+          actionHref="/meus-times"
+        />
       </div>
     );
   }
@@ -331,19 +352,14 @@ export default function MeusTimesDetalhe() {
           </div>
         ) : (
           /* Empty-state inside hero when no rounds yet */
-          <div className="pt-4 border-t border-border/30 flex flex-col items-center gap-3 py-6 text-center">
-            <Target className="w-10 h-10 text-primary/30" />
-            <p className="text-sm font-medium text-foreground">Registre seu time desta rodada</p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              Gere uma escalação e clique em "Foi esse o meu time" para começar a acompanhar seu desempenho.
-            </p>
-            <Link to="/escalacao">
-              <Button size="sm" className="rounded-xl bg-gradient-to-r from-primary to-accent font-semibold mt-1">
-                <Shield className="w-3.5 h-3.5 mr-2" />
-                Ir para Escalação
-              </Button>
-            </Link>
-          </div>
+          <EmptyState
+            icon={Target}
+            title="Nenhuma rodada registrada"
+            description='Gere uma escalação e clique em "Foi esse o meu time" para começar a acompanhar seu desempenho.'
+            actionLabel="Ir para Escalação"
+            actionHref="/escalacao"
+            className="mt-4"
+          />
         )}
       </div>
 

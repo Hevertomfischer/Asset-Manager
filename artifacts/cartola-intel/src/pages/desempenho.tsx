@@ -45,6 +45,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useShareCard } from "@/hooks/useShareCard";
 import { ShareCardFrame } from "@/components/share/ShareCardFrame";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -172,20 +175,6 @@ function StatCard({
   );
 }
 
-// ── Empty / error state ───────────────────────────────────────────────────────
-
-function EmptyState({ message }: { message?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
-      <BarChart2 className="w-10 h-10 opacity-30" />
-      <p className="text-sm font-medium">Dados históricos insuficientes</p>
-      <p className="text-xs opacity-60 text-center max-w-sm">
-        {message ?? "Após a primeira rodada completa, as métricas aparecerão aqui."}
-      </p>
-    </div>
-  );
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Desempenho() {
@@ -222,7 +211,7 @@ export default function Desempenho() {
     };
   }, []);
 
-  const { data, isLoading, isError } = useQuery<PerformanceData>({
+  const { data, isLoading, isError, refetch } = useQuery<PerformanceData>({
     queryKey: ["stats-performance"],
     queryFn: async () => {
       const res = await fetch("/api/stats/performance");
@@ -309,20 +298,27 @@ export default function Desempenho() {
 
         {/* ── Loading / error states ──────────────────────────────────────────── */}
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 text-muted-foreground py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
-            <span className="text-sm">Carregando dados históricos…</span>
-          </div>
+          <PageSkeleton variant="chart" aria-label="Carregando desempenho do modelo" />
         )}
 
         {isError && (
-          <div className="flex items-center gap-2 text-destructive text-sm p-4 rounded-xl bg-destructive/10 border border-destructive/30 max-w-xl mx-auto">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            Falha ao carregar os dados. Tente novamente mais tarde.
-          </div>
+          <ErrorState
+            title="Não foi possível carregar o desempenho"
+            description="Os dados históricos não puderam ser carregados."
+            onRetry={refetch}
+            className="max-w-xl mx-auto"
+          />
         )}
 
-        {data?.empty && <EmptyState message={data.message} />}
+        {data?.empty && (
+          <EmptyState
+            icon={BarChart2}
+            title="Dados históricos insuficientes"
+            description={data.message ?? "Após a primeira rodada completa, as métricas aparecerão aqui."}
+            actionLabel="Voltar ao início"
+            onAction={() => navigate("/")}
+          />
+        )}
 
         {data && !data.empty && (
           <>
@@ -406,7 +402,13 @@ export default function Desempenho() {
                 </CardHeader>
                 <CardContent className="p-6">
                   {data.byRound.length < 2 ? (
-                    <EmptyState message="Necessário ao menos 2 rodadas completas para exibir o gráfico." />
+                    <EmptyState
+                      icon={BarChart2}
+                      title="Dados insuficientes para o gráfico"
+                      description="Necessário ao menos 2 rodadas completas para exibir o gráfico."
+                      actionLabel="Voltar ao início"
+                      onAction={() => navigate("/")}
+                    />
                   ) : (
                     <>
                       <ResponsiveContainer width="100%" height={240}>
@@ -487,7 +489,13 @@ export default function Desempenho() {
                 </CardHeader>
                 <CardContent className="p-6">
                   {calibrationData.length === 0 ? (
-                    <EmptyState />
+                    <EmptyState
+                      icon={BarChart2}
+                      title="Calibração indisponível"
+                      description="Ainda não há dados suficientes para exibir a calibração."
+                      actionLabel="Voltar ao início"
+                      onAction={() => navigate("/")}
+                    />
                   ) : (
                     <>
                       <ResponsiveContainer width="100%" height={240}>

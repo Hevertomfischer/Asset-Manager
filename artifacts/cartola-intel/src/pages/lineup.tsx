@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   useGenerateLineup,
+  useGetCurrentRound,
   useSaveLineup,
   type LineupGenerateRequestStrategy,
   type LineupSuggestion,
@@ -17,7 +18,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, AlertCircle, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock, Share2 } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -36,6 +37,9 @@ import { FieldView } from "@/components/FieldView";
 import { LineupShareCard } from "@/components/share/LineupShareCard";
 import { useShareCard } from "@/hooks/useShareCard";
 import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 function LineupPlayerCard({
   player,
@@ -202,6 +206,12 @@ export default function Lineup() {
   const { openPaywall } = usePaywall();
   const { isPro, isLoading: isAuthLoading } = useAuth();
   const track = useTrack();
+  const {
+    data: roundData,
+    isLoading: isRoundLoading,
+    isError: isRoundError,
+    refetch: refetchRound,
+  } = useGetCurrentRound();
   const generateLineupMutation = useGenerateLineup();
   const saveLineupMutation = useSaveLineup();
 
@@ -235,6 +245,9 @@ export default function Lineup() {
   useEffect(() => {
     if (
       isAuthLoading ||
+      isRoundLoading ||
+      isRoundError ||
+      roundData?.marketOpen === false ||
       searchParams.get("autoGenerate") !== "true" ||
       autoGenerateRef.current
     ) return;
@@ -273,9 +286,10 @@ export default function Lineup() {
   // Depending on `strategy` here would cancel the timer when the downgrade
   // updates the visible selection to "safe".
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthLoading, isPro]);
+  }, [isAuthLoading, isPro, isRoundLoading, isRoundError, roundData?.marketOpen]);
 
   const handleGenerate = () => {
+    if (isRoundLoading || isRoundError || roundData?.marketOpen === false) return;
     generateLineupMutation.mutate(
       { data: { budget, formation, strategy: strategy as LineupGenerateRequestStrategy } },
       {
@@ -568,28 +582,35 @@ export default function Lineup() {
             <Button
               className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all bg-gradient-to-r from-primary to-accent"
               onClick={handleGenerate}
-              disabled={generateLineupMutation.isPending}
+              disabled={generateLineupMutation.isPending || isRoundLoading || isRoundError || roundData?.marketOpen === false}
             >
-              {generateLineupMutation.isPending ? (
+              {roundData?.marketOpen === false ? (
+                <><Lock className="w-4 h-4 mr-2" /> Mercado fechado</>
+              ) : generateLineupMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...</>
               ) : (
                 <><Calculator className="w-4 h-4 mr-2" /> Gerar Escalação</>
               )}
             </Button>
 
-            {generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 && (
-              <div className="flex items-center gap-2 text-destructive text-xs p-2.5 rounded-lg bg-destructive/10 border border-destructive/30">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {generateLineupMutation.error?.message || "Falha ao gerar escalação"}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Lineup Display */}
       <div className="lg:col-span-8 flex flex-col">
-        {currentLineup ? (
+        {generateLineupMutation.isPending ? (
+          <PageSkeleton variant="pitch" aria-label="Gerando escalação otimizada" />
+        ) : generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 ? (
+          <ErrorState
+            title="Falha na geração da escalação"
+            description={generateLineupMutation.error?.message || "Não foi possível gerar escalação com as restrições fornecidas."}
+            onRetry={() => {
+              generateLineupMutation.reset();
+              handleGenerate();
+            }}
+          />
+        ) : currentLineup ? (
           <div className="w-full motion-safe:animate-in zoom-in-95 motion-safe:duration-500 space-y-3">
             {/* Summary bar — compact */}
             <div className="flex items-center justify-between gap-2 bg-card border border-border/50 px-3 py-2 rounded-xl shadow-sm">
@@ -779,6 +800,22 @@ export default function Lineup() {
             {/* Monte Carlo probability distribution (Pro) */}
             <LineupProbabilities lineup={currentLineup} />
           </div>
+        ) : isRoundLoading ? (
+          <PageSkeleton variant="pitch" aria-label="Carregando status da rodada" />
+        ) : isRoundError ? (
+          <ErrorState
+            title="Não foi possível verificar o mercado"
+            description="Verifique o status da rodada antes de gerar uma escalação."
+            onRetry={refetchRound}
+          />
+        ) : roundData?.marketOpen === false ? (
+          <EmptyState
+            icon={Lock}
+            title="Mercado fechado"
+            description="A escalação desta rodada encerrou. Você ainda pode acompanhar as parciais e consultar os resultados."
+            actionLabel="Ver parciais e resultados"
+            actionHref="/historico"
+          />
         ) : (
           <div className="w-full h-[600px] border-2 border-dashed border-border/50 rounded-3xl flex flex-col items-center justify-center text-muted-foreground bg-card/30">
             <Shield className="w-16 h-16 mb-4 opacity-20" />

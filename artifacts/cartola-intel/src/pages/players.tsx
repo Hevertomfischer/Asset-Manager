@@ -20,6 +20,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PlayerCard } from "@/components/PlayerCard";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 type SortColumn =
   | "name"
@@ -61,7 +64,7 @@ export default function Players() {
   const pageSize = 20;
   const { openPaywall } = usePaywall();
 
-  const { data, isLoading, isError, error } = useGetPlayers({
+  const { data, isLoading, isError, error, refetch } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
     minPrice: minPrice > 0 ? minPrice : undefined,
     maxPrice,
@@ -176,6 +179,19 @@ export default function Players() {
 
   const handlePositionChange = (val: string) => { setPosition(val); setPage(0); };
   const handleClubChange = (val: string) => { setClubFilter(val); setPage(0); };
+  const clearFilters = () => {
+    setSearch("");
+    setPosition("ALL");
+    setClubFilter("ALL");
+    setMinPrice(0);
+    setMaxPrice(30);
+    setMinProjection("");
+    setMaxMinimo("");
+    setMinBaseAverage("");
+    setProbableOnly(true);
+    setValorizaOnly(false);
+    setPage(0);
+  };
 
   const difRef = useRef<HTMLDivElement>(null);
   const armRef = useRef<HTMLDivElement>(null);
@@ -189,6 +205,18 @@ export default function Players() {
     () => `mitometro-armadilha-${(topArmadilha?.nickname ?? topArmadilha?.name ?? "player").replace(/\s+/g, "_")}.png`,
     "armadilha_rodada"
   );
+
+  const isPaywalled = (error as { status?: number } | undefined)?.status === 402;
+  if (isLoading) return <PageSkeleton variant="list" aria-label="Carregando jogadores" />;
+  if (isError && !isPaywalled) {
+    return (
+      <ErrorState
+        title="Não foi possível carregar os jogadores"
+        description="Verifique sua conexão e tente novamente."
+        onRetry={refetch}
+      />
+    );
+  }
 
   const SortableHead = ({ col, children, className }: { col: SortColumn; children: React.ReactNode; className?: string }) => (
     <TableHead
@@ -548,30 +576,16 @@ export default function Players() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {paginatedPlayers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={12} className="h-64 text-center text-muted-foreground">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      Carregando base de dados...
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-destructive">
-                      <AlertCircle className="w-8 h-8 opacity-70" />
-                      <p className="text-sm font-medium">Erro ao carregar jogadores.</p>
-                      <p className="text-xs text-muted-foreground">Verifique se o servidor está disponível.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : paginatedPlayers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={12} className="h-64 text-center text-muted-foreground">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    Nenhum jogador encontrado.
+                    <EmptyState
+                      icon={Search}
+                      title="Nenhum jogador encontrado"
+                      description="Tente remover os filtros para ver todos os jogadores disponíveis."
+                      actionLabel="Limpar filtros"
+                      onAction={clearFilters}
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

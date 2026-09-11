@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Trophy, Plus, Calendar, TrendingUp, Loader2, ChevronRight, Sparkles, ClipboardList, Shield } from "lucide-react";
+import { Trophy, Plus, Calendar, TrendingUp, Loader2, ChevronRight, Sparkles, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaywall } from "@/context/PaywallContext";
 import { useGetUserTeams, useCreateUserTeam } from "@workspace/api-client-react";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
+import { EmptyState } from "@/components/states/EmptyState";
 
 // ── Create team dialog ────────────────────────────────────────────────────────
 
@@ -135,7 +138,7 @@ export default function MeusTimes() {
   const { user, isLoading: authLoading } = useAuth();
   const { openPaywall } = usePaywall();
   const { isPro } = useAuth();
-  const { data, isLoading } = useGetUserTeams();
+  const { data, isLoading, isError, refetch } = useGetUserTeams();
   const teams = data?.teams ?? [];
 
   const handleNewTeam = () => {
@@ -178,9 +181,7 @@ export default function MeusTimes() {
 
       {/* Content */}
       {authLoading || isLoading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
+        <PageSkeleton variant="list" />
       ) : !user ? (
         // Not logged in
         <Card className="border-dashed border-border/50">
@@ -194,33 +195,16 @@ export default function MeusTimes() {
             </div>
           </CardContent>
         </Card>
+      ) : isError ? (
+        <ErrorState title="Não foi possível carregar seus times" description="Tente novamente para consultar os times registrados." onRetry={refetch} />
       ) : teams.length === 0 ? (
-        // Empty state
-           <Card className="border-dashed border-border/50 hover:border-primary/30 motion-safe:transition-colors">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <ClipboardList className="w-10 h-10 text-primary opacity-50" />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-lg font-semibold text-foreground">Nenhum time registrado ainda</p>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Registre seu time desta rodada e descubra se você bateu o modelo.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 mt-1">
-              <Link to="/escalacao">
-                <Button className="rounded-xl bg-gradient-to-r from-primary to-accent font-semibold">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Gerar Escalação
-                </Button>
-              </Link>
-              <Button variant="outline" className="rounded-xl" onClick={() => setCreateOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Criar Time Manualmente
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ClipboardList}
+          title="Nenhum time registrado ainda"
+          description="Registre seu time desta rodada e descubra se você bateu o modelo."
+          actionLabel="Registrar meu time da rodada"
+          onAction={() => setCreateOpen(true)}
+        />
       ) : (
         // Teams list
         <div className="space-y-3">
