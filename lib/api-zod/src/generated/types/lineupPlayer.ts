@@ -27,8 +27,8 @@ export interface LineupPlayer {
   clubId?: number | null;
   clubAbbr?: string | null;
   clubName?: string | null;
-  /** Mínimo de pontos para valorizar (MPV). Null when not yet published. */
+  /** Minimum points needed to increase price next round. */
   minimoParaValorizar?: number | null;
-  /** expectedPoints − minimoParaValorizar. Positive = projected to valorize. */
+  /** Expected points minus minimum points needed to increase price. */
   valorizacaoMargin?: number | null;
 }

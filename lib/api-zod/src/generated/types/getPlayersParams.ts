@@ -13,5 +13,13 @@ export type GetPlayersParams = {
   maxPrice?: number;
   probableOnly?: string;
   minProjection?: number;
+  /**
+   * Maximum minimum score needed to increase price.
+   */
+  maxMinimo?: number;
+  /**
+   * Minimum position-scout baseline average.
+   */
+  minBaseAverage?: number;
   round?: number;
 };

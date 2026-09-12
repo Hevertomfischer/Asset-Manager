@@ -99,6 +99,10 @@ export interface IlpConstraints {
   maxPlayersPerClub: number;
   /** clubId → opponentClubId for this round. */
   opponentMap: Map<number, number>;
+  /** Player IDs that must be selected (when feasible). */
+  lockedPlayerIds?: ReadonlySet<number> | readonly number[];
+  /** Player IDs that must not be selected. */
+  excludedPlayerIds?: ReadonlySet<number> | readonly number[];
   /**
    * Optional cap on total team risk: Σ(riskScore_i · x_i) ≤ maxTotalRisk.
    * Used by the frontier service to generate risk-tiered lineups.
@@ -126,7 +130,11 @@ function deduplicateById(arr: IlpCandidate[]): IlpCandidate[] {
   });
 }
 
-function prefilter(candidates: IlpCandidate[]): IlpCandidate[] {
+function prefilter(
+  candidates: IlpCandidate[],
+  lockedPlayerIds: ReadonlySet<number>,
+  excludedPlayerIds: ReadonlySet<number>
+): IlpCandidate[] {
   const byPos = new Map<string, IlpCandidate[]>();
   for (const c of candidates) {
     const g = byPos.get(c.position) ?? [];
@@ -138,8 +146,12 @@ function prefilter(candidates: IlpCandidate[]): IlpCandidate[] {
   for (const [, group] of byPos) {
     const byScore = [...group].sort((a, b) => b.score - a.score);
     const byCheap = [...group].sort((a, b) => a.price - b.price);
+    const locked = group.filter((c) => lockedPlayerIds.has(c.id));
+    const excluded = group.filter((c) => excludedPlayerIds.has(c.id));
     result.push(
       ...deduplicateById([
+        ...locked,
+        ...excluded,
         ...byScore.slice(0, TOP_BY_SCORE),
         ...byCheap.slice(0, CHEAP_BUFFER),
       ])
@@ -155,8 +167,10 @@ export function solveLineupILP(
   constraints: IlpConstraints
 ): IlpSolution {
   const { slots, budgetLimit, maxPlayersPerClub, opponentMap } = constraints;
+  const lockedPlayerIds = new Set(constraints.lockedPlayerIds ?? []);
+  const excludedPlayerIds = new Set(constraints.excludedPlayerIds ?? []);
 
-  const filtered = prefilter(candidates);
+  const filtered = prefilter(candidates, lockedPlayerIds, excludedPlayerIds);
   log.debug("Pre-filtered candidates", { from: candidates.length, to: filtered.length });
 
   const fieldCandidates = filtered.filter((c) => c.isFieldPlayer);
@@ -168,6 +182,14 @@ export function solveLineupILP(
   // Formation (equality via min+max)
   for (const { position, count } of slots) {
     modelConstraints[`pos_${position}`] = { min: count, max: count };
+  }
+  // Candidates from positions not present in the requested formation cannot be
+  // selected (otherwise their variables would not contribute to any formation
+  // row and could be picked as free extras).
+  for (const position of new Set(filtered.map((c) => c.position))) {
+    if (!modelConstraints[`pos_${position}`]) {
+      modelConstraints[`pos_${position}`] = { min: 0, max: 0 };
+    }
   }
 
   // Budget ceiling always applied. No floor — the formation constraint (12
@@ -188,6 +210,18 @@ export function solveLineupILP(
   for (const c of filtered) {
     const key = `club_${c.clubId}`;
     if (!modelConstraints[key]) modelConstraints[key] = { max: maxPlayersPerClub };
+  }
+
+  // Exact lock/exclusion constraints.
+  for (const id of lockedPlayerIds) {
+    const candidate = filtered.find((c) => c.id === id);
+    if (!candidate) continue;
+    modelConstraints[`locked_${id}`] = { min: 1, max: 1 };
+  }
+  for (const id of excludedPlayerIds) {
+    const candidate = filtered.find((c) => c.id === id);
+    if (!candidate) continue;
+    modelConstraints[`excluded_${id}`] = { min: 0, max: 0 };
   }
 
   // One per (club, position)
@@ -242,6 +276,12 @@ export function solveLineupILP(
       [`club_${c.clubId}`]: 1,
       [`clubpos_${c.clubId}_${c.position}`]: 1,
     };
+    if (lockedPlayerIds.has(c.id)) {
+      varX[`locked_${c.id}`] = 1;
+    }
+    if (excludedPlayerIds.has(c.id)) {
+      varX[`excluded_${c.id}`] = 1;
+    }
 
     // Risk constraint contribution
     if (constraints.maxTotalRisk != null && c.riskScore != null) {

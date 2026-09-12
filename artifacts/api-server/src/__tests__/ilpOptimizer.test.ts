@@ -122,6 +122,95 @@ describe("ILP Optimizer — solveLineupILP", () => {
     expect(result.selectedIds.has(3)).toBe(true); // best TEC by score
   });
 
+  test("retains a locked player even when their score is outside the prefilter", () => {
+    const candidates: IlpCandidate[] = Array.from({ length: 35 }, (_, index) =>
+      makeCandidate({
+        id: index + 1,
+        position: "GOL",
+        clubId: index + 1,
+        score: 100 - index,
+        price: 5 + index * 0.1,
+      })
+    );
+    candidates.push(
+      makeCandidate({ id: 99, position: "GOL", clubId: 99, score: -100, price: 30 }),
+      makeCandidate({ id: 100, position: "TEC", clubId: 100, score: 3, isFieldPlayer: false })
+    );
+    const result = solveLineupILP(candidates, {
+      slots: [{ position: "GOL", count: 1 }, { position: "TEC", count: 1 }],
+      budgetLimit: 100,
+      maxPlayersPerClub: 5,
+      opponentMap: NO_OPPONENTS,
+      lockedPlayerIds: [99],
+    });
+
+    expect(result.feasible).toBe(true);
+    expect(result.selectedIds).toEqual(new Set([99, 100]));
+  });
+
+  test("excludes a naturally preferred player from the lineup", () => {
+    const candidates: IlpCandidate[] = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 1, score: 20 }),
+      makeCandidate({ id: 2, position: "GOL", clubId: 2, score: 5 }),
+      makeCandidate({ id: 3, position: "TEC", clubId: 3, score: 3, isFieldPlayer: false }),
+    ];
+    const result = solveLineupILP(candidates, {
+      slots: [{ position: "GOL", count: 1 }, { position: "TEC", count: 1 }],
+      budgetLimit: 50,
+      maxPlayersPerClub: 5,
+      opponentMap: NO_OPPONENTS,
+      excludedPlayerIds: [1],
+    });
+
+    expect(result.feasible).toBe(true);
+    expect(result.selectedIds.has(1)).toBe(false);
+    expect(result.selectedIds.has(2)).toBe(true);
+  });
+
+  test("reports infeasibility when a locked player exceeds the budget", () => {
+    const result = solveLineupILP(
+      [
+        makeCandidate({ id: 1, position: "GOL", clubId: 1, score: 20, price: 30 }),
+        makeCandidate({ id: 2, position: "TEC", clubId: 2, score: 3, price: 5, isFieldPlayer: false }),
+      ],
+      {
+        slots: [{ position: "GOL", count: 1 }, { position: "TEC", count: 1 }],
+        budgetLimit: 20,
+        maxPlayersPerClub: 5,
+        opponentMap: NO_OPPONENTS,
+        lockedPlayerIds: [1],
+      }
+    );
+
+    expect(result.feasible).toBe(false);
+  });
+
+  test("reports infeasibility when locks violate position or club constraints", () => {
+    const candidates = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 1, score: 8 }),
+      makeCandidate({ id: 2, position: "GOL", clubId: 2, score: 7 }),
+      makeCandidate({ id: 3, position: "ZAG", clubId: 1, score: 7 }),
+      makeCandidate({ id: 4, position: "TEC", clubId: 3, score: 3, isFieldPlayer: false }),
+    ];
+    const wrongPosition = solveLineupILP(candidates, {
+      slots: [{ position: "GOL", count: 1 }, { position: "TEC", count: 1 }],
+      budgetLimit: 50,
+      maxPlayersPerClub: 5,
+      opponentMap: NO_OPPONENTS,
+      lockedPlayerIds: [1, 3],
+    });
+    const wrongClub = solveLineupILP(candidates, {
+      slots: [{ position: "GOL", count: 1 }, { position: "ZAG", count: 1 }, { position: "TEC", count: 1 }],
+      budgetLimit: 50,
+      maxPlayersPerClub: 1,
+      opponentMap: NO_OPPONENTS,
+      lockedPlayerIds: [1, 3],
+    });
+
+    expect(wrongPosition.feasible).toBe(false);
+    expect(wrongClub.feasible).toBe(false);
+  });
+
   test("ILP score ≥ greedy score on budget-constrained case (classic counterexample)", () => {
     /**
      * Greedy (highest-score-first) picks GOL-A (score=10, price=18).
@@ -433,6 +522,29 @@ describe("ILP Optimizer — solveLineupILP", () => {
     }, 0);
 
     expect(totalCost).toBeLessThanOrEqual(budgetLimit);
+  });
+
+  test("fixes excluded player variables to zero", () => {
+    const candidates: IlpCandidate[] = [
+      makeCandidate({ id: 1, position: "GOL", clubId: 1, score: 100, price: 8 }),
+      makeCandidate({ id: 2, position: "GOL", clubId: 2, score: 10, price: 8 }),
+      makeCandidate({ id: 3, position: "TEC", clubId: 3, score: 5, price: 5, isFieldPlayer: false }),
+    ];
+
+    const result = solveLineupILP(candidates, {
+      slots: [
+        { position: "GOL", count: 1 },
+        { position: "TEC", count: 1 },
+      ],
+      budgetLimit: 30,
+      maxPlayersPerClub: 3,
+      opponentMap: NO_OPPONENTS,
+      excludedPlayerIds: [1],
+    });
+
+    expect(result.feasible).toBe(true);
+    expect(result.selectedIds.has(1)).toBe(false);
+    expect(result.selectedIds.has(2)).toBe(true);
   });
 
   test("selects exact formation counts", () => {

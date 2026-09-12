@@ -17,7 +17,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock } from "lucide-react";
+import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { ProGate } from "@/components/ProGate";
@@ -34,6 +34,8 @@ import type { Player } from "@workspace/api-client-react";
 import { PlayerCard, PlayerBadges } from "@/components/PlayerCard";
 import { FieldView } from "@/components/FieldView";
 import { ExportLineupSheet } from "@/components/lineup/ExportLineupSheet";
+import { PlayerConstraintActions } from "@/components/lineup/PlayerConstraintActions";
+import { useLineupConstraints, type ConstraintPlayer } from "@/context/LineupConstraintsContext";
 import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -44,12 +46,20 @@ function LineupPlayerCard({
   captainId,
   coachId,
   onSwapRequest,
+  isLocked,
+  isExcluded,
+  onToggleLocked,
+  onToggleExcluded,
   strategy,
 }: {
   player: LineupPlayer;
   captainId?: number | null;
   coachId?: number | null;
   onSwapRequest?: () => void;
+  isLocked?: boolean;
+  isExcluded?: boolean;
+  onToggleLocked?: () => void;
+  onToggleExcluded?: () => void;
   strategy?: string;
 }) {
   const isCaptain = player.playerId === captainId;
@@ -90,6 +100,17 @@ function LineupPlayerCard({
         <div className="mt-1 mb-2 px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-bold text-center">
           Técnico
         </div>
+      )}
+
+      {onToggleLocked && onToggleExcluded && (
+        <PlayerConstraintActions
+          playerName={player.nickname ?? player.name ?? "Jogador"}
+          isLocked={isLocked ?? false}
+          isExcluded={isExcluded ?? false}
+          onToggleLocked={onToggleLocked}
+          onToggleExcluded={onToggleExcluded}
+          className="mb-2 justify-end"
+        />
       )}
 
       {!isCoach && (
@@ -181,6 +202,16 @@ const STRATEGY_NAMES: Record<ValidStrategy, string> = {
   valorizacao: "Valorização",
 };
 
+const FORMATIONS = [
+  { value: "3-4-3", description: "Mais ataque, com três atacantes" },
+  { value: "3-5-2", description: "Meio-campo reforçado" },
+  { value: "4-3-3", description: "Equilíbrio com três atacantes" },
+  { value: "4-4-2", description: "Formação equilibrada e clássica" },
+  { value: "4-5-1", description: "Controle no meio-campo" },
+  { value: "5-3-2", description: "Defesa forte com dois atacantes" },
+  { value: "5-4-1", description: "Máxima proteção defensiva" },
+] as const;
+
 function parseStrategy(value: string | null): ValidStrategy | null {
   return value && (VALID_STRATEGIES as readonly string[]).includes(value)
     ? value as ValidStrategy
@@ -204,6 +235,17 @@ export default function Lineup() {
   const { openPaywall } = usePaywall();
   const { isPro, isLoading: isAuthLoading } = useAuth();
   const track = useTrack();
+  const {
+    lockedPlayers,
+    excludedPlayers,
+    lockedPlayerIds,
+    excludedPlayerIds,
+    isLocked,
+    isExcluded,
+    toggleLocked,
+    toggleExcluded,
+    clear: clearConstraints,
+  } = useLineupConstraints();
   const {
     data: roundData,
     isLoading: isRoundLoading,
@@ -233,6 +275,46 @@ export default function Lineup() {
         ? urlStrategy
         : null;
   const downgradedStrategy = !isAuthLoading && !isPro ? requestedProStrategy : null;
+  const requestConstraints = {
+    lockedPlayerIds: lockedPlayerIds.length ? lockedPlayerIds : undefined,
+    excludedPlayerIds: excludedPlayerIds.length ? excludedPlayerIds : undefined,
+  };
+
+  const toConstraintPlayer = (player: LineupPlayer): ConstraintPlayer | null => {
+    if (!player.playerId) return null;
+    return {
+      id: player.playerId,
+      name: player.nickname ?? player.name ?? "Jogador",
+      position: player.position,
+      clubAbbr: player.clubAbbr,
+      price: player.price,
+    };
+  };
+
+  const handleToggleLocked = (player: LineupPlayer) => {
+    if (!player.playerId) return;
+    if (!isLocked(player.playerId) && !isPro && lockedPlayers.length >= 1) {
+      openPaywall();
+      return;
+    }
+    const constraintPlayer = toConstraintPlayer(player);
+    if (constraintPlayer) toggleLocked(constraintPlayer);
+  };
+
+  const handleToggleExcluded = (player: LineupPlayer) => {
+    if (!player.playerId) return;
+    if (!isExcluded(player.playerId) && !isPro && excludedPlayers.length >= 3) {
+      openPaywall();
+      return;
+    }
+    const constraintPlayer = toConstraintPlayer(player);
+    if (constraintPlayer) toggleExcluded(constraintPlayer);
+  };
+
+  const getGenerationError = (error: unknown, fallback: string) => {
+    const apiError = error as { data?: { error?: string }; message?: string };
+    return apiError.data?.error ?? apiError.message ?? fallback;
+  };
   useEffect(() => {
     if (
       isAuthLoading ||
@@ -250,12 +332,12 @@ export default function Lineup() {
     }
     const timer = setTimeout(() => {
       generateLineupMutation.mutate(
-        { data: { budget, formation, strategy: generationStrategy as LineupGenerateRequestStrategy } },
+        { data: { budget, formation, strategy: generationStrategy as LineupGenerateRequestStrategy, ...requestConstraints } },
         {
           onSuccess: (data) => {
             if (data.lineup) {
               setCurrentLineup(data.lineup);
-              track("lineup_generated", { strategy: generationStrategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "auto" });
+              track("lineup_generated", { strategy: generationStrategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "auto", lockedCount: lockedPlayerIds.length, excludedCount: excludedPlayerIds.length });
               toast({
                 title: "Escalação Gerada",
                 description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,
@@ -265,7 +347,7 @@ export default function Lineup() {
           onError: (error) => {
             toast({
               title: "Falha na geração",
-              description: error.message || "Não foi possível gerar escalação",
+              description: getGenerationError(error, "Não foi possível gerar escalação"),
               variant: "destructive",
             });
           },
@@ -282,12 +364,12 @@ export default function Lineup() {
   const handleGenerate = () => {
     if (isRoundLoading || isRoundError || roundData?.marketOpen === false) return;
     generateLineupMutation.mutate(
-      { data: { budget, formation, strategy: strategy as LineupGenerateRequestStrategy } },
+      { data: { budget, formation, strategy: strategy as LineupGenerateRequestStrategy, ...requestConstraints } },
       {
         onSuccess: (data) => {
           if (data.lineup) {
             setCurrentLineup(data.lineup);
-            track("lineup_generated", { strategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "manual" });
+            track("lineup_generated", { strategy, formation, budget, expectedPoints: data.lineup.expectedPoints ?? 0, source: "manual", lockedCount: lockedPlayerIds.length, excludedCount: excludedPlayerIds.length });
             toast({
               title: "Escalação Gerada",
               description: `Pontuação esperada: ${(data.lineup.expectedPoints ?? 0).toFixed(1)} pts`,
@@ -301,7 +383,7 @@ export default function Lineup() {
           }
           toast({
             title: "Falha na geração",
-            description: error.message || "Não foi possível gerar escalação com as restrições fornecidas",
+            description: getGenerationError(error, "Não foi possível gerar escalação com as restrições fornecidas"),
             variant: "destructive",
           });
         },
@@ -492,13 +574,14 @@ export default function Lineup() {
                     <SelectValue placeholder="Formação" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="3-4-3">3-4-3</SelectItem>
-                    <SelectItem value="3-5-2">3-5-2</SelectItem>
-                    <SelectItem value="4-3-3">4-3-3</SelectItem>
-                    <SelectItem value="4-4-2">4-4-2</SelectItem>
-                    <SelectItem value="4-5-1">4-5-1</SelectItem>
-                    <SelectItem value="5-3-2">5-3-2</SelectItem>
-                    <SelectItem value="5-4-1">5-4-1</SelectItem>
+                    {FORMATIONS.map((item) => (
+                      <SelectItem key={item.value} value={item.value} textValue={item.value}>
+                        <span className="flex flex-col py-0.5">
+                          <span className="font-semibold">{item.value}</span>
+                          <span className="text-xs text-muted-foreground">{item.description}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -570,6 +653,48 @@ export default function Lineup() {
               </TooltipProvider>
             </div>
 
+            {(lockedPlayers.length > 0 || excludedPlayers.length > 0) && (
+              <div className="space-y-2 rounded-xl border border-border/60 bg-background/60 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">Restrições da escalação</span>
+                  <button
+                    type="button"
+                    onClick={clearConstraints}
+                    className="text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {lockedPlayers.map((player) => (
+                    <button
+                      key={`locked-${player.id}`}
+                      type="button"
+                      onClick={() => toggleLocked(player)}
+                      aria-label={`Remover trava de ${player.name}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary"
+                    >
+                      <Lock className="h-3 w-3" />
+                      <span className="max-w-28 truncate">{player.name}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                  {excludedPlayers.map((player) => (
+                    <button
+                      key={`excluded-${player.id}`}
+                      type="button"
+                      onClick={() => toggleExcluded(player)}
+                      aria-label={`Remover exclusão de ${player.name}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-2 py-1 text-xs font-semibold text-danger"
+                    >
+                      <span className="max-w-28 truncate">{player.name}</span>
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Button
               className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all bg-gradient-to-r from-primary to-accent"
               onClick={handleGenerate}
@@ -595,7 +720,7 @@ export default function Lineup() {
         ) : generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 ? (
           <ErrorState
             title="Falha na geração da escalação"
-            description={generateLineupMutation.error?.message || "Não foi possível gerar escalação com as restrições fornecidas."}
+            description={getGenerationError(generateLineupMutation.error, "Não foi possível gerar escalação com as restrições fornecidas.")}
             onRetry={() => {
               generateLineupMutation.reset();
               handleGenerate();
@@ -724,6 +849,10 @@ export default function Lineup() {
                             captainId={currentLineup.captainPlayerId}
                             coachId={currentLineup.coachPlayerId}
                             onSwapRequest={() => handleSwapRequest(p)}
+                            isLocked={p.playerId ? isLocked(p.playerId) : false}
+                            isExcluded={p.playerId ? isExcluded(p.playerId) : false}
+                            onToggleLocked={() => handleToggleLocked(p)}
+                            onToggleExcluded={() => handleToggleExcluded(p)}
                             strategy={strategy}
                           />
                         ))}
@@ -744,6 +873,10 @@ export default function Lineup() {
                         player={coachPlayer}
                         captainId={currentLineup.captainPlayerId}
                         coachId={currentLineup.coachPlayerId}
+                        isLocked={coachPlayer.playerId ? isLocked(coachPlayer.playerId) : false}
+                        isExcluded={coachPlayer.playerId ? isExcluded(coachPlayer.playerId) : false}
+                        onToggleLocked={() => handleToggleLocked(coachPlayer)}
+                        onToggleExcluded={() => handleToggleExcluded(coachPlayer)}
                         strategy={strategy}
                       />
                     </div>

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import axios from "axios";
-import { generateLineup, type StrategyType } from "../optimizers/lineupOptimizer";
+import { generateLineup, LineupValidationError, type StrategyType } from "../optimizers/lineupOptimizer";
 import { generateFrontier } from "../services/frontierService";
 import { simulateLineup, type SimPlayer } from "../engines/monteCarlo";
 import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
@@ -36,7 +36,40 @@ router.post("/lineup/generate", async (req, res) => {
       formation?: string;
       strategy?: string;
       round?: number;
+      lockedPlayerIds?: unknown;
+      excludedPlayerIds?: unknown;
     };
+
+    const parsePlayerIds = (value: unknown, field: string): number[] => {
+      if (value == null) return [];
+      if (!Array.isArray(value)) {
+        throw new Error(`O campo '${field}' deve ser um array de IDs inteiros.`);
+      }
+      const ids = value.map((id) => {
+        const parsed = typeof id === "number" ? id : typeof id === "string" && id.trim() !== "" ? Number(id) : NaN;
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+          throw new Error(`O campo '${field}' deve conter apenas IDs inteiros positivos.`);
+        }
+        return parsed;
+      });
+      return [...new Set(ids)];
+    };
+    let lockedPlayerIds: number[];
+    let excludedPlayerIds: number[];
+    try {
+      lockedPlayerIds = parsePlayerIds(req.body?.lockedPlayerIds, "lockedPlayerIds");
+      excludedPlayerIds = parsePlayerIds(req.body?.excludedPlayerIds, "excludedPlayerIds");
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    const overlap = lockedPlayerIds.filter((id) => excludedPlayerIds.includes(id));
+    if (overlap.length > 0) {
+      res.status(422).json({
+        error: `Os jogadores ${overlap.join(", ")} não podem estar travados e excluídos ao mesmo tempo.`,
+      });
+      return;
+    }
 
     // ── Access control ──────────────────────────────────────────────────────
     const userId = req.isAuthenticated() && req.user ? req.user.id : null;
@@ -50,6 +83,20 @@ router.post("/lineup/generate", async (req, res) => {
     if (!userIsPro && strategyType !== "safe") {
       res.status(402).json({
         error: "Estratégias avançadas são exclusivas do plano Pro. Apenas a estratégia 'safe' está disponível no plano gratuito.",
+        upgradeRequired: true,
+      });
+      return;
+    }
+    if (!userIsPro && lockedPlayerIds.length > 1) {
+      res.status(402).json({
+        error: "No plano gratuito, você pode travar no máximo 1 jogador por escalação. Faça upgrade para Pro para travar jogadores ilimitados.",
+        upgradeRequired: true,
+      });
+      return;
+    }
+    if (!userIsPro && excludedPlayerIds.length > 3) {
+      res.status(402).json({
+        error: "No plano gratuito, você pode excluir no máximo 3 jogadores por escalação. Faça upgrade para Pro para excluir jogadores ilimitados.",
         upgradeRequired: true,
       });
       return;
@@ -96,6 +143,8 @@ router.post("/lineup/generate", async (req, res) => {
         budgetLimit: budget ?? 100.00,
         formation: formation ?? "4-4-2",
         strategy: strategyType,
+        lockedPlayerIds,
+        excludedPlayerIds,
       }),
       db.select().from(clubsTable),
     ]);
@@ -173,6 +222,10 @@ router.post("/lineup/generate", async (req, res) => {
     });
   } catch (error) {
     console.error("[lineup/generate]", error);
+    if (error instanceof LineupValidationError) {
+      res.status(422).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ error: "Failed to generate lineup", details: error instanceof Error ? error.message : String(error) });
   }
 });

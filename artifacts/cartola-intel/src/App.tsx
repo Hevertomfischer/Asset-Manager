@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PaywallProvider } from "@/context/PaywallContext";
+import { LineupConstraintsProvider } from "@/context/LineupConstraintsContext";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import { useAuth } from "@/hooks";
 import { useTrack } from "@/hooks/useTrack";
@@ -143,10 +144,11 @@ function App() {
       <TooltipProvider>
         <BrowserRouter basename={BASE}>
           <PaywallProvider>
-            <SessionTracker />
-            <ReferralTracker />
-            <OnboardingGate />
-            <Routes>
+            <LineupConstraintsProvider>
+              <SessionTracker />
+              <ReferralTracker />
+              <OnboardingGate />
+              <Routes>
               {/* Public standalone pages — rendered without AppLayout */}
               <Route path="/desempenho" element={<Desempenho />} />
               <Route path="/rodada/:numero" element={<RodadaPage />} />
@@ -177,7 +179,8 @@ function App() {
                   </AppLayout>
                 }
               />
-            </Routes>
+              </Routes>
+            </LineupConstraintsProvider>
           </PaywallProvider>
         </BrowserRouter>
         <Toaster />

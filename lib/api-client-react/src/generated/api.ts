@@ -26,6 +26,7 @@ import type {
   HealthStatus,
   LineupGenerateRequest,
   LineupGenerateResponse,
+  LineupValidationError,
   MatchListResponse,
   PlayerDetail,
   PlayerListResponse,
@@ -37,6 +38,7 @@ import type {
   RoundStatus,
   SaveLineup200,
   SyncResult,
+  UpgradeRequiredError,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -684,7 +686,7 @@ export const generateLineup = async (
 };
 
 export const getGenerateLineupMutationOptions = <
-  TError = ErrorType<void>,
+  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -725,13 +727,15 @@ export type GenerateLineupMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateLineup>>
 >;
 export type GenerateLineupMutationBody = BodyType<LineupGenerateRequest>;
-export type GenerateLineupMutationError = ErrorType<void>;
+export type GenerateLineupMutationError = ErrorType<
+  UpgradeRequiredError | LineupValidationError | void
+>;
 
 /**
  * @summary Generate a lineup suggestion
  */
 export const useGenerateLineup = <
-  TError = ErrorType<void>,
+  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

@@ -18,6 +18,18 @@ export interface LineupRequest {
   budgetLimit?: number;
   formation?: string;
   strategy: StrategyType;
+  lockedPlayerIds?: number[];
+  excludedPlayerIds?: number[];
+}
+
+/** A user-correctable lineup request error, mapped to HTTP 422 by the route. */
+export class LineupValidationError extends Error {
+  readonly code = "LINEUP_VALIDATION";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "LineupValidationError";
+  }
 }
 
 interface PlayerWithProjection {
@@ -233,6 +245,19 @@ function selectCaptain(
 export async function generateLineup(request: LineupRequest): Promise<LineupResult> {
   const { round, strategy, formation = LINEUP_CONFIG.defaultFormation } = request;
   const budgetLimit = request.budgetLimit ?? LINEUP_CONFIG.defaultBudget;
+  if (!LINEUP_CONFIG.formations[formation]) {
+    throw new LineupValidationError(
+      `A formação ${formation} não é suportada. Escolha entre ${Object.keys(LINEUP_CONFIG.formations).join(", ")}.`
+    );
+  }
+  const lockedPlayerIds = new Set(request.lockedPlayerIds ?? []);
+  const excludedPlayerIds = new Set(request.excludedPlayerIds ?? []);
+  const overlap = [...lockedPlayerIds].filter((id) => excludedPlayerIds.has(id));
+  if (overlap.length > 0) {
+    throw new LineupValidationError(
+      `Os jogadores ${overlap.join(", ")} não podem estar travados e excluídos ao mesmo tempo.`
+    );
+  }
 
   const [projections, players, availabilities, roundMatches] = await Promise.all([
     getProjectionsByRound(round),
@@ -260,11 +285,47 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     }
   }
 
+  const UNAVAILABLE_STATUSES = new Set(["Suspenso", "Nulo", "Contundido"]);
+
+  // Validate locks before the normal candidate filtering. Low probability is
+  // intentionally allowed for a lock, but hard unavailability is not.
+  const projectionMapForLocks = new Map(projections.map((p) => [p.playerId, p]));
+  const roundAvailabilities = availabilities.filter((a) => a.round === round);
+  for (const playerId of lockedPlayerIds) {
+    const player = playerMap.get(playerId);
+    if (!player) {
+      throw new LineupValidationError(`Jogador ${playerId} não foi encontrado.`);
+    }
+    if (!projectionMapForLocks.has(playerId)) {
+      throw new LineupValidationError(`O jogador ${playerId} não possui projeção para a rodada ${round}.`);
+    }
+    const availability = roundAvailabilities
+      .filter((a) => a.playerId === playerId)
+      .sort((a, b) => (b.collectedAt?.getTime() ?? 0) - (a.collectedAt?.getTime() ?? 0))[0];
+    const hardStatus = player.status && UNAVAILABLE_STATUSES.has(player.status)
+      ? player.status
+      : availability?.injuryStatus ?? availability?.suspensionStatus ??
+        (availability?.probableStatus && UNAVAILABLE_STATUSES.has(availability.probableStatus)
+          ? availability.probableStatus
+          : null);
+    if (hardStatus) {
+      throw new LineupValidationError(
+        `O jogador ${player.name} está indisponível (${hardStatus}) e não pode ser travado.`
+      );
+    }
+    const hasKnownRoundMatches = roundMatches.length > 0;
+    if (
+      player.clubId == null ||
+      (hasKnownRoundMatches && !validClubIds.has(player.clubId))
+    ) {
+      throw new LineupValidationError(
+        `O jogador ${player.name} pertence a um clube sem partida válida nesta rodada.`
+      );
+    }
+  }
   if (projections.length === 0) {
     throw new Error(`No projections found for round ${round}. Please sync data first.`);
   }
-
-  const UNAVAILABLE_STATUSES = new Set(["Suspenso", "Nulo", "Contundido"]);
 
   const allPlayerProjections: PlayerWithProjection[] = projections
     .map((proj) => {
@@ -297,9 +358,68 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   const scoringFn = getScoringFn(strategy, popularityMap);
   const slotRequirements = getFormationRequirements(formation);
 
+  const slotCounts = new Map(slotRequirements.map((slot) => [slot.position, slot.count]));
+  const lockedPlayers = [...lockedPlayerIds].map((id) => playerMap.get(id)).filter((p): p is Player => p != null);
+  for (const [position, count] of new Map(
+    lockedPlayers.map((player) => [player.position, lockedPlayers.filter((p) => p.position === player.position).length])
+  )) {
+    const required = slotCounts.get(position) ?? 0;
+    if (required < count) {
+      throw new LineupValidationError(
+        `A formação ${formation} exige ${required} jogador(es) na posição ${position}, mas ${count} estão travados.`
+      );
+    }
+  }
+  const lockedCost = lockedPlayers.reduce((sum, player) => sum + (player.price ?? 0), 0);
+  if (lockedCost > budgetLimit) {
+    const money = (value: number) => value.toFixed(2).replace(".", ",");
+    throw new LineupValidationError(
+      `Os jogadores travados custam C$ ${money(lockedCost)} e passam do seu patrimônio de C$ ${money(budgetLimit)}.`
+    );
+  }
+  const lockedClubCounts = new Map<number, number>();
+  const lockedClubPositions = new Set<string>();
+  for (const player of lockedPlayers) {
+    lockedClubCounts.set(player.clubId!, (lockedClubCounts.get(player.clubId!) ?? 0) + 1);
+    const clubPosition = `${player.clubId}_${player.position}`;
+    if (lockedClubPositions.has(clubPosition)) {
+      throw new LineupValidationError(
+        `Não é possível travar mais de um jogador do clube ${player.clubId} na posição ${player.position}.`
+      );
+    }
+    lockedClubPositions.add(clubPosition);
+  }
+  const overClub = [...lockedClubCounts.entries()].find(([, count]) => count > LINEUP_CONFIG.maxPlayersPerClub);
+  if (overClub) {
+    throw new LineupValidationError(
+      `Os jogadores travados excedem o limite de ${LINEUP_CONFIG.maxPlayersPerClub} jogadores do mesmo clube.`
+    );
+  }
+  for (const [clubId, opponentId] of opponentMap) {
+    const lockedForClub = lockedPlayers.filter((p) => p.clubId === clubId);
+    const lockedForOpponent = lockedPlayers.filter((p) => p.clubId === opponentId);
+    for (const player of lockedForClub) {
+      if (lockedForOpponent.some((opponent) => opponent.position === player.position)) {
+        throw new LineupValidationError(
+          `Os jogadores travados entram em conflito: clubes ${clubId} e ${opponentId} têm jogadores na posição ${player.position}.`
+        );
+      }
+      if (player.position === "ATA" &&
+          lockedForOpponent.some((opponent) => ["GOL", "ZAG", "LAT"].includes(opponent.position))) {
+        throw new LineupValidationError(
+          `Os jogadores travados entram em conflito entre ataque e defesa dos clubes ${clubId} e ${opponentId}.`
+        );
+      }
+    }
+  }
+
   // ── Build ILP candidate list ───────────────────────────────────────────────
   const ilpCandidates: IlpCandidate[] = allPlayerProjections
-    .filter((pw) => (pw.projection.playProbability ?? 0) > 0.1)
+    .filter((pw) =>
+      lockedPlayerIds.has(pw.player.id) ||
+      excludedPlayerIds.has(pw.player.id) ||
+      (pw.projection.playProbability ?? 0) > 0.1
+    )
     .map((pw) => ({
       id: pw.player.id,
       position: pw.player.position,
@@ -313,6 +433,17 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
       gamesPlayed: pw.player.gamesPlayed ?? 0,
       isFieldPlayer: pw.player.position !== "TEC",
     }));
+
+  for (const { position, count } of slotRequirements) {
+    const available = ilpCandidates.filter(
+      (candidate) => candidate.position === position && !excludedPlayerIds.has(candidate.id)
+    ).length;
+    if (available < count) {
+      throw new LineupValidationError(
+        `Não há jogadores suficientes na posição ${position} para completar a formação ${formation} (necessários: ${count}, disponíveis: ${available}).`
+      );
+    }
+  }
 
   log.info("Running ILP optimizer", {
     round,
@@ -328,12 +459,13 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     budgetLimit,
     maxPlayersPerClub: LINEUP_CONFIG.maxPlayersPerClub,
     opponentMap,
+    lockedPlayerIds,
+    excludedPlayerIds,
   });
 
   if (!solution.feasible) {
-    throw new Error(
-      `Could not fill lineup with given budget ${budgetLimit} and formation ${formation}. ` +
-        `Try increasing budget or relaxing formation.`
+    throw new LineupValidationError(
+      `Não foi possível montar uma escalação viável com os jogadores travados, patrimônio de C$ ${budgetLimit.toFixed(2).replace(".", ",")} e formação ${formation}. Verifique orçamento e conflitos entre clubes.`
     );
   }
 
@@ -367,7 +499,7 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
   }
 
   const totalCost = selected.reduce((sum, pw) => sum + (pw.player.price ?? 0), 0);
-  if (totalCost > budgetLimit) {
+  if (totalCost > budgetLimit + 1e-6) {
     throw new Error(
       `ILP lineup cost ${totalCost.toFixed(2)} exceeds budget ${budgetLimit}.`
     );
@@ -432,18 +564,20 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
 
   const mainLineupIds = new Set(selected.map((pw) => pw.player.id));
   const formationPositions = slotRequirements.map((s) => s.position);
-  const rawProjectionsForReserves = allPlayerProjections.map((pw) => ({
-    playerId: pw.player.id,
-    playerName: pw.player.name ?? "Unknown",
-    playerNickname: pw.player.nickname ?? null,
-    position: pw.player.position,
-    clubId: pw.player.clubId ?? null,
-    expectedPoints: pw.projection.expectedPoints ?? 0,
-    floorPoints: pw.projection.floorPoints ?? 0,
-    ceilingPoints: pw.projection.ceilingPoints ?? 0,
-    price: pw.player.price ?? 0,
-    playProbability: pw.projection.playProbability ?? 0,
-  }));
+  const rawProjectionsForReserves = allPlayerProjections
+    .filter((pw) => !excludedPlayerIds.has(pw.player.id))
+    .map((pw) => ({
+      playerId: pw.player.id,
+      playerName: pw.player.name ?? "Unknown",
+      playerNickname: pw.player.nickname ?? null,
+      position: pw.player.position,
+      clubId: pw.player.clubId ?? null,
+      expectedPoints: pw.projection.expectedPoints ?? 0,
+      floorPoints: pw.projection.floorPoints ?? 0,
+      ceilingPoints: pw.projection.ceilingPoints ?? 0,
+      price: pw.player.price ?? 0,
+      playProbability: pw.projection.playProbability ?? 0,
+    }));
 
   const reserves = selectReserves(rawProjectionsForReserves, mainLineupIds, formationPositions);
 

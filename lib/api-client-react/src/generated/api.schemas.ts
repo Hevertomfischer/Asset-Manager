@@ -137,6 +137,19 @@ export interface AvailabilityListResponse {
   round: number;
 }
 
+export type LineupGenerateRequestFormation =
+  (typeof LineupGenerateRequestFormation)[keyof typeof LineupGenerateRequestFormation];
+
+export const LineupGenerateRequestFormation = {
+  "3-4-3": "3-4-3",
+  "3-5-2": "3-5-2",
+  "4-3-3": "4-3-3",
+  "4-4-2": "4-4-2",
+  "4-5-1": "4-5-1",
+  "5-3-2": "5-3-2",
+  "5-4-1": "5-4-1",
+} as const;
+
 export type LineupGenerateRequestStrategy =
   (typeof LineupGenerateRequestStrategy)[keyof typeof LineupGenerateRequestStrategy];
 
@@ -145,13 +158,18 @@ export const LineupGenerateRequestStrategy = {
   aggressive: "aggressive",
   "cost-benefit": "cost-benefit",
   antimassa: "antimassa",
+  valorizacao: "valorizacao",
 } as const;
 
 export interface LineupGenerateRequest {
   budget?: number;
-  formation?: string;
+  formation?: LineupGenerateRequestFormation;
   strategy: LineupGenerateRequestStrategy;
   round?: number;
+  /** Jogadores que devem obrigatoriamente ser escalados. */
+  lockedPlayerIds?: number[];
+  /** Jogadores que não podem ser escalados. */
+  excludedPlayerIds?: number[];
 }
 
 export type LineupPlayerExplanation = { [key: string]: unknown } | null;
@@ -176,9 +194,9 @@ export interface LineupPlayer {
   clubId?: number | null;
   clubAbbr?: string | null;
   clubName?: string | null;
-  /** Mínimo de pontos para valorizar (MPV). Null when not yet published. */
+  /** Minimum points needed to increase price next round. */
   minimoParaValorizar?: number | null;
-  /** expectedPoints − minimoParaValorizar. Positive = projected to valorize. */
+  /** Expected points minus minimum points needed to increase price. */
   valorizacaoMargin?: number | null;
 }
 
@@ -215,6 +233,15 @@ export interface LineupSuggestion {
 
 export interface LineupGenerateResponse {
   lineup: LineupSuggestion;
+}
+
+export interface UpgradeRequiredError {
+  error: string;
+  upgradeRequired: boolean;
+}
+
+export interface LineupValidationError {
+  error: string;
 }
 
 export interface SyncResult {
@@ -293,7 +320,13 @@ export type GetPlayersParams = {
   maxPrice?: number;
   probableOnly?: string;
   minProjection?: number;
+  /**
+   * Maximum minimum score needed to increase price.
+   */
   maxMinimo?: number;
+  /**
+   * Minimum position-scout baseline average.
+   */
   minBaseAverage?: number;
   round?: number;
 };

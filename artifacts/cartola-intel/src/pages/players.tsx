@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePaywall } from "@/context/PaywallContext";
+import { useLineupConstraints, type ConstraintPlayer } from "@/context/LineupConstraintsContext";
+import { useAuth } from "@/hooks/useAuth";
+import { PlayerConstraintActions } from "@/components/lineup/PlayerConstraintActions";
 import { useGetPlayers } from "@workspace/api-client-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { 
@@ -63,6 +66,46 @@ export default function Players() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const pageSize = 20;
   const { openPaywall } = usePaywall();
+  const { isPro } = useAuth();
+  const {
+    lockedPlayers,
+    excludedPlayers,
+    isLocked,
+    isExcluded,
+    toggleLocked,
+    toggleExcluded,
+  } = useLineupConstraints();
+
+  const toConstraintPlayer = (player: {
+    id: number;
+    name?: string;
+    nickname?: string | null;
+    position?: string | null;
+    price?: number | null;
+    club?: { abbreviation?: string | null } | null;
+  }): ConstraintPlayer => ({
+    id: player.id,
+    name: player.nickname ?? player.name ?? "Jogador",
+    position: player.position,
+    clubAbbr: player.club?.abbreviation,
+    price: player.price,
+  });
+
+  const handleToggleLocked = (player: Parameters<typeof toConstraintPlayer>[0]) => {
+    if (!isLocked(player.id) && !isPro && lockedPlayers.length >= 1) {
+      openPaywall();
+      return;
+    }
+    toggleLocked(toConstraintPlayer(player));
+  };
+
+  const handleToggleExcluded = (player: Parameters<typeof toConstraintPlayer>[0]) => {
+    if (!isExcluded(player.id) && !isPro && excludedPlayers.length >= 3) {
+      openPaywall();
+      return;
+    }
+    toggleExcluded(toConstraintPlayer(player));
+  };
 
   const { data, isLoading, isError, error, refetch } = useGetPlayers({
     position: position === "ALL" ? undefined : position,
@@ -606,6 +649,13 @@ export default function Players() {
                           badges={getTopBadges((player.projection?.explanationJson ?? {}) as ExplanationJson)}
                         >
                           {isRisky && <AlertTriangle className="w-3.5 h-3.5 text-attention shrink-0" />}
+                          <PlayerConstraintActions
+                            playerName={player.nickname ?? player.name ?? "Jogador"}
+                            isLocked={isLocked(player.id)}
+                            isExcluded={isExcluded(player.id)}
+                            onToggleLocked={() => handleToggleLocked(player)}
+                            onToggleExcluded={() => handleToggleExcluded(player)}
+                          />
                           <PlayerExplanationSheet
                             exp={(player.projection?.explanationJson ?? {}) as ExplanationJson}
                             playerName={player.nickname ?? player.name ?? ""}

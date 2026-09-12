@@ -80,6 +80,16 @@ paths:
           in: query
           schema:
             type: number
+        - name: maxMinimo
+          in: query
+          description: Maximum minimum score needed to increase price.
+          schema:
+            type: number
+        - name: minBaseAverage
+          in: query
+          description: Minimum position-scout baseline average.
+          schema:
+            type: number
         - name: round
           in: query
           schema:
@@ -180,6 +190,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LineupGenerateResponse"
+        "402":
+          description: Free-plan lock/exclusion or strategy limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeRequiredError"
+        "422":
+          description: Locked/excluded lineup is not feasible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineupValidationError"
         "500":
           description: Generation failed
 
@@ -623,11 +645,22 @@ components:
           type: number
         formation:
           type: string
+          enum: ["3-4-3", "3-5-2", "4-3-3", "4-4-2", "4-5-1", "5-3-2", "5-4-1"]
         strategy:
           type: string
-          enum: [safe, aggressive, cost-benefit, antimassa]
+          enum: [safe, aggressive, cost-benefit, antimassa, valorizacao]
         round:
           type: integer
+        lockedPlayerIds:
+          type: array
+          description: Jogadores que devem obrigatoriamente ser escalados.
+          items:
+            type: integer
+        excludedPlayerIds:
+          type: array
+          description: Jogadores que não podem ser escalados.
+          items:
+            type: integer
       required:
         - strategy
 
@@ -685,6 +718,14 @@ components:
         clubName:
           type: string
           nullable: true
+        minimoParaValorizar:
+          type: number
+          nullable: true
+          description: Minimum points needed to increase price next round.
+        valorizacaoMargin:
+          type: number
+          nullable: true
+          description: Expected points minus minimum points needed to increase price.
 
     LineupReservePlayer:
       type: object
@@ -765,6 +806,25 @@ components:
           $ref: "#/components/schemas/LineupSuggestion"
       required:
         - lineup
+
+    UpgradeRequiredError:
+      type: object
+      properties:
+        error:
+          type: string
+        upgradeRequired:
+          type: boolean
+      required:
+        - error
+        - upgradeRequired
+
+    LineupValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 
     SyncResult:
       type: object

@@ -38,6 +38,14 @@ export const GetPlayersQueryParams = zod.object({
   maxPrice: zod.coerce.number().optional(),
   probableOnly: zod.coerce.string().optional(),
   minProjection: zod.coerce.number().optional(),
+  maxMinimo: zod.coerce
+    .number()
+    .optional()
+    .describe("Maximum minimum score needed to increase price."),
+  minBaseAverage: zod.coerce
+    .number()
+    .optional()
+    .describe("Minimum position-scout baseline average."),
   round: zod.coerce.number().optional(),
 });
 
@@ -283,9 +291,25 @@ export const GetCurrentAvailabilityResponse = zod.object({
  */
 export const GenerateLineupBody = zod.object({
   budget: zod.number().optional(),
-  formation: zod.string().optional(),
-  strategy: zod.enum(["safe", "aggressive", "cost-benefit", "antimassa"]),
+  formation: zod
+    .enum(["3-4-3", "3-5-2", "4-3-3", "4-4-2", "4-5-1", "5-3-2", "5-4-1"])
+    .optional(),
+  strategy: zod.enum([
+    "safe",
+    "aggressive",
+    "cost-benefit",
+    "antimassa",
+    "valorizacao",
+  ]),
   round: zod.number().optional(),
+  lockedPlayerIds: zod
+    .array(zod.number())
+    .optional()
+    .describe("Jogadores que devem obrigatoriamente ser escalados."),
+  excludedPlayerIds: zod
+    .array(zod.number())
+    .optional()
+    .describe("Jogadores que não podem ser escalados."),
 });
 
 export const GenerateLineupResponse = zod.object({
@@ -322,6 +346,16 @@ export const GenerateLineupResponse = zod.object({
           clubId: zod.number().nullish(),
           clubAbbr: zod.string().nullish(),
           clubName: zod.string().nullish(),
+          minimoParaValorizar: zod
+            .number()
+            .nullish()
+            .describe("Minimum points needed to increase price next round."),
+          valorizacaoMargin: zod
+            .number()
+            .nullish()
+            .describe(
+              "Expected points minus minimum points needed to increase price.",
+            ),
         }),
       )
       .optional(),

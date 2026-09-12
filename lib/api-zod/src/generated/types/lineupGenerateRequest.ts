@@ -5,11 +5,16 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+import type { LineupGenerateRequestFormation } from "./lineupGenerateRequestFormation";
 import type { LineupGenerateRequestStrategy } from "./lineupGenerateRequestStrategy";
 
 export interface LineupGenerateRequest {
   budget?: number;
-  formation?: string;
+  formation?: LineupGenerateRequestFormation;
   strategy: LineupGenerateRequestStrategy;
   round?: number;
+  /** Jogadores que devem obrigatoriamente ser escalados. */
+  lockedPlayerIds?: number[];
+  /** Jogadores que não podem ser escalados. */
+  excludedPlayerIds?: number[];
 }
