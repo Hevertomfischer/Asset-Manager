@@ -205,6 +205,41 @@ paths:
         "500":
           description: Generation failed
 
+  /lineup/compare-formations:
+    post:
+      operationId: compareFormations
+      tags: [lineup]
+      summary: Compare all formations without saving or consuming generation quota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LineupGenerateRequest"
+      responses:
+        "200":
+          description: Ranked suggestions with per-formation infeasibility reasons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormationComparison"
+        "400":
+          description: Invalid input
+        "402":
+          description: Strategy or constraint limit requires Pro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpgradeRequiredError"
+        "422":
+          description: Conflicting constraints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineupValidationError"
+        "500":
+          description: Operational failure
+
   /admin/sync/full:
     post:
       operationId: syncFull
@@ -348,6 +383,40 @@ paths:
 
 components:
   schemas:
+    FormationEvaluation:
+      type: object
+      required: [formation, feasible, expectedPoints, totalCost, balance, differenceFromBest, reason]
+      properties:
+        formation:
+          type: string
+        feasible:
+          type: boolean
+        expectedPoints:
+          type: [number, "null"]
+        totalCost:
+          type: [number, "null"]
+        balance:
+          type: [number, "null"]
+        differenceFromBest:
+          type: [number, "null"]
+        reason:
+          type: [string, "null"]
+    FormationComparison:
+      type: object
+      required: [round, strategy, budget, bestFormation, results]
+      properties:
+        round:
+          type: integer
+        strategy:
+          type: string
+        budget:
+          type: number
+        bestFormation:
+          type: [string, "null"]
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormationEvaluation"
     HealthStatus:
       type: object
       properties:

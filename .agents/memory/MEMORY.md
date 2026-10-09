@@ -10,3 +10,4 @@
 - [Prod path routing](prod-path-routing.md) — só prefixos listados em `paths` do artifact.toml chegam ao Express em prod; rotas fora de /api caem no SPA estático.
 - [MCP OAuth 2.0 AS](mcp-oauth-server.md) — OAuth AS para MCP montado fora de /api; session.mcpOauthPending preserva params OAuth através do Google login; 401 com resource_metadata faz Claude descobrir o AS automaticamente; DCR (/register) implementado — clientes mcp_* validam redirect_uris próprios, demais caem na allowlist estática.
 - [Integração com o Cartola](cartola-integration-boundary.md) — exportações orientam o uso do app oficial; nunca solicitar ou armazenar credenciais Globo.
+- [Formation comparison](formation-comparison-semantics.md) — rank strategy-specific suggestions, captain included; evaluation never saves teams or consumes generation quota.

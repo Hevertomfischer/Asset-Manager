@@ -5,6 +5,7 @@ import {
   useGetCurrentRound,
   useSaveLineup,
   type LineupGenerateRequestStrategy,
+  type LineupGenerateRequestFormation,
   type LineupSuggestion,
   type LineupPlayer,
   type LineupReservePlayer,
@@ -37,6 +38,7 @@ import { ExportLineupSheet } from "@/components/lineup/ExportLineupSheet";
 import { PlayerConstraintActions } from "@/components/lineup/PlayerConstraintActions";
 import { useLineupConstraints, type ConstraintPlayer } from "@/context/LineupConstraintsContext";
 import { ReplacementSuggestions } from "@/components/ReplacementSuggestions";
+import { FormationComparePanel } from "@/components/lineup/FormationComparePanel";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -233,7 +235,7 @@ export default function Lineup() {
 
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
-  const { isPro, isLoading: isAuthLoading } = useAuth();
+  const { isPro, user, isLoading: isAuthLoading } = useAuth();
   const track = useTrack();
   const {
     lockedPlayers,
@@ -332,7 +334,7 @@ export default function Lineup() {
     }
     const timer = setTimeout(() => {
       generateLineupMutation.mutate(
-        { data: { budget, formation, strategy: generationStrategy as LineupGenerateRequestStrategy, ...requestConstraints } },
+        { data: { budget, formation: formation as LineupGenerateRequestFormation, strategy: generationStrategy as LineupGenerateRequestStrategy, ...requestConstraints } },
         {
           onSuccess: (data) => {
             if (data.lineup) {
@@ -364,7 +366,7 @@ export default function Lineup() {
   const handleGenerate = () => {
     if (isRoundLoading || isRoundError || roundData?.marketOpen === false) return;
     generateLineupMutation.mutate(
-      { data: { budget, formation, strategy: strategy as LineupGenerateRequestStrategy, ...requestConstraints } },
+      { data: { budget, formation: formation as LineupGenerateRequestFormation, strategy: strategy as LineupGenerateRequestStrategy, ...requestConstraints } },
       {
         onSuccess: (data) => {
           if (data.lineup) {
@@ -694,6 +696,19 @@ export default function Lineup() {
                 </div>
               </div>
             )}
+
+            <FormationComparePanel
+              budget={budget}
+              strategy={strategy}
+              round={roundData?.round}
+              lockedPlayerIds={lockedPlayerIds}
+              excludedPlayerIds={excludedPlayerIds}
+              authKey={`${user?.id ?? "anon"}:${isPro ? "pro" : "free"}`}
+              disabled={isRoundLoading || isRoundError || roundData?.marketOpen === false || isAuthLoading}
+              selectedFormation={formation}
+              onSelectFormation={setFormation}
+              onPaywall={openPaywall}
+            />
 
             <Button
               className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all bg-gradient-to-r from-primary to-accent"

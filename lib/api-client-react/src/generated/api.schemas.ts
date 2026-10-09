@@ -5,6 +5,30 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+export interface FormationEvaluation {
+  formation: string;
+  feasible: boolean;
+  /** @nullable */
+  expectedPoints: number | null;
+  /** @nullable */
+  totalCost: number | null;
+  /** @nullable */
+  balance: number | null;
+  /** @nullable */
+  differenceFromBest: number | null;
+  /** @nullable */
+  reason: string | null;
+}
+
+export interface FormationComparison {
+  round: number;
+  strategy: string;
+  budget: number;
+  /** @nullable */
+  bestFormation: string | null;
+  results: FormationEvaluation[];
+}
+
 export interface HealthStatus {
   status: string;
 }

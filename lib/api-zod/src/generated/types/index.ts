@@ -12,6 +12,8 @@ export * from "./availabilityItem";
 export * from "./availabilityItemPlayer";
 export * from "./availabilityListResponse";
 export * from "./club";
+export * from "./formationComparison";
+export * from "./formationEvaluation";
 export * from "./getAdminLogsParams";
 export * from "./getCurrentAvailabilityParams";
 export * from "./getCurrentProjectionsParams";

@@ -19,6 +19,7 @@ import type {
 import type {
   AdminLogsResponse,
   AvailabilityListResponse,
+  FormationComparison,
   GetAdminLogsParams,
   GetCurrentAvailabilityParams,
   GetCurrentProjectionsParams,
@@ -752,6 +753,94 @@ export const useGenerateLineup = <
   TContext
 > => {
   return useMutation(getGenerateLineupMutationOptions(options));
+};
+
+/**
+ * @summary Compare all formations without saving or consuming generation quota
+ */
+export const getCompareFormationsUrl = () => {
+  return `/api/lineup/compare-formations`;
+};
+
+export const compareFormations = async (
+  lineupGenerateRequest: LineupGenerateRequest,
+  options?: RequestInit,
+): Promise<FormationComparison> => {
+  return customFetch<FormationComparison>(getCompareFormationsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(lineupGenerateRequest),
+  });
+};
+
+export const getCompareFormationsMutationOptions = <
+  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof compareFormations>>,
+    TError,
+    { data: BodyType<LineupGenerateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof compareFormations>>,
+  TError,
+  { data: BodyType<LineupGenerateRequest> },
+  TContext
+> => {
+  const mutationKey = ["compareFormations"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof compareFormations>>,
+    { data: BodyType<LineupGenerateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return compareFormations(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompareFormationsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof compareFormations>>
+>;
+export type CompareFormationsMutationBody = BodyType<LineupGenerateRequest>;
+export type CompareFormationsMutationError = ErrorType<
+  void | UpgradeRequiredError | LineupValidationError
+>;
+
+/**
+ * @summary Compare all formations without saving or consuming generation quota
+ */
+export const useCompareFormations = <
+  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof compareFormations>>,
+    TError,
+    { data: BodyType<LineupGenerateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof compareFormations>>,
+  TError,
+  { data: BodyType<LineupGenerateRequest> },
+  TContext
+> => {
+  return useMutation(getCompareFormationsMutationOptions(options));
 };
 
 /**

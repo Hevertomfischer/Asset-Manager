@@ -242,7 +242,23 @@ function selectCaptain(
   })[0];
 }
 
-export async function generateLineup(request: LineupRequest): Promise<LineupResult> {
+export async function loadLineupSnapshot(round: number) {
+  const [projections, players, availabilities, roundMatches] = await Promise.all([
+    getProjectionsByRound(round),
+    db.query.playersTable.findMany(),
+    db.select().from(playerAvailabilityTable),
+    getMatchesByRound(round),
+  ]);
+  return { projections, players, availabilities, roundMatches };
+}
+
+export type LineupSnapshot = Awaited<ReturnType<typeof loadLineupSnapshot>>;
+
+/** Read-only calculation shared by generation and formation comparison. */
+export function calculateLineup(
+  request: LineupRequest,
+  snapshot: LineupSnapshot,
+): Omit<LineupResult, "id"> {
   const { round, strategy, formation = LINEUP_CONFIG.defaultFormation } = request;
   const budgetLimit = request.budgetLimit ?? LINEUP_CONFIG.defaultBudget;
   if (!LINEUP_CONFIG.formations[formation]) {
@@ -259,12 +275,7 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     );
   }
 
-  const [projections, players, availabilities, roundMatches] = await Promise.all([
-    getProjectionsByRound(round),
-    db.query.playersTable.findMany(),
-    db.select().from(playerAvailabilityTable),
-    getMatchesByRound(round),
-  ]);
+  const { projections, players, availabilities, roundMatches } = snapshot;
 
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const availMap = new Map(availabilities.map((a) => [a.playerId, a.playProbability]));
@@ -537,31 +548,6 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     ilpScore: solution.totalScore.toFixed(3),
   });
 
-  // ── Persist ────────────────────────────────────────────────────────────────
-  const lineupPlayers = selected.map((pw, idx) => ({
-    playerId: pw.player.id,
-    slot: `${pw.player.position}_${idx}`,
-    position: pw.player.position,
-    orderIndex: idx,
-    projectedPoints: pw.projection.expectedPoints ?? null,
-    price: pw.player.price ?? null,
-  }));
-
-  const saved = await insertLineupSuggestion(
-    {
-      round,
-      strategyType: strategy,
-      formation,
-      budgetLimit,
-      totalCost: Number(totalCost.toFixed(2)),
-      expectedPoints: Number(captainExpectedPointsDoubled.toFixed(2)),
-      riskScore: Number(avgRiskScore.toFixed(3)),
-      captainPlayerId: captainPw?.player.id ?? null,
-      coachPlayerId: coach?.player.id ?? null,
-    },
-    lineupPlayers
-  );
-
   const mainLineupIds = new Set(selected.map((pw) => pw.player.id));
   const formationPositions = slotRequirements.map((s) => s.position);
   const rawProjectionsForReserves = allPlayerProjections
@@ -581,22 +567,7 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
 
   const reserves = selectReserves(rawProjectionsForReserves, mainLineupIds, formationPositions);
 
-  await insertLineupReserves(
-    saved.id,
-    reserves.map((r) => ({
-      playerId: r.playerId,
-      position: r.position,
-      isLuxuryReserve: r.isLuxuryReserve,
-      expectedPoints: r.expectedPoints,
-      floorPoints: r.floorPoints,
-      ceilingPoints: r.ceilingPoints,
-      price: r.price,
-      orderIndex: r.orderIndex,
-    }))
-  );
-
   return {
-    id: saved.id,
     round,
     strategyType: strategy,
     formation,
@@ -618,4 +589,28 @@ export async function generateLineup(request: LineupRequest): Promise<LineupResu
     })),
     reserves,
   };
+}
+
+export async function generateLineup(request: LineupRequest): Promise<LineupResult> {
+  const result = calculateLineup(request, await loadLineupSnapshot(request.round));
+  const { players, reserves, captainExpectedPointsDoubled: _captainPoints, ...header } = result;
+  const saved = await insertLineupSuggestion(header, players.map((p) => ({
+    playerId: p.playerId,
+    slot: p.slot,
+    position: p.position,
+    orderIndex: p.orderIndex,
+    projectedPoints: p.projection.expectedPoints ?? null,
+    price: p.player.price ?? null,
+  })));
+  await insertLineupReserves(saved.id, reserves.map((r) => ({
+    playerId: r.playerId,
+    position: r.position,
+    isLuxuryReserve: r.isLuxuryReserve,
+    expectedPoints: r.expectedPoints,
+    floorPoints: r.floorPoints,
+    ceilingPoints: r.ceilingPoints,
+    price: r.price,
+    orderIndex: r.orderIndex,
+  })));
+  return { id: saved.id, ...result };
 }

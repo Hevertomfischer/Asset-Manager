@@ -2,6 +2,7 @@ import { Router } from "express";
 import axios from "axios";
 import { generateLineup, LineupValidationError, type StrategyType } from "../optimizers/lineupOptimizer";
 import { generateFrontier } from "../services/frontierService";
+import { compareFormations } from "../services/formationComparison";
 import { simulateLineup, type SimPlayer } from "../engines/monteCarlo";
 import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
 import {
@@ -29,9 +30,10 @@ import { eq, and, inArray, isNotNull, count } from "drizzle-orm";
 const router = Router();
 
 // ─── Generate lineup (also saves reserves automatically) ─────────────────────
-router.post("/lineup/generate", async (req, res) => {
+router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res) => {
+  const isComparison = req.path === "/lineup/compare-formations";
   try {
-    const { budget, formation, strategy, round } = req.body as {
+    const { budget, formation, strategy, round } = (req.body ?? {}) as {
       budget?: number;
       formation?: string;
       strategy?: string;
@@ -39,6 +41,14 @@ router.post("/lineup/generate", async (req, res) => {
       lockedPlayerIds?: unknown;
       excludedPlayerIds?: unknown;
     };
+    if (budget != null && (typeof budget !== "number" || !Number.isFinite(budget) || budget <= 0)) {
+      res.status(400).json({ error: "O patrimônio deve ser um número maior que zero." });
+      return;
+    }
+    if (round != null && (!Number.isInteger(round) || round <= 0)) {
+      res.status(400).json({ error: "A rodada deve ser um número inteiro positivo." });
+      return;
+    }
 
     const parsePlayerIds = (value: unknown, field: string): number[] => {
       if (value == null) return [];
@@ -118,7 +128,7 @@ router.post("/lineup/generate", async (req, res) => {
       currentRound = latestRound;
     }
 
-    if (!userIsPro && userId !== null) {
+    if (!isComparison && !userIsPro && userId !== null) {
       const [row] = await db
         .select({ total: count() })
         .from(lineupSuggestionTable)
@@ -135,6 +145,17 @@ router.post("/lineup/generate", async (req, res) => {
         });
         return;
       }
+    }
+
+    if (isComparison) {
+      res.json(await compareFormations({
+        round: currentRound,
+        budgetLimit: budget ?? 100,
+        strategy: strategyType,
+        lockedPlayerIds,
+        excludedPlayerIds,
+      }));
+      return;
     }
 
     const [result, allClubs] = await Promise.all([
@@ -221,12 +242,14 @@ router.post("/lineup/generate", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("[lineup/generate]", error);
+    createLogger("lineup").error("Falha ao avaliar escalação", { error: String(error), isComparison });
     if (error instanceof LineupValidationError) {
       res.status(422).json({ error: error.message });
       return;
     }
-    res.status(500).json({ error: "Failed to generate lineup", details: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: isComparison
+      ? "Não foi possível comparar as formações. Tente novamente."
+      : "Failed to generate lineup" });
   }
 });
 

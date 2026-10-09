@@ -382,6 +382,50 @@ export const GenerateLineupResponse = zod.object({
 });
 
 /**
+ * @summary Compare all formations without saving or consuming generation quota
+ */
+export const CompareFormationsBody = zod.object({
+  budget: zod.number().optional(),
+  formation: zod
+    .enum(["3-4-3", "3-5-2", "4-3-3", "4-4-2", "4-5-1", "5-3-2", "5-4-1"])
+    .optional(),
+  strategy: zod.enum([
+    "safe",
+    "aggressive",
+    "cost-benefit",
+    "antimassa",
+    "valorizacao",
+  ]),
+  round: zod.number().optional(),
+  lockedPlayerIds: zod
+    .array(zod.number())
+    .optional()
+    .describe("Jogadores que devem obrigatoriamente ser escalados."),
+  excludedPlayerIds: zod
+    .array(zod.number())
+    .optional()
+    .describe("Jogadores que não podem ser escalados."),
+});
+
+export const CompareFormationsResponse = zod.object({
+  round: zod.number(),
+  strategy: zod.string(),
+  budget: zod.number(),
+  bestFormation: zod.string().nullable(),
+  results: zod.array(
+    zod.object({
+      formation: zod.string(),
+      feasible: zod.boolean(),
+      expectedPoints: zod.number().nullable(),
+      totalCost: zod.number().nullable(),
+      balance: zod.number().nullable(),
+      differenceFromBest: zod.number().nullable(),
+      reason: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
  * @summary Trigger full ETL sync (all providers)
  */
 export const SyncFullResponse = zod.object({
