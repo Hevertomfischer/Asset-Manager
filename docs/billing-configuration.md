@@ -6,7 +6,7 @@ Nenhuma alteração é publicada automaticamente.
 ## Publicação e banco
 
 1. A migração SQL `lib/db/drizzle/0004_subscription_billing_plan.sql` foi aplicada somente no banco de desenvolvimento, sem `drizzle-kit push`.
-2. Publique a versão e confira no fluxo de publicação a inclusão da coluna `subscriptions.billing_plan`. Em banco gerenciado pelo Replit, a publicação aplica a diferença de schema; não adicione SQL de migração no startup.
+2. A migração SQL `lib/db/drizzle/0005_subscription_period_start.sql` acrescenta o início do período pago nas novas compras. Publique a versão e confira no fluxo de publicação as colunas `subscriptions.billing_plan` e `subscriptions.current_period_start`. Em banco gerenciado pelo Replit, a publicação aplica a diferença de schema; não adicione SQL de migração no startup.
 3. Desenvolvimento e produção têm dados independentes. Os valores de `admin_config` definidos em desenvolvimento **não são copiados** para produção.
 4. Novas compras gravam `pro_monthly` ou `season_pass`; concessões administrativas usam `grant`, contas de teste usam `dev`. Compras antigas sem tipo conhecido permanecem `NULL`: não é seguro deduzir qual passe foi vendido.
 
@@ -61,6 +61,7 @@ O fallback existente foi mantido: **2026-12-31T23:59:59Z** (UTC). Isso não é 2
 - Passe: usa o vencimento configurado, preservando uma data de acesso maior já existente.
 - A temporada de uma preferência nova é preservada nos metadados do pagamento. Alterações posteriores de configuração valem para novos checkouts.
 - Renovações registram pagamentos separados e serializam o cálculo por usuário; reentregas do mesmo webhook não acrescentam dias novamente.
+- A conta distingue o plano real do benefício Fundador e mostra o maior prazo de acesso. Novas compras registram o início do período pago para mostrar a data quando for futura. Datas históricas desconhecidas ficam sem estimativa.
 - Webhook aprovado de uma temporada que já encerrou não cria uma assinatura vencida: retorna erro e registra o ocorrido para análise operacional.
 
 ## Verificação sem cobrar clientes

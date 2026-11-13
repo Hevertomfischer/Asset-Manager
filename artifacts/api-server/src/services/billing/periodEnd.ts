@@ -16,7 +16,7 @@ export function calculatePeriodEnd(
   currentPeriodEnd: Date | null,
   now = new Date(),
 ): Date {
-  const start = Math.max(now.getTime(), FOUNDER_ACCESS_CUTOFF.getTime(), currentPeriodEnd?.getTime() ?? 0);
+  const start = calculatePeriodStart(currentPeriodEnd, now).getTime();
   if (plan === "pro_monthly") return new Date(start + 30 * 24 * 60 * 60 * 1000);
   const seasonEnd = new Date(config.seasonPassEndsAt).getTime();
   if (seasonEnd <= now.getTime()) throw new ExpiredSeasonError();
@@ -24,12 +24,16 @@ export function calculatePeriodEnd(
   return new Date(Math.max(start, seasonEnd));
 }
 
-export async function computePeriodEnd(
+export function calculatePeriodStart(currentPeriodEnd: Date | null, now = new Date()): Date {
+  return new Date(Math.max(now.getTime(), FOUNDER_ACCESS_CUTOFF.getTime(), currentPeriodEnd?.getTime() ?? 0));
+}
+
+export async function computeBillingPeriod(
   plan: BillingPlan,
   userId: number,
   config?: PlanConfig,
   connection: Pick<typeof db, "select"> = db,
-): Promise<Date> {
+): Promise<{ start: Date; end: Date }> {
   const now = new Date();
   const [active] = await connection.select({ currentPeriodEnd: subscriptionsTable.currentPeriodEnd })
     .from(subscriptionsTable)
@@ -40,5 +44,13 @@ export async function computePeriodEnd(
       gt(subscriptionsTable.currentPeriodEnd, now),
     ))
     .orderBy(desc(subscriptionsTable.currentPeriodEnd)).limit(1);
-  return calculatePeriodEnd(plan, config ?? await getPlanConfig(now), active?.currentPeriodEnd ?? null, now);
+  const previousEnd = active?.currentPeriodEnd ?? null;
+  return {
+    start: calculatePeriodStart(previousEnd, now),
+    end: calculatePeriodEnd(plan, config ?? await getPlanConfig(now), previousEnd, now),
+  };
+}
+
+export async function computePeriodEnd(plan: BillingPlan, userId: number, config?: PlanConfig): Promise<Date> {
+  return (await computeBillingPeriod(plan, userId, config)).end;
 }

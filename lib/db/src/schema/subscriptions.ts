@@ -11,6 +11,7 @@ export const subscriptionsTable = pgTable("subscriptions", {
   status: text("status"),
   provider: text("provider"),
   externalId: text("external_id"),
+  currentPeriodStart: timestamp("current_period_start"),
   currentPeriodEnd: timestamp("current_period_end"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

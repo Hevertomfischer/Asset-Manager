@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks";
 import { useTrack } from "@/hooks/useTrack";
 import {
@@ -22,19 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProBadge } from "@/components/ProBadge";
-import { useGetBillingConfig } from "@workspace/api-client-react";
-
-interface SubscriptionData {
-  plan: string;
-  status: string;
-  currentPeriodEnd: string | null;
-}
-
-async function fetchSubscription(): Promise<SubscriptionData> {
-  const res = await fetch("/api/billing/subscription", { credentials: "include" });
-  if (!res.ok) return { plan: "free", status: "inactive", currentPeriodEnd: null };
-  return res.json() as Promise<SubscriptionData>;
-}
+import { getGetBillingConfigQueryKey, useGetBillingConfig, useGetBillingSubscription } from "@workspace/api-client-react";
+import { formatBillingDate } from "@/lib/billingAccess";
 
 async function startCheckout(plan: string): Promise<string> {
   const res = await fetch("/api/billing/checkout", {
@@ -69,9 +58,9 @@ const PLANS = [
   },
   {
     id: "season_pass" as const,
-    name: "Passe de Temporada",
+    name: "Season Pass",
     period: "/temporada",
-    description: "Acesso completo durante toda a temporada. Melhor custo-benefício.",
+    description: "Pagamento único, sem renovação automática.",
     best: true,
   },
 ];
@@ -120,17 +109,21 @@ export default function Planos() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const paywallTrackedRef = useRef(false);
   const { data: billingConfig, isError: configError } = useGetBillingConfig({
-    query: { staleTime: 30_000, refetchOnWindowFocus: true },
+    query: { queryKey: getGetBillingConfigQueryKey(), staleTime: 30_000, refetchOnWindowFocus: true },
   });
   const formatPrice = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const founderCutoff = user?.founderCutoff ?? null;
+  const founderCutoff = billingConfig?.founderCutoff ?? user?.founderCutoff ?? null;
+  const campaignActive = !!founderCutoff && new Date(founderCutoff) > new Date();
+  const founderPriceActive = campaignActive && billingConfig?.founderSeasonPassPrice != null;
+  const seasonPassPrice = campaignActive ? billingConfig?.seasonPassPrice : billingConfig?.regularSeasonPassPrice;
 
-  const { data: subscription } = useQuery({
-    queryKey: ["billing", "subscription"],
-    queryFn: fetchSubscription,
-    enabled: isAuthenticated,
-    staleTime: 30_000,
+  const { data: subscription } = useGetBillingSubscription({
+    query: {
+      queryKey: ["billing", "subscription", user?.id],
+      enabled: isAuthenticated,
+      staleTime: 30_000,
+    },
   });
 
   // isRealPro: tem assinatura ativa — não conta acesso de campanha
@@ -171,7 +164,7 @@ export default function Planos() {
     <div className="max-w-4xl mx-auto px-2 py-4">
       {billingStatus && <BillingBanner status={billingStatus} />}
 
-      {isFounderAccess && founderCutoff && (
+      {campaignActive && founderCutoff && (
         <div className="mb-8 border border-primary/30 bg-primary/5 rounded-2xl p-5">
           <div className="flex items-start gap-4">
             <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 mt-0.5">
@@ -180,7 +173,7 @@ export default function Planos() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <p className="text-sm font-semibold text-foreground">
-                  Você está usando o Founder Access
+                  {isFounderAccess ? "Você está usando o Acesso Fundador" : "Campanha de Fundadores"}
                 </p>
                 <Badge className="bg-primary/20 text-primary border border-primary/30 text-xs font-semibold">
                   Campanha ativa
@@ -190,16 +183,13 @@ export default function Planos() {
                 Todos os recursos Pro — simulador de escalação, probabilidades de jogo, fronteira de eficiência
                 e comparador ilimitado — estão liberados gratuitamente para você até{" "}
                 <span className="font-medium text-foreground">
-                  {new Date(founderCutoff).toLocaleDateString("pt-BR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatBillingDate(founderCutoff)} (Brasília)
                 </span>.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed mt-2">
-                Após essa data, esses recursos voltam a ser exclusivos do plano Pro.
-                Assine agora para garantir acesso contínuo sem interrupção.
+                Sua assinatura paga começa a contar após {formatBillingDate(founderCutoff)} (Brasília),
+                sem consumir os dias gratuitos. Se você já tiver um prazo Pro maior, ele será preservado.
+                O mensal acrescenta 30 dias; o Season Pass mantém o vencimento informado abaixo.
               </p>
             </div>
           </div>
@@ -250,6 +240,8 @@ export default function Planos() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {PLANS.map((plan) => {
           const isLoading = loadingPlan === plan.id;
+          const planName = plan.id === "season_pass" && billingConfig
+            ? `Season Pass ${billingConfig.seasonPassYear}` : plan.name;
           const seasonExpired = plan.id === "season_pass" && !!billingConfig
             && new Date(billingConfig.seasonPassEndsAt) <= new Date();
 
@@ -271,15 +263,13 @@ export default function Planos() {
               )}
 
               <CardHeader className="pt-7 pb-3 px-6">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-bold">{plan.name}{plan.id === "season_pass" && billingConfig ? ` ${billingConfig.seasonPassYear}` : ""}</h2>
+                    <h2 className="text-lg font-bold">{planName}</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">{plan.description}</p>
                     {plan.id === "season_pass" && billingConfig && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Válido até {new Date(billingConfig.seasonPassEndsAt).toLocaleString("pt-BR", {
-                          timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short",
-                        })} (Brasília).
+                        Válido até {formatBillingDate(billingConfig.seasonPassEndsAt)} (Brasília).
                       </p>
                     )}
                   </div>
@@ -289,10 +279,20 @@ export default function Planos() {
                     </Badge>
                   )}
                 </div>
+                {plan.id === "season_pass" && founderPriceActive && billingConfig && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                    <Badge className="text-xs bg-primary/15 text-primary border-primary/30">Preço de Fundador</Badge>
+                    {billingConfig.regularSeasonPassPrice !== billingConfig.seasonPassPrice && (
+                      <span className="text-muted-foreground">
+                        De <s>{formatPrice(billingConfig.regularSeasonPassPrice)}</s>
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-baseline gap-1 mt-4">
                    <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
                     {billingConfig ? formatPrice(plan.id === "pro_monthly"
-                      ? billingConfig.proMonthlyPrice : billingConfig.seasonPassPrice) : "Carregando…"}
+                      ? billingConfig.proMonthlyPrice : seasonPassPrice ?? billingConfig.seasonPassPrice) : "Carregando…"}
                   </span>
                   <span className="text-muted-foreground text-sm">{plan.period}</span>
                 </div>
@@ -341,7 +341,7 @@ export default function Planos() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        {seasonExpired ? "Temporada encerrada" : `${isRealPro ? "Renovar" : "Assinar"} ${plan.name}`}
+                        {seasonExpired ? "Temporada encerrada" : `${isRealPro ? "Renovar" : "Assinar"} ${planName}`}
                       </>
                     )}
                   </Button>

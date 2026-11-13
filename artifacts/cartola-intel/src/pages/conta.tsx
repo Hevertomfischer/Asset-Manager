@@ -9,6 +9,8 @@ import { ProBadge } from "@/components/ProBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useGetBillingSubscription } from "@workspace/api-client-react";
+import { formatBillingDate, getAccessDetails } from "@/lib/billingAccess";
 
 function getInitials(name: string | null, email: string): string {
   if (name) {
@@ -27,6 +29,14 @@ export default function Conta() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [resetLoading, setResetLoading] = useState(false);
+  const { data: subscription, isLoading: subscriptionLoading, isError: subscriptionError } = useGetBillingSubscription({
+    query: {
+      queryKey: ["billing", "subscription", user?.id],
+      enabled: isAuthenticated,
+      staleTime: 30_000,
+    },
+  });
+  const access = getAccessDetails(user?.plan ?? "free", subscription, user?.founderCutoff ?? null);
 
   async function handleRedoOnboarding() {
     setResetLoading(true);
@@ -121,19 +131,42 @@ export default function Conta() {
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Plano atual</p>
+              <p className="text-sm font-medium">Plano real</p>
               <p className="text-xs text-muted-foreground">
                 {user.isPro
                   ? "Acesso completo às funcionalidades Pro"
                   : "Acesso às funcionalidades básicas"}
               </p>
             </div>
-            {user.isPro ? (
+            {access.realPlan === "pro" ? (
               <ProBadge />
             ) : (
               <Badge variant="secondary">Gratuito</Badge>
             )}
           </div>
+          <dl className="space-y-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="text-muted-foreground">Origem do acesso</dt>
+              <dd className="font-medium">{access.origin}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-muted-foreground">Fim do acesso efetivo</dt>
+              <dd className="font-medium">
+                {subscriptionLoading ? "Carregando…" : subscriptionError ? "Não foi possível consultar a validade"
+                  : access.effectiveEndsAt ? `${formatBillingDate(access.effectiveEndsAt)} (Brasília)` : "Sem data de término — plano gratuito"}
+              </dd>
+            </div>
+            {access.paidStartsAt && (
+              <div className="rounded-lg border border-primary/25 bg-primary/5 p-3 space-y-1">
+                <dt className="text-primary">Início da assinatura paga</dt>
+                <dd className="font-medium">{formatBillingDate(access.paidStartsAt)} (Brasília)</dd>
+                <dd className="text-xs text-muted-foreground">Seus dias de acesso atuais são preservados.</dd>
+              </div>
+            )}
+          </dl>
+          {subscriptionError && (
+            <p role="alert" className="text-sm text-destructive">Não foi possível carregar os detalhes da assinatura. Atualize a página para tentar novamente.</p>
+          )}
 
           <Separator />
 

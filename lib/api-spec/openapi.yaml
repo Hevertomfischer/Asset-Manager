@@ -23,6 +23,22 @@ tags:
   - name: admin
     description: Admin operations
 paths:
+  /billing/subscription:
+    get:
+      operationId: getBillingSubscription
+      tags: [billing]
+      summary: Current real subscription and its recorded period
+      responses:
+        "200":
+          description: Subscription, excluding promotional access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSubscription"
+        "401":
+          description: Authentication required
+        "500":
+          description: Subscription unavailable
   /billing/config:
     get:
       operationId: getBillingConfig
@@ -448,6 +464,21 @@ paths:
 
 components:
   schemas:
+    BillingSubscription:
+      type: object
+      required: [plan, status, currentPeriodEnd, currentPeriodStart]
+      properties:
+        plan:
+          type: string
+        status:
+          type: string
+        currentPeriodEnd:
+          type: [string, "null"]
+          format: date-time
+        currentPeriodStart:
+          type: [string, "null"]
+          format: date-time
+          description: Recorded paid period start; null for unknown historical periods
     PlanSettings:
       type: object
       required: [seasonPassYear, seasonPassEndsAt, proMonthlyPrice, seasonPassPrice]

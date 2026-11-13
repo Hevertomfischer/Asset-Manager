@@ -7,7 +7,7 @@ import { createCheckout } from "../services/billing/mercadopagoProvider";
 import { validateMpSignature } from "../services/billing/webhookValidator";
 import { createLogger } from "../lib/logger";
 import { getPlanConfig, planConfigSchema, publicPlanConfig } from "../services/billing/planConfig";
-import { computePeriodEnd, ExpiredSeasonError } from "../services/billing/periodEnd";
+import { computePeriodEnd, computeBillingPeriod, ExpiredSeasonError } from "../services/billing/periodEnd";
 
 const log = createLogger("billing");
 const router = Router();
@@ -133,7 +133,7 @@ router.post("/billing/webhook", async (req, res) => {
         log.info("Pagamento já processado — idempotente", { paymentId, userId });
         return;
       }
-      const periodEnd = await computePeriodEnd(plan, userId, config, tx);
+      const { start: periodStart, end: periodEnd } = await computeBillingPeriod(plan, userId, config, tx);
       // Uma linha por pagamento conserva os IDs antigos para idempotência.
       await tx.insert(subscriptionsTable).values({
         userId,
@@ -143,6 +143,7 @@ router.post("/billing/webhook", async (req, res) => {
         provider: "mercadopago",
         externalId: paymentId,
         currentPeriodEnd: periodEnd,
+        currentPeriodStart: periodStart,
       });
       log.info("Pagamento aplicado à assinatura", { userId, plan, periodEnd, paymentId });
     });
@@ -169,6 +170,7 @@ router.get("/billing/subscription", async (req, res) => {
       .select({
         plan: subscriptionsTable.plan,
         status: subscriptionsTable.status,
+        currentPeriodStart: subscriptionsTable.currentPeriodStart,
         currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
       })
       .from(subscriptionsTable)
@@ -181,13 +183,14 @@ router.get("/billing/subscription", async (req, res) => {
       .limit(1);
 
     if (!sub) {
-      res.json({ plan: "free", status: "inactive", currentPeriodEnd: null });
+      res.json({ plan: "free", status: "inactive", currentPeriodEnd: null, currentPeriodStart: null });
       return;
     }
 
     res.json({
       plan: sub.plan ?? "free",
       status: sub.status ?? "inactive",
+      currentPeriodStart: sub.currentPeriodStart ?? null,
       currentPeriodEnd: sub.currentPeriodEnd ?? null,
     });
   } catch (err) {

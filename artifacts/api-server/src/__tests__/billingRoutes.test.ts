@@ -95,6 +95,7 @@ it("webhook soma prazo ativo, grava o tipo e mantém pagamentos anteriores", asy
   expect(inserted).toHaveLength(1);
   expect(inserted[0]).toMatchObject({ userId: 42, billingPlan: "pro_monthly", externalId: "123" });
   expect((inserted[0].currentPeriodEnd as Date).getTime()).toBe(existingEnd.getTime() + 30 * 86_400_000);
+  expect(inserted[0].currentPeriodStart).toEqual(existingEnd);
   expect(mocks.execute).toHaveBeenCalledOnce();
   // Uma reentrega antiga, mesmo após outra renovação, não soma dias novamente.
   rows = [[{ id: 1 }]];
@@ -120,4 +121,18 @@ it("webhook não grava assinatura vencida nem aceita tipos desconhecidos", async
   rows = [[], []];
   expect((await post("webhook", { type: "payment", data: { id: 126 } })).status).toBe(500);
   expect(inserted).toHaveLength(0);
+});
+it("assinatura retorna o início pago registrado para a conta", async () => {
+  const start = new Date("2098-08-01T12:00:00Z");
+  const end = new Date("2098-08-31T12:00:00Z");
+  rows = [[{ plan: "pro", status: "active", currentPeriodStart: start, currentPeriodEnd: end }]];
+  const response = await fetch(`${url}/subscription`);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    plan: "pro", currentPeriodStart: start.toISOString(), currentPeriodEnd: end.toISOString(),
+  });
+});
+it("assinatura histórica sem início registrado retorna null, sem inventar data", async () => {
+  rows = [[{ plan: "pro", status: "active", currentPeriodEnd: new Date("2098-08-31T12:00:00Z") }]];
+  expect(await (await fetch(`${url}/subscription`)).json()).toMatchObject({ currentPeriodStart: null });
 });

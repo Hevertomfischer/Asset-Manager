@@ -8,6 +8,21 @@
 import * as zod from "zod";
 
 /**
+ * @summary Current real subscription and its recorded period
+ */
+export const GetBillingSubscriptionResponse = zod.object({
+  plan: zod.string(),
+  status: zod.string(),
+  currentPeriodEnd: zod.date().nullable(),
+  currentPeriodStart: zod
+    .date()
+    .nullable()
+    .describe(
+      "Recorded paid period start; null for unknown historical periods",
+    ),
+});
+
+/**
  * @summary Current public prices and season validity
  */
 export const getBillingConfigResponseOneSeasonPassYearMin = 2020;

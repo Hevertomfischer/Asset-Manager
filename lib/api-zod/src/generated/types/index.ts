@@ -14,6 +14,7 @@ export * from "./availabilityItem";
 export * from "./availabilityItemPlayer";
 export * from "./availabilityListResponse";
 export * from "./billingConfiguration";
+export * from "./billingSubscription";
 export * from "./club";
 export * from "./formationComparison";
 export * from "./formationEvaluation";

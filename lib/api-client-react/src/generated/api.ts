@@ -22,6 +22,7 @@ import type {
   AdminLogsResponse,
   AvailabilityListResponse,
   BillingConfiguration,
+  BillingSubscription,
   FormationComparison,
   GetAdminLogsParams,
   GetCurrentAvailabilityParams,
@@ -54,6 +55,82 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Current real subscription and its recorded period
+ */
+export const getGetBillingSubscriptionUrl = () => {
+  return `/api/billing/subscription`;
+};
+
+export const getBillingSubscription = async (
+  options?: RequestInit,
+): Promise<BillingSubscription> => {
+  return customFetch<BillingSubscription>(getGetBillingSubscriptionUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBillingSubscriptionQueryKey = () => {
+  return [`/api/billing/subscription`] as const;
+};
+
+export const getGetBillingSubscriptionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBillingSubscription>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetBillingSubscriptionQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBillingSubscription>>
+  > = ({ signal }) => getBillingSubscription({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBillingSubscriptionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBillingSubscription>>
+>;
+export type GetBillingSubscriptionQueryError = ErrorType<void>;
+
+/**
+ * @summary Current real subscription and its recorded period
+ */
+
+export function useGetBillingSubscription<
+  TData = Awaited<ReturnType<typeof getBillingSubscription>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBillingSubscriptionQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Current public prices and season validity

@@ -5,6 +5,18 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+export interface BillingSubscription {
+  plan: string;
+  status: string;
+  /** @nullable */
+  currentPeriodEnd: string | null;
+  /**
+   * Recorded paid period start; null for unknown historical periods
+   * @nullable
+   */
+  currentPeriodStart: string | null;
+}
+
 export interface PlanSettings {
   /**
    * @minimum 2020

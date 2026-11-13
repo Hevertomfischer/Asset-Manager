@@ -28,3 +28,12 @@ uma classificação presumida poderia mudar os direitos do comprador.
 
 **How to apply:** Preserve direitos e IDs de pagamentos antigos; registre o tipo
 explicitamente nas novas compras.
+
+Datas históricas de início de períodos pagos não devem ser reconstruídas sem
+evidência suficiente.
+
+**Why:** O início pode depender tanto da campanha como de saldo adquirido em
+compras anteriores; um vencimento de Season Pass não permite deduzir esse início.
+
+**How to apply:** Mostre datas registradas e mantenha desconhecido o que não tem
+registro, em vez de apresentar uma data estimada como certa na conta do usuário.
