@@ -1,10 +1,9 @@
 import {
   useGetCurrentRound,
-  useGetProvidersStatus,
   useGetCurrentProjections,
+  getGetCurrentProjectionsQueryKey,
   useGetCurrentMatches,
   useGetCurrentAvailability,
-  useGetAdminConfig,
   type ProjectionItem,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +33,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
+import { SyncStatusCard } from "@/components/SyncStatusCard";
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -98,19 +98,15 @@ function ClubBadge({ club }: { club: MatchClub }) {
 type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
   const isAdmin = user?.role === "admin";
 
   const { data: roundData, isLoading: roundLoading, isError: roundError, refetch: refetchRound } = useGetCurrentRound();
-  const { data: providersData, isError: providersError, refetch: refetchProviders } = useGetProvidersStatus();
   const { data: projectionsData, isLoading: projLoading, isError: projError, refetch: refetchProjections } = useGetCurrentProjections({
     round: roundData?.round ?? undefined,
-  });
+  }, { query: { queryKey: getGetCurrentProjectionsQueryKey({ round: roundData?.round }), enabled: isPro } });
   const { data: matchesData, isLoading: matchesLoading, isError: matchesError, refetch: refetchMatches } = useGetCurrentMatches();
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError, refetch: refetchAvailability } = useGetCurrentAvailability({});
-  const { data: configData } = useGetAdminConfig();
-
-  const providers = providersData?.providers ?? [];
   const projections = (projectionsData?.projections ?? []) as RichProjectionItem[];
   const matches = matchesData?.matches ?? [];
   const availabilityList = availabilityData?.availability ?? [];
@@ -168,25 +164,26 @@ export default function Dashboard() {
 
   const primaryLoading = roundLoading || projLoading || matchesLoading;
   const primaryError = roundError || projError || matchesError;
+  const syncStatusCard = <SyncStatusCard isAdmin={isAdmin} />;
   if (primaryLoading) return <PageSkeleton variant="cards" aria-label="Carregando painel" />;
   if (primaryError) {
     return (
-      <ErrorState
+      <div className="space-y-6">{syncStatusCard}<ErrorState
         title="Não foi possível carregar o painel"
         description="Os dados principais do painel não puderam ser carregados."
         onRetry={() => Promise.all([refetchRound(), refetchProjections(), refetchMatches()])}
-      />
+      /></div>
     );
   }
   if (projections.length === 0) {
     return (
-      <EmptyState
+      <div className="space-y-6">{syncStatusCard}<EmptyState
         icon={Activity}
-        title="Ainda não há projeções para esta rodada"
-        description="Consulte o histórico enquanto os dados da rodada são preparados."
-        actionLabel="Ver histórico"
-        actionHref="/historico"
-      />
+        title={isPro ? "Ainda não há projeções para esta rodada" : "Projeções disponíveis no plano Pro"}
+        description={isPro ? "Consulte o histórico enquanto os dados da rodada são preparados." : "O status dos dados está disponível acima. Conheça o Pro para acessar as projeções."}
+        actionLabel={isPro ? "Ver histórico" : "Conhecer o Pro"}
+        actionHref={isPro ? "/historico" : "/planos"}
+      /></div>
     );
   }
 
@@ -508,66 +505,7 @@ export default function Dashboard() {
 
         {/* Right sidebar */}
         <div className="space-y-6">
-          {/* Data Pipeline Status — admin only */}
-          {isAdmin && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-6 h-6 text-accent" />
-                <h2 className="text-2xl font-display font-bold">Pipeline</h2>
-              </div>
-
-              {providersError ? (
-                <ErrorState
-                  title="Status dos provedores indisponível"
-                  description="Não foi possível carregar o status do pipeline."
-                  onRetry={refetchProviders}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {providers.map((provider) => (
-                    <Card key={provider.source} className="bg-card border-border/50 overflow-hidden">
-                      <div className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              provider.status === "ok"
-                                ? "bg-primary shadow-[0_0_8px_hsl(var(--positive) / 0.5)]"
-                                : provider.status === "error"
-                                  ? "bg-destructive shadow-[0_0_8px_hsl(var(--danger) / 0.5)]"
-                                  : "bg-attention"
-                            }`}
-                          />
-                          <div>
-                            <h4 className="font-semibold text-sm capitalize">{provider.source.replace(/_/g, " ")}</h4>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {provider.lastCollectedAt
-                                ? new Date(provider.lastCollectedAt).toLocaleTimeString("pt-BR")
-                                : "Nunca sincronizado"}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            provider.status === "ok" ? "default" : provider.status === "error" ? "destructive" : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {provider.status === "ok" ? "ok" : provider.status === "error" ? "erro" : "degradado"}
-                        </Badge>
-                      </div>
-                    </Card>
-                  ))}
-
-                  <Button variant="outline" className="w-full bg-secondary/30 hover:bg-secondary font-semibold" asChild>
-                    <Link to="/admin">
-                      <Zap className="w-4 h-4 ml-2 text-accent mr-2" />
-                      Gerenciar Pipeline
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          {syncStatusCard}
 
           {/* Matches/Fixtures */}
           <div className="space-y-4">

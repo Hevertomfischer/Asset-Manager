@@ -44,7 +44,11 @@ app.set("trust proxy", 1);
 app.use(cookieParser());
 // CORS global: permite todas as origens e expõe WWW-Authenticate para que
 // clientes OAuth (Claude, browsers) possam ler o cabeçalho de discovery.
-app.use(cors({ exposedHeaders: ["WWW-Authenticate"] }));
+app.use((req, res, next) => cors({
+  exposedHeaders: ["WWW-Authenticate"],
+  // Admin preflight must also reach session authentication and authorization.
+  preflightContinue: /^\/api\/admin(?:\/|$)/i.test(req.path),
+})(req, res, next));
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

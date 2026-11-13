@@ -50,4 +50,5 @@ export * from "./recalcResult";
 export * from "./roundStatus";
 export * from "./saveLineup200";
 export * from "./syncResult";
+export * from "./syncStatus";
 export * from "./upgradeRequiredError";

@@ -8,6 +8,22 @@
 import * as zod from "zod";
 
 /**
+ * @summary Public synchronization health without private provider logs
+ */
+export const GetSyncStatusResponse = zod.object({
+  lastSyncAt: zod.string().nullable(),
+  isRunning: zod.boolean(),
+  marketStatus: zod.string().nullable(),
+  providersDegraded: zod.boolean(),
+  lastMarketCheckAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "Last successful market check; null before the first observation",
+    ),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */

@@ -23,6 +23,20 @@ tags:
   - name: admin
     description: Admin operations
 paths:
+  /sync/status:
+    get:
+      operationId: getSyncStatus
+      tags: [health]
+      summary: Public synchronization health without private provider logs
+      responses:
+        "200":
+          description: Public status summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatus"
+        "500":
+          description: Status unavailable
   /healthz:
     get:
       operationId: healthCheck
@@ -383,6 +397,21 @@ paths:
 
 components:
   schemas:
+    SyncStatus:
+      type: object
+      required: [lastSyncAt, isRunning, marketStatus, providersDegraded, lastMarketCheckAt]
+      properties:
+        lastSyncAt:
+          type: [string, "null"]
+        isRunning:
+          type: boolean
+        marketStatus:
+          type: [string, "null"]
+        providersDegraded:
+          type: boolean
+        lastMarketCheckAt:
+          type: [string, "null"]
+          description: Last successful market check; null before the first observation
     FormationEvaluation:
       type: object
       required: [formation, feasible, expectedPoints, totalCost, balance, differenceFromBest, reason]

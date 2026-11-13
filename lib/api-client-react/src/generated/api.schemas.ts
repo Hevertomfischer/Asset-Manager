@@ -5,6 +5,20 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+export interface SyncStatus {
+  /** @nullable */
+  lastSyncAt: string | null;
+  isRunning: boolean;
+  /** @nullable */
+  marketStatus: string | null;
+  providersDegraded: boolean;
+  /**
+   * Last successful market check; null before the first observation
+   * @nullable
+   */
+  lastMarketCheckAt: string | null;
+}
+
 export interface FormationEvaluation {
   formation: string;
   feasible: boolean;

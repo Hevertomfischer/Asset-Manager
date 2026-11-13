@@ -16,6 +16,7 @@ import Landing from "@/pages/landing";
 import Players from "@/pages/players";
 import Lineup from "@/pages/lineup";
 import Admin from "@/pages/admin";
+import { RequireAdmin } from "@/components/RequireAdmin";
 import Confrontos from "@/pages/confrontos";
 import Historico from "@/pages/historico";
 import Conta from "@/pages/conta";
@@ -165,7 +166,7 @@ function App() {
                     <Routes>
                       <Route path="/jogadores" element={<Players />} />
                       <Route path="/escalacao" element={<Lineup />} />
-                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
                       <Route path="/confrontos" element={<Confrontos />} />
                       <Route path="/historico" element={<Historico />} />
                       <Route path="/conta" element={<Conta />} />
