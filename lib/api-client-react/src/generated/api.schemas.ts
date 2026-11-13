@@ -47,7 +47,21 @@ export type BillingConfiguration = PlanSettings & {
   founderCutoff: string;
 };
 
+export type AdminConfigurationAnonymousLineupMode =
+  (typeof AdminConfigurationAnonymousLineupMode)[keyof typeof AdminConfigurationAnonymousLineupMode];
+
+export const AdminConfigurationAnonymousLineupMode = {
+  login_required: "login_required",
+  allowed: "allowed",
+} as const;
+
 export type AdminConfiguration = PlanSettings & {
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  freeLineupsPerRound: number;
+  anonymousLineupMode: AdminConfigurationAnonymousLineupMode;
   /**
    * @minimum 1
    * @maximum 30
@@ -55,7 +69,21 @@ export type AdminConfiguration = PlanSettings & {
   xgStaleDays: number;
 };
 
+export type AdminConfigurationPatchAnonymousLineupMode =
+  (typeof AdminConfigurationPatchAnonymousLineupMode)[keyof typeof AdminConfigurationPatchAnonymousLineupMode];
+
+export const AdminConfigurationPatchAnonymousLineupMode = {
+  login_required: "login_required",
+  allowed: "allowed",
+} as const;
+
 export interface AdminConfigurationPatch {
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  freeLineupsPerRound?: number;
+  anonymousLineupMode?: AdminConfigurationPatchAnonymousLineupMode;
   /**
    * @minimum 1
    * @maximum 30
@@ -290,6 +318,23 @@ export interface ProjectionListResponse {
   round: number;
 }
 
+export type LineupAccessErrorReason =
+  (typeof LineupAccessErrorReason)[keyof typeof LineupAccessErrorReason];
+
+export const LineupAccessErrorReason = {
+  login_required: "login_required",
+  pro_strategy: "pro_strategy",
+  locked_limit: "locked_limit",
+  excluded_limit: "excluded_limit",
+  round_quota: "round_quota",
+} as const;
+
+export interface LineupAccessError {
+  error: string;
+  reason: LineupAccessErrorReason;
+  upgradeRequired?: boolean;
+}
+
 export interface Match {
   id?: number;
   round?: number;
@@ -428,6 +473,8 @@ export interface PopularityUnavailableError {
 }
 
 export interface UpgradeRequiredError {
+  /** Reason for the blocked action, when provided by the endpoint. */
+  reason?: string;
   error: string;
   upgradeRequired: boolean;
 }

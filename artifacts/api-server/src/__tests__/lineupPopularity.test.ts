@@ -3,6 +3,7 @@ import express from "express";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
+vi.mock("../services/accessService", () => ({ isPro: async () => false }));
 vi.mock("../services/popularityFeatureService", async (original) => {
   const actual = await original<typeof import("../services/popularityFeatureService")>();
   return { ...actual, getPopularityFeatureStatus: async () => actual.evaluatePopularityFeatures({
@@ -18,7 +19,8 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.isAuthenticated = (() => false) as typeof req.isAuthenticated;
+    req.isAuthenticated = (() => true) as typeof req.isAuthenticated;
+    req.user = { id: -1 } as Express.User;
     next();
   });
   app.use("/api", router);

@@ -5,8 +5,15 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminConfigurationPatchAnonymousLineupMode } from "./adminConfigurationPatchAnonymousLineupMode";
 
 export interface AdminConfigurationPatch {
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  freeLineupsPerRound?: number;
+  anonymousLineupMode?: AdminConfigurationPatchAnonymousLineupMode;
   /**
    * @minimum 1
    * @maximum 30

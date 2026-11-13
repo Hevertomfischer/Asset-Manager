@@ -15,6 +15,7 @@ import {
 import { processSubstitutions } from "../services/reserveService";
 import { validateAndSimulate, type PlayerSnapshot } from "../services/swapValidation";
 import { isPro } from "../services/accessService";
+import { getLineupAccessConfig } from "../services/lineupAccessConfig";
 import { requirePro } from "../middlewares/requirePro";
 import { createLogger } from "../lib/logger";
 import { LINEUP_CONFIG } from "../config/projectionWeights";
@@ -85,6 +86,14 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
     // ── Access control ──────────────────────────────────────────────────────
     const userId = req.isAuthenticated() && req.user ? req.user.id : null;
     const userIsPro = userId !== null ? await isPro(userId) : false;
+    const accessConfig = !isComparison ? await getLineupAccessConfig() : null;
+    if (!isComparison && userId === null && accessConfig?.anonymousLineupMode === "login_required") {
+      res.status(401).json({
+        error: "Entre com Google para gerar sua escalação grátis",
+        reason: "login_required",
+      });
+      return;
+    }
 
     const validStrategies: StrategyType[] = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"];
     const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
@@ -100,6 +109,7 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
       res.status(402).json({
         error: "Estratégias avançadas são exclusivas do plano Pro. Apenas a estratégia 'safe' está disponível no plano gratuito.",
         upgradeRequired: true,
+        reason: "pro_strategy",
       });
       return;
     }
@@ -107,6 +117,7 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
       res.status(402).json({
         error: "No plano gratuito, você pode travar no máximo 1 jogador por escalação. Faça upgrade para Pro para travar jogadores ilimitados.",
         upgradeRequired: true,
+        reason: "locked_limit",
       });
       return;
     }
@@ -114,6 +125,7 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
       res.status(402).json({
         error: "No plano gratuito, você pode excluir no máximo 3 jogadores por escalação. Faça upgrade para Pro para excluir jogadores ilimitados.",
         upgradeRequired: true,
+        reason: "excluded_limit",
       });
       return;
     }
@@ -144,10 +156,11 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
             eq(lineupSuggestionTable.round, currentRound)
           )
         );
-      if ((row?.total ?? 0) >= 1) {
+      if ((row?.total ?? 0) >= (accessConfig?.freeLineupsPerRound ?? 1)) {
         res.status(402).json({
-          error: "Usuários do plano gratuito podem gerar apenas 1 escalação por rodada. Faça upgrade para Pro para gerações ilimitadas.",
+          error: `O plano gratuito permite ${accessConfig?.freeLineupsPerRound ?? 1} escalação(ões) por rodada. Faça upgrade para Pro para gerações ilimitadas.`,
           upgradeRequired: true,
+          reason: "round_quota",
         });
         return;
       }

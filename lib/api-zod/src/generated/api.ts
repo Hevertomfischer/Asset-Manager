@@ -77,6 +77,11 @@ export const getAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
 export const getAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
 export const getAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
 
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundDefault = 1;
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundMin = 0;
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundMax = 1000;
+
+export const getAdminConfigurationResponseTwoAnonymousLineupModeDefault = `login_required`;
 export const getAdminConfigurationResponseTwoXgStaleDaysMax = 30;
 
 export const GetAdminConfigurationResponse = zod
@@ -102,12 +107,23 @@ export const GetAdminConfigurationResponse = zod
   })
   .and(
     zod.object({
+      freeLineupsPerRound: zod
+        .number()
+        .min(getAdminConfigurationResponseTwoFreeLineupsPerRoundMin)
+        .max(getAdminConfigurationResponseTwoFreeLineupsPerRoundMax)
+        .default(getAdminConfigurationResponseTwoFreeLineupsPerRoundDefault),
+      anonymousLineupMode: zod
+        .enum(["login_required", "allowed"])
+        .default(getAdminConfigurationResponseTwoAnonymousLineupModeDefault),
       xgStaleDays: zod
         .number()
         .min(1)
         .max(getAdminConfigurationResponseTwoXgStaleDaysMax),
     }),
   );
+
+export const updateAdminConfigurationBodyFreeLineupsPerRoundMin = 0;
+export const updateAdminConfigurationBodyFreeLineupsPerRoundMax = 1000;
 
 export const updateAdminConfigurationBodyXgStaleDaysMax = 30;
 
@@ -124,6 +140,12 @@ export const updateAdminConfigurationBodyFounderSeasonPassPriceExclusiveMin = 0;
 export const updateAdminConfigurationBodyFounderSeasonPassPriceMax = 100000;
 
 export const UpdateAdminConfigurationBody = zod.object({
+  freeLineupsPerRound: zod
+    .number()
+    .min(updateAdminConfigurationBodyFreeLineupsPerRoundMin)
+    .max(updateAdminConfigurationBodyFreeLineupsPerRoundMax)
+    .optional(),
+  anonymousLineupMode: zod.enum(["login_required", "allowed"]).optional(),
   xgStaleDays: zod
     .number()
     .min(1)
@@ -164,6 +186,11 @@ export const updateAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
 export const updateAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
 export const updateAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
 
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundDefault = 1;
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundMin = 0;
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundMax = 1000;
+
+export const updateAdminConfigurationResponseTwoAnonymousLineupModeDefault = `login_required`;
 export const updateAdminConfigurationResponseTwoXgStaleDaysMax = 30;
 
 export const UpdateAdminConfigurationResponse = zod
@@ -189,6 +216,14 @@ export const UpdateAdminConfigurationResponse = zod
   })
   .and(
     zod.object({
+      freeLineupsPerRound: zod
+        .number()
+        .min(updateAdminConfigurationResponseTwoFreeLineupsPerRoundMin)
+        .max(updateAdminConfigurationResponseTwoFreeLineupsPerRoundMax)
+        .default(updateAdminConfigurationResponseTwoFreeLineupsPerRoundDefault),
+      anonymousLineupMode: zod
+        .enum(["login_required", "allowed"])
+        .default(updateAdminConfigurationResponseTwoAnonymousLineupModeDefault),
       xgStaleDays: zod
         .number()
         .min(1)

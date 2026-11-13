@@ -7,6 +7,8 @@
  */
 
 export interface UpgradeRequiredError {
+  /** Reason for the blocked action, when provided by the endpoint. */
+  reason?: string;
   error: string;
   upgradeRequired: boolean;
 }

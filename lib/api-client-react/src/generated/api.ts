@@ -29,6 +29,7 @@ import type {
   GetCurrentProjectionsParams,
   GetPlayersParams,
   HealthStatus,
+  LineupAccessError,
   LineupGenerateRequest,
   LineupGenerateResponse,
   LineupValidationError,
@@ -1069,6 +1070,7 @@ export const generateLineup = async (
 
 export const getGenerateLineupMutationOptions = <
   TError = ErrorType<
+    | LineupAccessError
     | UpgradeRequiredError
     | PopularityUnavailableError
     | LineupValidationError
@@ -1115,6 +1117,7 @@ export type GenerateLineupMutationResult = NonNullable<
 >;
 export type GenerateLineupMutationBody = BodyType<LineupGenerateRequest>;
 export type GenerateLineupMutationError = ErrorType<
+  | LineupAccessError
   | UpgradeRequiredError
   | PopularityUnavailableError
   | LineupValidationError
@@ -1126,6 +1129,7 @@ export type GenerateLineupMutationError = ErrorType<
  */
 export const useGenerateLineup = <
   TError = ErrorType<
+    | LineupAccessError
     | UpgradeRequiredError
     | PopularityUnavailableError
     | LineupValidationError

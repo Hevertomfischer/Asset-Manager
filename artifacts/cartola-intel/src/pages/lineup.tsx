@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Shield, Zap, Scale, Calculator, Loader2, Save, Crown, Star, Shuffle, TrendingUp, Users, ArrowLeftRight, ClipboardList, LayoutDashboard, List, Lock, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getPositionColor } from "@/hooks/use-custom-api";
-import { ProGate } from "@/components/ProGate";
+import { parseStrategy, PRO_STRATEGIES, resolveInitialStrategy, type ValidStrategy } from "@/lib/lineupStrategy";
 import { ProBadge } from "@/components/ProBadge";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -194,9 +194,6 @@ function ReserveCard({ reserve }: { reserve: LineupReservePlayer }) {
   );
 }
 
-const VALID_STRATEGIES = ["safe", "aggressive", "cost-benefit", "antimassa", "valorizacao"] as const;
-type ValidStrategy = (typeof VALID_STRATEGIES)[number];
-const PRO_STRATEGIES = new Set<ValidStrategy>(["aggressive", "cost-benefit", "antimassa", "valorizacao"]);
 const STRATEGY_NAMES: Record<ValidStrategy, string> = {
   safe: "Seguro",
   aggressive: "Agressivo",
@@ -215,23 +212,24 @@ const FORMATIONS = [
   { value: "5-4-1", description: "Máxima proteção defensiva" },
 ] as const;
 
-function parseStrategy(value: string | null): ValidStrategy | null {
-  return value && (VALID_STRATEGIES as readonly string[]).includes(value)
-    ? value as ValidStrategy
-    : null;
-}
-
 export default function Lineup() {
+  const { isPro, user, isLoading: isAuthLoading } = useAuth();
   const { enabled: popularityFeaturesEnabled, isLoading: popularityLoading } = usePopularityFeatures();
   const [searchParams] = useSearchParams();
 
   const urlStrategy = parseStrategy(searchParams.get("strategy"));
   const requestedParam = parseStrategy(searchParams.get("requested"));
-  const initialStrategy: ValidStrategy =
-    urlStrategy ?? "cost-benefit";
+  const initialStrategy = resolveInitialStrategy(urlStrategy, user?.preferences.defaultStrategy, isPro);
 
   const [formation, setFormation] = useState("4-3-3");
   const [strategy, setStrategy] = useState<ValidStrategy>(initialStrategy);
+  const strategyIdentity = `${user?.id ?? "anonymous"}:${isPro}:${initialStrategy}`;
+  const initializedStrategy = useRef<string | null>(null);
+  useEffect(() => {
+    if (isAuthLoading || (initialStrategy === "antimassa" && popularityLoading) || initializedStrategy.current === strategyIdentity) return;
+    initializedStrategy.current = strategyIdentity;
+    setStrategy(initialStrategy === "antimassa" && !popularityFeaturesEnabled ? "safe" : initialStrategy);
+  }, [isAuthLoading, strategyIdentity, initialStrategy, popularityFeaturesEnabled, popularityLoading]);
   useEffect(() => {
     if (!popularityLoading && !popularityFeaturesEnabled && strategy === "antimassa") setStrategy("safe");
   }, [popularityLoading, popularityFeaturesEnabled, strategy]);
@@ -240,8 +238,8 @@ export default function Lineup() {
 
   const { toast } = useToast();
   const { openPaywall } = usePaywall();
-  const { isPro, user, isLoading: isAuthLoading } = useAuth();
   const track = useTrack();
+  const [loginRequired, setLoginRequired] = useState(false);
   const {
     lockedPlayers,
     excludedPlayers,
@@ -322,9 +320,20 @@ export default function Lineup() {
     const apiError = error as { data?: { error?: string }; message?: string };
     return apiError.data?.error ?? apiError.message ?? fallback;
   };
+  const handleGenerationBlocked = (error: unknown): boolean => {
+    const failure = error as { status?: number; data?: { reason?: string } };
+    const reason = failure.data?.reason ?? (failure.status === 401 ? "login_required" :
+      failure.status === 402 ? "upgrade_required" : failure.status === 409 ? "popularity_calibration" :
+      failure.status === 422 ? "infeasible_constraints" : failure.status === 400 ? "invalid_request" : null);
+    if (reason) track("lineup_generate_blocked", { reason });
+    if (failure.status === 401) { setLoginRequired(true); return true; }
+    if (failure.status === 402) { openPaywall(); return true; }
+    return false;
+  };
   useEffect(() => {
     if (
       isAuthLoading ||
+      (initialStrategy === "antimassa" && popularityLoading) ||
       isRoundLoading ||
       isRoundError ||
       roundData?.marketOpen === false ||
@@ -332,7 +341,7 @@ export default function Lineup() {
       autoGenerateRef.current
     ) return;
     autoGenerateRef.current = true;
-    const generationStrategy: ValidStrategy = downgradedStrategy ? "safe" : strategy;
+    const generationStrategy: ValidStrategy = downgradedStrategy ? "safe" : initialStrategy;
     if (generationStrategy === "antimassa" && !popularityFeaturesEnabled) {
       setStrategy("safe");
       return;
@@ -356,6 +365,7 @@ export default function Lineup() {
             }
           },
           onError: (error) => {
+            if (handleGenerationBlocked(error)) return;
             toast({
               title: "Falha na geração",
               description: getGenerationError(error, "Não foi possível gerar escalação"),
@@ -370,10 +380,15 @@ export default function Lineup() {
   // Depending on `strategy` here would cancel the timer when the downgrade
   // updates the visible selection to "safe".
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthLoading, isPro, isRoundLoading, isRoundError, roundData?.marketOpen]);
+  }, [isAuthLoading, isPro, isRoundLoading, isRoundError, roundData?.marketOpen, popularityLoading]);
 
   const handleGenerate = () => {
-    if (isRoundLoading || isRoundError || roundData?.marketOpen === false) return;
+    if (isAuthLoading || isRoundLoading || isRoundError || roundData?.marketOpen === false) return;
+    if (!isPro && PRO_STRATEGIES.has(strategy)) {
+      track("lineup_generate_blocked", { reason: "pro_strategy" });
+      openPaywall();
+      return;
+    }
     generateLineupMutation.mutate(
       { data: { budget, formation: formation as LineupGenerateRequestFormation, strategy: strategy as LineupGenerateRequestStrategy, ...requestConstraints } },
       {
@@ -388,10 +403,7 @@ export default function Lineup() {
           }
         },
         onError: (error) => {
-          if ((error as { status?: number }).status === 402) {
-            openPaywall();
-            return;
-          }
+          if (handleGenerationBlocked(error)) return;
           toast({
             title: "Falha na geração",
             description: getGenerationError(error, "Não foi possível gerar escalação com as restrições fornecidas"),
@@ -635,7 +647,14 @@ export default function Lineup() {
                           <button
                             disabled={s.value === "antimassa" && !popularityFeaturesEnabled}
                             aria-label={s.label}
-                            onClick={() => setStrategy(s.value)}
+                            onClick={() => {
+                              if (s.requiresPro && !isPro) {
+                                track("lineup_generate_blocked", { reason: "pro_strategy" });
+                                openPaywall();
+                                return;
+                              }
+                              setStrategy(s.value);
+                            }}
                             className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left disabled:opacity-50 disabled:cursor-not-allowed motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               isActive
                                 ? "border-primary bg-primary/10"
@@ -647,7 +666,7 @@ export default function Lineup() {
                               {s.label}
                             </span>
                             {s.requiresPro && (
-                              <ProBadge className="shrink-0" />
+                              <><Lock className="w-3.5 h-3.5 shrink-0" aria-label="Estratégia Pro" /><ProBadge className="shrink-0" /></>
                             )}
                           </button>
                         </TooltipTrigger>
@@ -658,7 +677,7 @@ export default function Lineup() {
                     );
                     return (
                       <div key={s.value}>
-                        {s.requiresPro && !(s.value === "antimassa" && !popularityFeaturesEnabled) ? <ProGate compact>{btn}</ProGate> : btn}
+                        {btn}
                       </div>
                     );
                   })}
@@ -724,7 +743,7 @@ export default function Lineup() {
             <Button
               className="w-full h-10 rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 motion-safe:hover:-translate-y-0.5 motion-safe:transition-all bg-gradient-to-r from-primary to-accent"
               onClick={handleGenerate}
-              disabled={generateLineupMutation.isPending || isRoundLoading || isRoundError || roundData?.marketOpen === false}
+              disabled={isAuthLoading || generateLineupMutation.isPending || isRoundLoading || isRoundError || roundData?.marketOpen === false}
             >
               {roundData?.marketOpen === false ? (
                 <><Lock className="w-4 h-4 mr-2" /> Mercado fechado</>
@@ -743,7 +762,7 @@ export default function Lineup() {
       <div className="lg:col-span-8 flex flex-col">
         {generateLineupMutation.isPending ? (
           <PageSkeleton variant="pitch" aria-label="Gerando escalação otimizada" />
-        ) : generateLineupMutation.isError && (generateLineupMutation.error as { status?: number })?.status !== 402 ? (
+        ) : generateLineupMutation.isError && ![401, 402].includes((generateLineupMutation.error as { status?: number })?.status ?? 0) ? (
           <ErrorState
             title="Falha na geração da escalação"
             description={getGenerationError(generateLineupMutation.error, "Não foi possível gerar escalação com as restrições fornecidas.")}
@@ -1241,6 +1260,17 @@ export default function Lineup() {
       )}
 
       {/* Register round dialog */}
+      <Dialog open={loginRequired} onOpenChange={setLoginRequired}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Gere sua escalação grátis</DialogTitle>
+            <DialogDescription>Entre com Google para gerar sua escalação grátis</DialogDescription>
+          </DialogHeader>
+          <Button asChild className="w-full">
+            <a href="/api/auth/google">Entrar com Google</a>
+          </Button>
+        </DialogContent>
+      </Dialog>
       {currentLineup?.id && (
         <RegisterRoundDialog
           open={registerDialogOpen}

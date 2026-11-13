@@ -14,6 +14,7 @@ import { createLogger } from "../lib/logger";
 import axios from "axios";
 import { z } from "zod";
 import { defaultSeasonEnd, getPlanConfig, planConfigPatchSchema, planConfigSchema } from "../services/billing/planConfig";
+import { getLineupAccessConfig, lineupAccessPatchSchema } from "../services/lineupAccessConfig";
 
 const log = createLogger("admin");
 const router = Router();
@@ -34,7 +35,7 @@ async function getConfigValue(key: string, defaultValue: number): Promise<number
   }
 }
 
-const adminConfigPatchSchema = planConfigPatchSchema.extend({
+const adminConfigPatchSchema = planConfigPatchSchema.merge(lineupAccessPatchSchema).extend({
   xgStaleDays: z.number().int().min(1).max(30).optional(),
 }).strict().refine((patch) => Object.keys(patch).length > 0, "Informe ao menos uma configuração");
 
@@ -352,7 +353,7 @@ router.post("/admin/sync/historical-round", async (req, res) => {
 router.get("/admin/config", async (_req, res) => {
   try {
     const xgStaleDays = await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT);
-    res.json({ xgStaleDays, ...await getPlanConfig() });
+    res.json({ xgStaleDays, ...await getPlanConfig(), ...await getLineupAccessConfig() });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to fetch config", { error: msg });
@@ -367,13 +368,17 @@ router.post("/admin/config", async (req, res) => {
       res.status(400).json({ error: "Configuração inválida", details: result.error.issues });
       return;
     }
-    const { xgStaleDays, ...patch } = result.data;
+    const { xgStaleDays, freeLineupsPerRound, anonymousLineupMode, ...patch } = result.data;
+    const accessPatch = {
+      ...(freeLineupsPerRound === undefined ? {} : { freeLineupsPerRound }),
+      ...(anonymousLineupMode === undefined ? {} : { anonymousLineupMode }),
+    };
     // Mudar somente o ano também atualiza o vencimento, sem conservar um ano anterior.
     if (patch.seasonPassYear !== undefined && patch.seasonPassEndsAt === undefined) {
       patch.seasonPassEndsAt = defaultSeasonEnd(patch.seasonPassYear);
     }
     const effective = planConfigSchema.parse({ ...await getPlanConfig(), ...patch });
-    const entries = Object.entries({ ...patch, ...(xgStaleDays === undefined ? {} : { xgStaleDays }) });
+    const entries = Object.entries({ ...patch, ...accessPatch, ...(xgStaleDays === undefined ? {} : { xgStaleDays }) });
     await db.transaction(async (tx) => {
       for (const [key, raw] of entries) {
         const value = String(raw);
@@ -382,7 +387,7 @@ router.post("/admin/config", async (req, res) => {
       }
     });
     await logAdminAction("admin_config", "success", `Configurações atualizadas: ${entries.map(([key]) => key).join(", ")}`);
-    res.json({ ...effective, xgStaleDays: xgStaleDays ?? await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT) });
+    res.json({ ...effective, ...await getLineupAccessConfig(), xgStaleDays: xgStaleDays ?? await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT) });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to update config", { error: msg });

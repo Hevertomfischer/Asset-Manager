@@ -14,3 +14,4 @@
 - [Administrative access](admin-access-policy.md) — all admin methods require admin or script header; public dashboard health must not depend on admin reads or Pro projections.
 - [Billing product rules](billing-product-rules.md) — pagamentos avulsos, sem recorrência; preservar campanha e dias adquiridos, sem presumir o tipo de compras antigas.
 - [Regras de popularidade](popularity-product-rules.md) — 15%/60% aprovados; cobertura parcial não implica 0%; sem fallbacks autenticados do Gato Mestre.
+- [Geração gratuita](free-lineup-access.md) — após Fundador, iniciar em estratégia acessível; login anônimo exigido por padrão e cota Free configurável.

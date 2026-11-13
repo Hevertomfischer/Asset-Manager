@@ -147,7 +147,7 @@ router.get("/auth/me", async (req, res) => {
   ]);
   const prefs = prefsRows[0];
   const preferences = {
-    defaultStrategy: prefs?.defaultStrategy ?? "cost-benefit",
+    defaultStrategy: isProFlag ? prefs?.defaultStrategy ?? "cost-benefit" : "safe",
     onboardingCompleted: prefs?.onboardingCompleted ?? false,
   };
   // plan = plano real da assinatura (free|pro) — para exibir "seu plano atual"

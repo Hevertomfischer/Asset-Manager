@@ -7,7 +7,9 @@
  */
 
 export * from "./adminConfiguration";
+export * from "./adminConfigurationAnonymousLineupMode";
 export * from "./adminConfigurationPatch";
+export * from "./adminConfigurationPatchAnonymousLineupMode";
 export * from "./adminLog";
 export * from "./adminLogsResponse";
 export * from "./availabilityItem";
@@ -23,6 +25,8 @@ export * from "./getCurrentAvailabilityParams";
 export * from "./getCurrentProjectionsParams";
 export * from "./getPlayersParams";
 export * from "./healthStatus";
+export * from "./lineupAccessError";
+export * from "./lineupAccessErrorReason";
 export * from "./lineupGenerateRequest";
 export * from "./lineupGenerateRequestFormation";
 export * from "./lineupGenerateRequestStrategy";

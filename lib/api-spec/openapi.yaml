@@ -265,6 +265,12 @@ paths:
             schema:
               $ref: "#/components/schemas/LineupGenerateRequest"
       responses:
+        "401":
+          description: Google login is required by the anonymous lineup policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineupAccessError"
         "200":
           description: Generated lineup
           content:
@@ -529,8 +535,17 @@ components:
       allOf:
         - $ref: "#/components/schemas/PlanSettings"
         - type: object
-          required: [xgStaleDays]
+          required: [xgStaleDays, freeLineupsPerRound, anonymousLineupMode]
           properties:
+            freeLineupsPerRound:
+              type: integer
+              minimum: 0
+              maximum: 1000
+              default: 1
+            anonymousLineupMode:
+              type: string
+              enum: [login_required, allowed]
+              default: login_required
             xgStaleDays:
               type: integer
               minimum: 1
@@ -540,6 +555,13 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
+        freeLineupsPerRound:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        anonymousLineupMode:
+          type: string
+          enum: [login_required, allowed]
         xgStaleDays:
           type: integer
           minimum: 1
@@ -868,6 +890,18 @@ components:
         - limited
         - proTeaser
 
+    LineupAccessError:
+      type: object
+      required: [error, reason]
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [login_required, pro_strategy, locked_limit, excluded_limit, round_quota]
+        upgradeRequired:
+          type: boolean
+
     ProjectionProTeaser:
       type: object
       required: [differentials, traps]
@@ -1137,6 +1171,9 @@ components:
     UpgradeRequiredError:
       type: object
       properties:
+        reason:
+          type: string
+          description: Reason for the blocked action, when provided by the endpoint.
         error:
           type: string
         upgradeRequired:
