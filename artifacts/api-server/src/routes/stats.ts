@@ -19,6 +19,7 @@ import {
 import { and, inArray, isNotNull, eq, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 import { isDifferential, isDifferentialHighlight, isTrap, label, readPopularitySignals } from "../lib/popularityRules";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 
 const log = createLogger("stats");
 const router = Router();
@@ -265,6 +266,7 @@ let topProjectionsCache: CacheEntry | null = null;
 const TOP_PROJ_CACHE_TTL_MS = 10 * 60 * 1000;
 
 router.get("/stats/top-projections", async (_req, res) => {
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   if (topProjectionsCache && Date.now() < topProjectionsCache.expiry) {
     res.json(topProjectionsCache.data);
     return;
@@ -319,11 +321,11 @@ router.get("/stats/top-projections", async (_req, res) => {
       nickname: r.nickname,
       position: r.position,
       price: r.price,
-      popularity: readPopularitySignals(r.explanationJson).popularity ?? null,
-      popularityLabel: label(readPopularitySignals(r.explanationJson)),
+      popularity: readPopularitySignals(r.explanationJson, popularityFeaturesEnabled).popularity ?? null,
+      popularityLabel: label(readPopularitySignals(r.explanationJson, popularityFeaturesEnabled)),
       expectedPoints: r.expectedPoints,
       playProbability: r.playProbability,
-      isDifferencial: isDifferential(readPopularitySignals(r.explanationJson)),
+      isDifferencial: isDifferential(readPopularitySignals(r.explanationJson, popularityFeaturesEnabled)),
       club: {
         abbreviation: r.clubAbbreviation,
         badgeUrl: r.clubBadgeUrl,
@@ -360,7 +362,7 @@ export function playerSlug(name: string, nickname: string | null, id: number): s
 // ── Round public stats ─────────────────────────────────────────────────────────
 // GET /stats/rodada/:numero — projections + (if closed) actuals. Cache 15 min.
 
-const roundCaches = new Map<number, CacheEntry>();
+const roundCaches = new Map<string, CacheEntry>();
 const ROUND_CACHE_TTL_MS = 15 * 60 * 1000;
 
 router.get("/stats/rodada/:numero", async (req, res) => {
@@ -370,7 +372,9 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     return;
   }
 
-  const cached = roundCaches.get(roundNum);
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
+  const cacheKey = `${roundNum}:${popularityFeaturesEnabled}`;
+  const cached = roundCaches.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
     res.json(cached.data);
     return;
@@ -440,7 +444,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     const players = projections.map((p) => {
       const actual = actualMap.get(p.playerId);
       const expectedPoints = p.expectedPoints ?? 0;
-      const signals = readPopularitySignals(p.explanationJson);
+      const signals = readPopularitySignals(p.explanationJson, popularityFeaturesEnabled);
       const popularity = signals.popularity ?? null;
       const riskScore = p.riskScore ?? 0;
       return {
@@ -490,12 +494,12 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     }
 
     const responseData = {
-      round: roundNum, isClosed, players, topDiferencial, topArmadilha, summary,
+      round: roundNum, isClosed, players, topDiferencial, topArmadilha, summary, popularityFeaturesEnabled,
       generatedAt: new Date().toISOString(),
     };
 
     const ttl = isClosed ? ROUND_CACHE_TTL_MS : 5 * 60 * 1000;
-    roundCaches.set(roundNum, { data: responseData, expiry: Date.now() + ttl });
+    roundCaches.set(cacheKey, { data: responseData, expiry: Date.now() + ttl });
     log.info("Round stats served", { round: roundNum, isClosed, playerCount: players.length });
     res.json(responseData);
   } catch (err) {
@@ -507,7 +511,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
 // ── Player public stats ────────────────────────────────────────────────────────
 // GET /stats/jogador/:slug — projection history per player. Cache 20 min.
 
-const playerStatsCaches = new Map<number, CacheEntry>();
+const playerStatsCaches = new Map<string, CacheEntry>();
 const PLAYER_CACHE_TTL_MS = 20 * 60 * 1000;
 
 router.get("/stats/jogador/:slug", async (req, res) => {
@@ -519,7 +523,9 @@ router.get("/stats/jogador/:slug", async (req, res) => {
   }
   const playerId = parseInt(match[1]!, 10);
 
-  const cached = playerStatsCaches.get(playerId);
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
+  const cacheKey = `${playerId}:${popularityFeaturesEnabled}`;
+  const cached = playerStatsCaches.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
     res.json(cached.data);
     return;
@@ -598,7 +604,7 @@ router.get("/stats/jogador/:slug", async (req, res) => {
     const history = projections.map((proj) => {
       const actual = actualMap.get(proj.round);
       const exp = proj.expectedPoints ?? 0;
-      const signals = readPopularitySignals(proj.explanationJson);
+      const signals = readPopularitySignals(proj.explanationJson, popularityFeaturesEnabled);
       const riskScore = proj.riskScore ?? 0;
       return {
         round: proj.round,
@@ -630,10 +636,11 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         club: { abbreviation: p.clubAbbreviation, badgeUrl: p.clubBadgeUrl, name: p.clubName },
       },
       history,
+      popularityFeaturesEnabled,
       generatedAt: new Date().toISOString(),
     };
 
-    playerStatsCaches.set(playerId, { data: responseData, expiry: Date.now() + PLAYER_CACHE_TTL_MS });
+    playerStatsCaches.set(cacheKey, { data: responseData, expiry: Date.now() + PLAYER_CACHE_TTL_MS });
     log.info("Player stats served", { playerId, rounds: history.length });
     res.json(responseData);
   } catch (err) {

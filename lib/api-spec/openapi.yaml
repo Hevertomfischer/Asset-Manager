@@ -277,6 +277,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UpgradeRequiredError"
+        "409":
+          description: Antimassa is in calibration because popularity data is unavailable or insufficient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularityUnavailableError"
         "422":
           description: Locked/excluded lineup is not feasible
           content:
@@ -318,6 +324,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LineupValidationError"
+        "409":
+          description: Antimassa is in calibration because popularity data is unavailable or insufficient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularityUnavailableError"
         "500":
           description: Operational failure
 
@@ -553,7 +565,7 @@ components:
           maximum: 100000
     SyncStatus:
       type: object
-      required: [lastSyncAt, isRunning, marketStatus, providersDegraded, lastMarketCheckAt]
+      required: [lastSyncAt, isRunning, marketStatus, providersDegraded, lastMarketCheckAt, popularityFeaturesEnabled, popularity]
       properties:
         lastSyncAt:
           type: [string, "null"]
@@ -566,6 +578,25 @@ components:
         lastMarketCheckAt:
           type: [string, "null"]
           description: Last successful market check; null before the first observation
+        popularityFeaturesEnabled:
+          type: boolean
+        popularity:
+          type: object
+          required: [lastCollectionAt, lastSuccessfulCollectionAt, coverage, minimumCoverage, maxAgeHours, reason]
+          properties:
+            lastCollectionAt:
+              type: [string, "null"]
+            lastSuccessfulCollectionAt:
+              type: [string, "null"]
+            coverage:
+              type: integer
+            minimumCoverage:
+              type: integer
+            maxAgeHours:
+              type: integer
+            reason:
+              type: string
+              enum: [ready, no_data, source_error, stale, insufficient_coverage, forced_failure, unavailable]
     FormationEvaluation:
       type: object
       required: [formation, feasible, expectedPoints, totalCost, balance, differenceFromBest, reason]
@@ -1070,6 +1101,15 @@ components:
       required:
         - lineup
 
+    PopularityUnavailableError:
+      type: object
+      required: [error, popularityFeaturesEnabled]
+      properties:
+        error:
+          type: string
+        popularityFeaturesEnabled:
+          type: boolean
+          enum: [false]
     UpgradeRequiredError:
       type: object
       properties:

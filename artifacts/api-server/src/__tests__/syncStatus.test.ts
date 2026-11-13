@@ -4,11 +4,12 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
 const mocks = vi.hoisted(() => ({
-  select: vi.fn(), isSyncing: vi.fn(), error: vi.fn(),
+  select: vi.fn(), isSyncing: vi.fn(), error: vi.fn(), popularity: vi.fn(),
 }));
 vi.mock("@workspace/db", () => ({ db: { select: mocks.select } }));
 vi.mock("../jobs/syncJob", () => ({ getIsSyncing: mocks.isSyncing }));
 vi.mock("../lib/logger", () => ({ createLogger: () => ({ error: mocks.error }) }));
+vi.mock("../services/popularityFeatureService", () => ({ getPopularityFeatureStatus: mocks.popularity }));
 import syncRouter from "../routes/sync";
 
 let server: Server;
@@ -37,6 +38,10 @@ beforeEach(() => {
     } }) };
   });
   mocks.isSyncing.mockReturnValue(false);
+  mocks.popularity.mockResolvedValue({
+    popularityFeaturesEnabled: false, lastCollectionAt: null, lastSuccessfulCollectionAt: null,
+    coverage: 0, minimumCoverage: 20, maxAgeHours: 24, reason: "no_data",
+  });
 });
 test("public status preserves fields and exposes only aggregate provider health", async () => {
   const response = await fetch(url);
@@ -45,6 +50,8 @@ test("public status preserves fields and exposes only aggregate provider health"
   expect(await response.json()).toEqual({
     lastSyncAt: config[0]!.value, marketStatus: "open", isRunning: false,
     providersDegraded: false, lastMarketCheckAt: "2026-11-13T10:30:00.000Z",
+    popularityFeaturesEnabled: false,
+    popularity: { lastCollectionAt: null, lastSuccessfulCollectionAt: null, coverage: 0, minimumCoverage: 20, maxAgeHours: 24, reason: "no_data" },
   });
 });
 test("reports provider errors and recent degraded observations", async () => {
@@ -62,6 +69,8 @@ test("missing observations remain nullable rather than inventing timestamps", as
   expect(await (await fetch(url)).json()).toEqual({
     lastSyncAt: null, marketStatus: null, isRunning: true,
     providersDegraded: false, lastMarketCheckAt: null,
+    popularityFeaturesEnabled: false,
+    popularity: { lastCollectionAt: null, lastSuccessfulCollectionAt: null, coverage: 0, minimumCoverage: 20, maxAgeHours: 24, reason: "no_data" },
   });
 });
 test("database failure returns 500 and logs a failure", async () => {

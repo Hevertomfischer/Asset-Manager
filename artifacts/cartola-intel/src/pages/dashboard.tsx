@@ -28,6 +28,8 @@ import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
 import { isDifferentialHighlight, label as popularityLabel, POPULARITY_RULES } from "@/lib/popularityRules";
 import { PlayerBadges } from "@/components/PlayerCard";
+import { PopularityCalibrationCard } from "@/components/PopularityCalibrationCard";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -99,6 +101,7 @@ function ClubBadge({ club }: { club: MatchClub }) {
 type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson };
 
 export default function Dashboard() {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const { user, isPro } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -422,7 +425,8 @@ export default function Dashboard() {
           ) : null}
 
           {/* Diferenciais da Rodada */}
-          {diferenciais.length > 0 && (
+          {!popularityFeaturesEnabled && <PopularityCalibrationCard />}
+          {popularityFeaturesEnabled && diferenciais.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent" />
@@ -463,7 +467,7 @@ export default function Dashboard() {
           )}
 
           {/* Armadilhas da Rodada */}
-          {armadilhas.length > 0 && (
+          {popularityFeaturesEnabled && armadilhas.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bomb className="w-5 h-5 text-destructive" />

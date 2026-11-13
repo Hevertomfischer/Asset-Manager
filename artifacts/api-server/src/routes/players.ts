@@ -11,6 +11,7 @@ import { getPlayerById } from "../repositories/playerRepository";
 import { requirePro } from "../middlewares/requirePro";
 import axios from "axios";
 import { cleanPopularityExplanation, knownPopularity } from "../lib/popularityRules";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 
 async function resolveCurrentRound(override?: string): Promise<number> {
   if (override) return Number(override);
@@ -27,6 +28,7 @@ const router = Router();
 
 router.get("/players", async (req, res) => {
   try {
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const {
       position,
       clubId,
@@ -99,7 +101,7 @@ router.get("/players", async (req, res) => {
               riskScore: proj.riskScore,
               recommendationScore: proj.recommendationScore,
               valueScore: proj.valueScore,
-              explanationJson: cleanPopularityExplanation(proj.explanationJson),
+              explanationJson: cleanPopularityExplanation(proj.explanationJson, popularityFeaturesEnabled),
             }
           : null,
         availability: avail
@@ -139,6 +141,7 @@ router.get("/players", async (req, res) => {
 
 router.get("/players/projections/current", requirePro, async (req, res) => {
   try {
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const { round } = req.query as Record<string, string>;
     const currentRound = await resolveCurrentRound(round);
 
@@ -158,7 +161,7 @@ router.get("/players/projections/current", requirePro, async (req, res) => {
       const club = player?.clubId ? clubMap.get(player.clubId) : null;
       return {
         ...proj,
-        explanationJson: cleanPopularityExplanation(proj.explanationJson),
+        explanationJson: cleanPopularityExplanation(proj.explanationJson, popularityFeaturesEnabled),
         player: player
           ? {
               id: player.id,
@@ -182,6 +185,7 @@ router.get("/players/projections/current", requirePro, async (req, res) => {
 
 router.get("/players/:id", async (req, res) => {
   try {
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const id = Number(req.params["id"]);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid player ID" });
@@ -208,7 +212,7 @@ router.get("/players/:id", async (req, res) => {
       ...player,
       popularity: knownPopularity(player.popularity),
       club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
-      projections: projections.map((p) => ({ ...p, explanationJson: cleanPopularityExplanation(p.explanationJson) })),
+      projections: projections.map((p) => ({ ...p, explanationJson: cleanPopularityExplanation(p.explanationJson, popularityFeaturesEnabled) })),
     });
   } catch (error) {
     console.error("[player/:id route]", error);

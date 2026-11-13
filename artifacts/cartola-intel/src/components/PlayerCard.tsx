@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrendingUp, TrendingDown, Crown, Star, AlertTriangle } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { getPositionColor } from "@/lib/positionColors";
 import type { InsightKind } from "@/lib/explainPlayer";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
@@ -55,6 +56,8 @@ export interface PlayerBadge {
 
 /** Renderiza chips de insight com ProGate automático quando requiresPro=true. */
 export function PlayerBadges({ badges }: { badges: PlayerBadge[] }) {
+  const { enabled } = usePopularityFeatures();
+  badges = badges.filter((badge) => enabled || (badge.kind !== "differential" && badge.label !== "Armadilha"));
   if (badges.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 mt-0.5">

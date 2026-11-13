@@ -18,3 +18,11 @@ O usuário aprovou remover os dois fallbacks autenticados do Gato Mestre; manter
 **Why:** Os registros consultados mostraram tentativas sem nenhuma coleta autenticada bem-sucedida; o usuário escolheu remover ambos.
 
 **How to apply:** Não reintroduzir requisições com cookies Globo nem pedir credenciais para buscar popularidade.
+
+Os recursos de popularidade só podem ser liberados quando a última coleta foi bem-sucedida nas últimas 24 horas e cobriu pelo menos 20 jogadores. Reavaliar em cada ETL e bloquear também quando os dados vencerem.
+
+Com a chave desativada: mostrar **Em calibração** no Painel, não gerar selos Diferencial/Armadilha nas páginas ou explicações, desabilitar Antimassa com **em breve** e rejeitá-la no backend com 409, não mostrar nem gerar notificações de armadilha. O admin deve ver estado, última coleta e cobertura.
+
+**Why:** O usuário determinou que uma falha ou cobertura insuficiente da API não oficial não pode produzir sinais de popularidade inventados.
+
+**How to apply:** Falhar fechado inclusive durante carregamento/erro do status. A falta de um jogador numa lista insuficiente não basta para liberar diferencial; preservar os testes de simulação de falha da fonte.

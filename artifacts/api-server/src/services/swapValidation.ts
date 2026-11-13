@@ -29,6 +29,7 @@ export interface PlayerSnapshot {
   riskScore: number;
   /** Percentual de escalação (0–1). null quando não disponível. */
   popularity: number | null;
+  popularityFeaturesEnabled?: boolean;
   popularityListed?: boolean | null;
   shortAvg?: number | null;
   mediumAvg?: number | null;

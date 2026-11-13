@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
 import { createLogger } from "../lib/logger";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 const log = createLogger("projection-engine");
 import { isTrap as classifyTrap, knownPopularity, isDifferential, label } from "../lib/popularityRules";
 import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
@@ -132,6 +133,7 @@ function buildTecProjection(
   playProbability: number,
   isHome: boolean,
   clubForm: string[] | null,
+  popularityFeaturesEnabled: boolean,
 ): ProjectionResult {
   const averagePoints = player.averagePoints ?? 3.5;
   const price = player.price ?? 1;
@@ -157,6 +159,7 @@ function buildTecProjection(
   const formScore = winRate * 5 + drawRate * 2;
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
   const popularitySignals = {
+    popularityFeaturesEnabled,
     popularity: knownPopularity(player.popularity),
     popularityListed: player.popularityListed,
     expectedPoints: Number(expectedPoints.toFixed(2)),
@@ -298,13 +301,14 @@ async function calculateProjection(
   clubForm: string[] | null,
   opponentStrength: ClubStrength | null,
   attackXg?: number | null,
-  opponentAttackXg?: number | null
+  opponentAttackXg?: number | null,
+  popularityFeaturesEnabled = false,
 ): Promise<ProjectionResult> {
   // TEC (coaches) score based on club match outcomes, not individual scout events.
   // Use club-performance formula instead of the scout-based pipeline.
   if (player.position === 'TEC') {
     const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength, attackXg);
-    return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm);
+    return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm, popularityFeaturesEnabled);
   }
 
   const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
@@ -455,13 +459,13 @@ async function calculateProjection(
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
 
   const differentialScore = clamp(
-    popularity === null && player.popularityListed !== false ? 0
+    !popularityFeaturesEnabled || (popularity === null && player.popularityListed !== false) ? 0
       : expectedPoints * (popularity === null ? 1 : 1 - popularity) * (1 + valueScore * 0.2),
     0, 100
   );
 
   const popularitySignals = {
-    popularity, popularityListed: player.popularityListed,
+    popularity, popularityListed: player.popularityListed, popularityFeaturesEnabled,
     expectedPoints: Number(expectedPoints.toFixed(2)), riskScore: Number(riskScore.toFixed(3)),
     shortAvg: Number(shortAvg.toFixed(2)), mediumAvg: Number(mediumAvg.toFixed(2)),
   };
@@ -500,6 +504,7 @@ async function calculateProjection(
     price,
     popularity,
     popularityVersion: 2,
+    popularityFeaturesEnabled,
     popularityListed: player.popularityListed,
     popularityCount: player.popularityCount,
     popularityLabel: label(popularitySignals),
@@ -553,6 +558,7 @@ export async function runProjectionEngine(round: number): Promise<void> {
     log.warn("Could not load calibration weights, using defaults", { error: err instanceof Error ? err.message : String(err) });
   }
 
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   const players = await db.query.playersTable.findMany();
   const availabilities = await getAvailabilityByRound(round);
   const allMatches = await getMatchesByRound(round);
@@ -633,7 +639,7 @@ export async function runProjectionEngine(round: number): Promise<void> {
     const attackXg = player.clubId != null ? (clubAttackXgMap.get(player.clubId) ?? null) : null;
     const opponentAttackXg = player.clubId != null ? (clubOpponentAttackXgMap.get(player.clubId) ?? null) : null;
 
-    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength, attackXg, opponentAttackXg);
+    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength, attackXg, opponentAttackXg, popularityFeaturesEnabled);
 
     await upsertProjection({
       playerId: player.id,

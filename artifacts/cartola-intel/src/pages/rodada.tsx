@@ -8,6 +8,8 @@ import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Button } from "@/components/ui/button";
 import { getPositionColor } from "@/lib/positionColors";
 import { label as popularityLabel } from "@/lib/popularityRules";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
+import { PopularityCalibrationCard } from "@/components/PopularityCalibrationCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,12 +63,13 @@ function statNum(n: number | null | undefined, decimals = 1) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function RodadaPage() {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const { numero } = useParams<{ numero: string }>();
   const roundNum = parseInt(numero ?? "", 10);
   const [showAll, setShowAll] = useState(false);
 
   const { data, isLoading, isError } = useQuery<RoundData>({
-    queryKey: ["stats-rodada", roundNum],
+    queryKey: ["stats-rodada", roundNum, popularityFeaturesEnabled],
     queryFn: async () => {
       const res = await fetch(`/api/stats/rodada/${roundNum}`);
       if (!res.ok) throw new Error("Erro ao carregar dados da rodada");
@@ -74,6 +77,10 @@ export default function RodadaPage() {
     },
     enabled: !isNaN(roundNum),
     staleTime: 10 * 60 * 1000,
+    select: (response) => popularityFeaturesEnabled ? response : {
+      ...response, topDiferencial: null, topArmadilha: null,
+      players: response.players.map((player) => ({ ...player, isDifferencial: false, isTrap: false, popularityFeaturesEnabled: false })),
+    },
   });
 
   // JSON-LD
@@ -114,6 +121,7 @@ export default function RodadaPage() {
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
+      {!popularityFeaturesEnabled && <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6"><PopularityCalibrationCard /></div>}
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <div className="border-b border-border/40 bg-card/30">

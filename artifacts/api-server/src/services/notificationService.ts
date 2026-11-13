@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
 import { isTrap, readPopularitySignals } from "../lib/popularityRules";
+import { getPopularityFeatureStatus } from "./popularityFeatureService";
 import {
   notificationsTable,
   playerProjectionTable,
@@ -74,6 +75,7 @@ export async function createNotification(input: CreateNotifInput): Promise<boole
  * Safe to call multiple times for the same round — duplicates are discarded.
  */
 export async function generateEtlNotifications(round: number): Promise<void> {
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   log.debug("Scanning projections for notifications", { round });
 
   const rows = await db
@@ -104,7 +106,7 @@ export async function generateEtlNotifications(round: number): Promise<void> {
     const pts = r.expectedPoints ?? 0;
     const variation = r.priceVariation ?? 0;
     const price = r.price ?? 0;
-    const signals = readPopularitySignals(r.explanationJson);
+    const signals = readPopularitySignals(r.explanationJson, popularityFeaturesEnabled);
     const pop = signals.popularity;
 
     // ── status_change ────────────────────────────────────────────────────────

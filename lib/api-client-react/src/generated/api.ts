@@ -35,6 +35,7 @@ import type {
   MatchListResponse,
   PlayerDetail,
   PlayerListResponse,
+  PopularityUnavailableError,
   ProjectionListResponse,
   ProjectionWeightsRequest,
   ProjectionWeightsResponse,
@@ -1067,7 +1068,12 @@ export const generateLineup = async (
 };
 
 export const getGenerateLineupMutationOptions = <
-  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
+  TError = ErrorType<
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+    | void
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1109,14 +1115,22 @@ export type GenerateLineupMutationResult = NonNullable<
 >;
 export type GenerateLineupMutationBody = BodyType<LineupGenerateRequest>;
 export type GenerateLineupMutationError = ErrorType<
-  UpgradeRequiredError | LineupValidationError | void
+  | UpgradeRequiredError
+  | PopularityUnavailableError
+  | LineupValidationError
+  | void
 >;
 
 /**
  * @summary Generate a lineup suggestion
  */
 export const useGenerateLineup = <
-  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
+  TError = ErrorType<
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+    | void
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1155,7 +1169,12 @@ export const compareFormations = async (
 };
 
 export const getCompareFormationsMutationOptions = <
-  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TError = ErrorType<
+    | void
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1197,14 +1216,22 @@ export type CompareFormationsMutationResult = NonNullable<
 >;
 export type CompareFormationsMutationBody = BodyType<LineupGenerateRequest>;
 export type CompareFormationsMutationError = ErrorType<
-  void | UpgradeRequiredError | LineupValidationError
+  | void
+  | UpgradeRequiredError
+  | PopularityUnavailableError
+  | LineupValidationError
 >;
 
 /**
  * @summary Compare all formations without saving or consuming generation quota
  */
 export const useCompareFormations = <
-  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TError = ErrorType<
+    | void
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

@@ -85,6 +85,30 @@ export interface AdminConfigurationPatch {
   founderSeasonPassPrice?: number | null;
 }
 
+export type SyncStatusPopularityReason =
+  (typeof SyncStatusPopularityReason)[keyof typeof SyncStatusPopularityReason];
+
+export const SyncStatusPopularityReason = {
+  ready: "ready",
+  no_data: "no_data",
+  source_error: "source_error",
+  stale: "stale",
+  insufficient_coverage: "insufficient_coverage",
+  forced_failure: "forced_failure",
+  unavailable: "unavailable",
+} as const;
+
+export type SyncStatusPopularity = {
+  /** @nullable */
+  lastCollectionAt: string | null;
+  /** @nullable */
+  lastSuccessfulCollectionAt: string | null;
+  coverage: number;
+  minimumCoverage: number;
+  maxAgeHours: number;
+  reason: SyncStatusPopularityReason;
+};
+
 export interface SyncStatus {
   /** @nullable */
   lastSyncAt: string | null;
@@ -97,6 +121,8 @@ export interface SyncStatus {
    * @nullable
    */
   lastMarketCheckAt: string | null;
+  popularityFeaturesEnabled: boolean;
+  popularity: SyncStatusPopularity;
 }
 
 export interface FormationEvaluation {
@@ -368,6 +394,11 @@ export interface LineupSuggestion {
 
 export interface LineupGenerateResponse {
   lineup: LineupSuggestion;
+}
+
+export interface PopularityUnavailableError {
+  error: string;
+  popularityFeaturesEnabled: boolean;
 }
 
 export interface UpgradeRequiredError {

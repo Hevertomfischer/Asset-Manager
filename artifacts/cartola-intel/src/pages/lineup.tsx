@@ -26,6 +26,7 @@ import { ProBadge } from "@/components/ProBadge";
 import { usePaywall } from "@/context/PaywallContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useTrack } from "@/hooks/useTrack";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { type ExplanationJson, type InsightKind, getTopBadges, explainPlayer, normalizeMatchup } from "@/lib/explainPlayer";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
@@ -221,6 +222,7 @@ function parseStrategy(value: string | null): ValidStrategy | null {
 }
 
 export default function Lineup() {
+  const { enabled: popularityFeaturesEnabled, isLoading: popularityLoading } = usePopularityFeatures();
   const [searchParams] = useSearchParams();
 
   const urlStrategy = parseStrategy(searchParams.get("strategy"));
@@ -230,6 +232,9 @@ export default function Lineup() {
 
   const [formation, setFormation] = useState("4-3-3");
   const [strategy, setStrategy] = useState<ValidStrategy>(initialStrategy);
+  useEffect(() => {
+    if (!popularityLoading && !popularityFeaturesEnabled && strategy === "antimassa") setStrategy("safe");
+  }, [popularityLoading, popularityFeaturesEnabled, strategy]);
   const [budget, setBudget] = useState(100.00);
   const [budgetText, setBudgetText] = useState("100.00");
 
@@ -328,6 +333,10 @@ export default function Lineup() {
     ) return;
     autoGenerateRef.current = true;
     const generationStrategy: ValidStrategy = downgradedStrategy ? "safe" : strategy;
+    if (generationStrategy === "antimassa" && !popularityFeaturesEnabled) {
+      setStrategy("safe");
+      return;
+    }
     if (downgradedStrategy) {
       setStrategy("safe");
       track("onboarding_strategy_downgraded", { requested: downgradedStrategy });
@@ -515,7 +524,7 @@ export default function Lineup() {
     { value: "safe", label: "Seguro (Alto Piso)", icon: Shield, desc: "Minimiza risco, seleciona jogadores consistentes." },
     { value: "aggressive", label: "Agressivo (Alto Teto)", icon: Zap, desc: "Maximiza pontos potenciais, aceita volatilidade.", requiresPro: true },
     { value: "cost-benefit", label: "Custo-Benefício", icon: Scale, desc: "Melhor relação pontos por cartoleta.", requiresPro: true },
-    { value: "antimassa", label: "Antimassa (Diferencial)", icon: Shuffle, desc: "Prioriza diferenciais: alta projeção e baixa escalação.", requiresPro: true },
+    { value: "antimassa", label: popularityFeaturesEnabled ? "Antimassa (Diferencial)" : "Antimassa — em breve", icon: Shuffle, desc: popularityFeaturesEnabled ? "Prioriza diferenciais: alta projeção e baixa escalação." : "Em calibração: aguardando uma coleta confiável com pelo menos 20 jogadores nas últimas 24 horas.", requiresPro: true },
     { value: "valorizacao", label: "Valorização", icon: TrendingUp, desc: "Prioriza jogadores com tendência de subir de preço.", requiresPro: true },
   ];
 
@@ -624,8 +633,10 @@ export default function Lineup() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
+                            disabled={s.value === "antimassa" && !popularityFeaturesEnabled}
+                            aria-label={s.label}
                             onClick={() => setStrategy(s.value)}
-                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left disabled:opacity-50 disabled:cursor-not-allowed motion-safe:transition-all motion-safe:duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               isActive
                                 ? "border-primary bg-primary/10"
                                 : "border-border bg-background hover:border-muted-foreground/50"
@@ -647,7 +658,7 @@ export default function Lineup() {
                     );
                     return (
                       <div key={s.value}>
-                        {s.requiresPro ? <ProGate compact>{btn}</ProGate> : btn}
+                        {s.requiresPro && !(s.value === "antimassa" && !popularityFeaturesEnabled) ? <ProGate compact>{btn}</ProGate> : btn}
                       </div>
                     );
                   })}
@@ -960,7 +971,7 @@ export default function Lineup() {
         const exp = (p.explanation ?? {}) as ExplanationJson;
         const isCaptain = p.playerId === currentLineup?.captainPlayerId;
         const isCoach = p.position === "TEC";
-        const insights = isCoach ? [] : explainPlayer(p.position ? { ...exp, position: p.position } : exp);
+        const insights = isCoach ? [] : explainPlayer({ ...exp, ...(p.position ? { position: p.position } : {}), popularityFeaturesEnabled });
 
         const formScore = exp.formScore ?? 0;
         const formPct = Math.min(100, (formScore / 10) * 100);

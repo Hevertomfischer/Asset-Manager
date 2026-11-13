@@ -4,6 +4,7 @@ import { adminConfigTable, dataCollectionLogTable } from "@workspace/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
 import { getIsSyncing } from "../jobs/syncJob";
 import { createLogger } from "../lib/logger";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 
 const router = Router();
 const log = createLogger("sync-status");
@@ -33,9 +34,10 @@ router.get("/sync/status", async (_req, res) => {
     // The scheduler updates this row after every successful market observation.
     const lastMarketCheckAt = marketRow?.updatedAt?.toISOString() ?? null;
     const isRunning = getIsSyncing();
+    const { popularityFeaturesEnabled, ...popularity } = await getPopularityFeatureStatus();
 
     res.set("Cache-Control", "no-store");
-    res.json({ lastSyncAt, isRunning, marketStatus, providersDegraded: providerStates.some(Boolean), lastMarketCheckAt });
+    res.json({ lastSyncAt, isRunning, marketStatus, providersDegraded: providerStates.some(Boolean), lastMarketCheckAt, popularityFeaturesEnabled, popularity });
   } catch (error) {
     log.error("Failed to read public sync status", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Falha ao buscar status de sincronização" });

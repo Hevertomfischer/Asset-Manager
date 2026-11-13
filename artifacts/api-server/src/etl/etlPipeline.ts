@@ -21,6 +21,9 @@ import { roundSnapshotTable } from "@workspace/db/schema";
 import { desc, eq, and, isNull } from "drizzle-orm";
 import axios from "axios";
 import crypto from "crypto";
+import { refreshPopularityFeatures } from "../services/popularityFeatureService";
+import { createLogger } from "../lib/logger";
+const logger = createLogger("etl");
 
 export interface ETLResult {
   success: boolean;
@@ -85,6 +88,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
   // === Step 1: Fetch market data (players + clubs) — with fallback ===
   try {
     const marketData = await fetchMarket();
+    await refreshPopularityFeatures().catch((e) => logger.warn("Falha ao reavaliar popularidade", { error: String(e) }));
     round = marketData.round.roundNumber;
 
     await logETL("etl", "market", "success", `Round ${round} market fetch complete`);
@@ -130,6 +134,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
 
     await logETL("etl", "players", "success", `Upserted ${playersUpserted} players, ${clubsUpserted} clubs for round ${round}`);
   } catch (error) {
+    await refreshPopularityFeatures().catch((e) => logger.warn("Falha ao reavaliar popularidade", { error: String(e) }));
     const msg = error instanceof Error ? error.message : String(error);
     errors.push(`Market fetch failed: ${msg}`);
     await logETL("etl", "market", "error", msg);

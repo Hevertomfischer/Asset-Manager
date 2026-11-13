@@ -18,6 +18,7 @@ import { db } from "@workspace/db";
 import { roundSnapshotTable, dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq, and, gt } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
+import { isPopularityFailureForced } from "../services/popularityFeatureService";
 const logger = createLogger("gato-mestre");
 
 const GATO_MESTRE_BASE = "https://api.gatomestre.globo.com";
@@ -143,6 +144,10 @@ async function saveToCache(round: number, popularity: Record<string, number>) {
  *   3. Stale DB cache (mesma rodada)
  */
 export async function fetchPopularityMap(round: number): Promise<Map<string, number>> {
+  if (isPopularityFailureForced()) {
+    await log("degraded", "Popularity source failure simulated with POPULARITY_FORCE_FAILURE");
+    return new Map();
+  }
   // 1. Try fresh cache
   const cached = await loadFromCache(round);
   if (cached && Object.keys(cached).length > 0) {

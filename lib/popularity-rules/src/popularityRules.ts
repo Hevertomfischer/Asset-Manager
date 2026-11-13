@@ -9,6 +9,7 @@ export const POPULARITY_RULES = {
 } as const;
 
 export interface PopularitySignals {
+  popularityFeaturesEnabled?: boolean;
   popularity?: number | null;
   /** false só quando a posição foi coberta pela lista da mesma rodada. */
   popularityListed?: boolean | null;
@@ -29,6 +30,7 @@ export function normalizePopularity(count: number | null | undefined, total: num
 }
 
 export function isTrap(signals: PopularitySignals): boolean {
+  if (signals.popularityFeaturesEnabled === false) return false;
   const popularity = knownPopularity(signals.popularity);
   return popularity !== null && popularity >= POPULARITY_RULES.trap
     && (signals.riskScore ?? 0) > POPULARITY_RULES.trapRisk
@@ -38,6 +40,7 @@ export function isTrap(signals: PopularitySignals): boolean {
 }
 
 export function isDifferential(signals: PopularitySignals): boolean {
+  if (signals.popularityFeaturesEnabled === false) return false;
   if (isTrap(signals)) return false;
   const popularity = knownPopularity(signals.popularity);
   return popularity !== null ? popularity < POPULARITY_RULES.differential : signals.popularityListed === false;
@@ -48,10 +51,11 @@ export function isDifferentialHighlight(signals: PopularitySignals): boolean {
 }
 
 /** JSONs antigos misturavam contagem/percentual e defaults: não são evidência válida. */
-export function readPopularitySignals(value: unknown): PopularitySignals {
+export function readPopularitySignals(value: unknown, popularityFeaturesEnabled?: boolean): PopularitySignals {
   const signals = (value && typeof value === "object" ? value : {}) as PopularitySignals & { popularityVersion?: number };
   return {
     ...signals,
+    ...(popularityFeaturesEnabled === undefined ? {} : { popularityFeaturesEnabled }),
     popularity: signals.popularityVersion === 2 ? knownPopularity(signals.popularity) : null,
     popularityListed: signals.popularityVersion === 2 ? signals.popularityListed ?? null : null,
   };
@@ -59,6 +63,7 @@ export function readPopularitySignals(value: unknown): PopularitySignals {
 
 /** Nunca substitui desconhecido por 0%, 50% ou outro percentual estimado. */
 export function label(signals: PopularitySignals): string {
+  if (signals.popularityFeaturesEnabled === false) return "Em calibração";
   const popularity = knownPopularity(signals.popularity);
   if (popularity !== null) return `${(popularity * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% de escalação`;
   return signals.popularityListed === false ? "Fora dos mais escalados" : "Popularidade indisponível";

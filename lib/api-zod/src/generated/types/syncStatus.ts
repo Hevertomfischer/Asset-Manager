@@ -5,6 +5,7 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+import type { SyncStatusPopularity } from "./syncStatusPopularity";
 
 export interface SyncStatus {
   /** @nullable */
@@ -18,4 +19,6 @@ export interface SyncStatus {
    * @nullable
    */
   lastMarketCheckAt: string | null;
+  popularityFeaturesEnabled: boolean;
+  popularity: SyncStatusPopularity;
 }

@@ -15,6 +15,7 @@ import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriang
 import { ProGate } from "@/components/ProGate";
 import { type ExplanationJson, getTopBadges, isDifferentialPlayer, isTrapPlayer } from "@/lib/explainPlayer";
 import { isDifferentialHighlight, label as popularityLabel } from "@/lib/popularityRules";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { useShareCard } from "@/hooks/useShareCard";
 import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
@@ -52,6 +53,7 @@ function SortIcon({ column, sortColumn, sortDirection }: { column: SortColumn; s
 }
 
 export default function Players() {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState<string>("ALL");
   const [clubFilter, setClubFilter] = useState<string>("ALL");
@@ -128,23 +130,23 @@ export default function Players() {
 
   const topDiferencial = useMemo(() => {
     return allPlayersList
-      .filter((p) => isDifferentialHighlight({ ...(p.projection?.explanationJson ?? {}), expectedPoints: p.projection?.expectedPoints }))
+      .filter((p) => popularityFeaturesEnabled && isDifferentialHighlight({ ...(p.projection?.explanationJson ?? {}), expectedPoints: p.projection?.expectedPoints }))
       .sort((a, b) => {
         const da = ((a.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
         const db = ((b.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
         return db - da;
       })[0] ?? null;
-  }, [allPlayersList]);
+  }, [allPlayersList, popularityFeaturesEnabled]);
 
   const topArmadilha = useMemo(() => {
     return allPlayersList
-      .filter((p) => isTrapPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
+      .filter((p) => popularityFeaturesEnabled && isTrapPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
       .sort((a, b) => {
         const pa = ((a.projection?.explanationJson as ExplanationJson)?.popularity ?? -1);
         const pb = ((b.projection?.explanationJson as ExplanationJson)?.popularity ?? -1);
         return pb - pa;
       })[0] ?? null;
-  }, [allPlayersList]);
+  }, [allPlayersList, popularityFeaturesEnabled]);
 
   const clubs = useMemo(() => {
     const source = allPlayersData?.players ?? players;

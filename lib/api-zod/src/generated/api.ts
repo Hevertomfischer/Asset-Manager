@@ -210,6 +210,23 @@ export const GetSyncStatusResponse = zod.object({
     .describe(
       "Last successful market check; null before the first observation",
     ),
+  popularityFeaturesEnabled: zod.boolean(),
+  popularity: zod.object({
+    lastCollectionAt: zod.string().nullable(),
+    lastSuccessfulCollectionAt: zod.string().nullable(),
+    coverage: zod.number(),
+    minimumCoverage: zod.number(),
+    maxAgeHours: zod.number(),
+    reason: zod.enum([
+      "ready",
+      "no_data",
+      "source_error",
+      "stale",
+      "insufficient_coverage",
+      "forced_failure",
+      "unavailable",
+    ]),
+  }),
 });
 
 /**

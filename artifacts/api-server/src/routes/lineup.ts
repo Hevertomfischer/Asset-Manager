@@ -5,6 +5,7 @@ import { generateFrontier } from "../services/frontierService";
 import { compareFormations } from "../services/formationComparison";
 import { simulateLineup, type SimPlayer } from "../engines/monteCarlo";
 import { getLatestProjectionRound, getProjectionsByRound } from "../repositories/projectionRepository";
+import { getPopularityFeatureStatus, POPULARITY_CALIBRATION_MESSAGE } from "../services/popularityFeatureService";
 import {
   getLineupReserves,
   getLineupSubstitutions,
@@ -89,6 +90,11 @@ router.post(["/lineup/generate", "/lineup/compare-formations"], async (req, res)
     const strategyType: StrategyType = validStrategies.includes(strategy as StrategyType)
       ? (strategy as StrategyType)
       : "safe";
+
+    if (strategyType === "antimassa" && !(await getPopularityFeatureStatus()).popularityFeaturesEnabled) {
+      res.status(409).json({ error: POPULARITY_CALIBRATION_MESSAGE, popularityFeaturesEnabled: false });
+      return;
+    }
 
     if (!userIsPro && strategyType !== "safe") {
       res.status(402).json({
@@ -499,6 +505,7 @@ router.post("/lineup/simulate", requirePro, async (req, res) => {
         // popularity vem do explanationJson se disponível, senão do cadastro do jogador
         popularity: (expJson["popularity"] as number | null | undefined) ?? null,
         popularityListed: (expJson["popularityListed"] as boolean | null | undefined) ?? null,
+        popularityFeaturesEnabled: expJson["popularityFeaturesEnabled"] === true,
         shortAvg: (expJson["shortAvg"] as number | undefined) ?? null,
         mediumAvg: (expJson["mediumAvg"] as number | undefined) ?? null,
       };

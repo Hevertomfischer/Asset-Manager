@@ -4,11 +4,13 @@ import { and, eq } from "drizzle-orm";
 import { fetchMarket } from "../providers/cartolaApiProvider";
 import { runProjectionEngine } from "../engines/projectionEngine";
 import { createLogger } from "../lib/logger";
+import { refreshPopularityFeatures } from "../services/popularityFeatureService";
 
 const log = createLogger("refresh-popularity");
 async function main() {
   if (process.env.NODE_ENV === "production") throw new Error("Execute a atualização operacional pela API administrativa publicada.");
   const market = await fetchMarket();
+  await refreshPopularityFeatures();
   let updated = 0;
   for (const player of market.players) {
     const rows = await db.update(playersTable).set({

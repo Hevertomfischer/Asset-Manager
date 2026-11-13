@@ -18,6 +18,7 @@ import {
   BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { usePaywall } from "@/context/PaywallContext";
 import {
   type ExplanationJson,
@@ -79,6 +80,7 @@ interface Props {
 }
 
 export function PlayerExplanationSheet({ exp, playerName, position, minimoParaValorizar, baseAverage }: Props) {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const { isPro, isLoading } = useAuth();
   const { openPaywall } = usePaywall();
   const [open, setOpen] = useState(false);
@@ -105,7 +107,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
   }
 
   const expWithPos = position ? { ...exp, position } : exp;
-  const insights = explainPlayer(expWithPos);
+  const insights = explainPlayer({ ...expWithPos, popularityFeaturesEnabled });
 
   const formScore = exp.formScore ?? 0;
   const formPct = Math.min(100, (formScore / 10) * 100);
