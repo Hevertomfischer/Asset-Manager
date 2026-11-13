@@ -36,15 +36,12 @@
 
 import MercadoPagoConfig, { Preference } from "mercadopago";
 import { createLogger } from "../../lib/logger";
+import { getPlanConfig, seasonPrice, type PlanConfig } from "./planConfig";
+import type { BillingPlan } from "./planConfig";
 
 const log = createLogger("billing");
 
-export type BillingPlan = "pro_monthly" | "season_pass";
-
-const PLAN_CONFIG: Record<BillingPlan, { title: string; price: number }> = {
-  pro_monthly: { title: "Mitometro Pro — Mensal", price: 19.9 },
-  season_pass: { title: "Mitometro Pro — Season Pass 2025", price: 99.9 },
-};
+export type { BillingPlan } from "./planConfig";
 
 function getMpClient(): MercadoPagoConfig {
   const accessToken = process.env["MP_ACCESS_TOKEN"];
@@ -66,11 +63,15 @@ const frontendPath = (process.env["FRONTEND_BASE_PATH"] ?? "/cartola-intel").rep
  */
 export async function createCheckout(
   userId: number,
-  plan: BillingPlan
+  plan: BillingPlan,
+  planConfig?: PlanConfig,
 ): Promise<string> {
   const config = getMpClient();
   const preference = new Preference(config);
-  const planCfg = PLAN_CONFIG[plan];
+  const plans = planConfig ?? await getPlanConfig();
+  const planCfg = plan === "pro_monthly"
+    ? { title: "Mitometro Pro - Mensal", price: plans.proMonthlyPrice }
+    : { title: `Mitometro Pro - Season Pass ${plans.seasonPassYear}`, price: seasonPrice(plans) };
   const baseUrl = getBaseUrl();
   const externalRef = `${userId}:${plan}`;
 
@@ -89,6 +90,8 @@ export async function createCheckout(
       ],
       payer: {},
       external_reference: externalRef,
+      // O webhook usa a temporada vendida, mesmo que o administrador altere a configuração.
+      metadata: { billing_config: plans },
       payment_methods: {
         default_payment_method_id: "pix",
       },

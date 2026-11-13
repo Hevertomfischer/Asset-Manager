@@ -5,6 +5,74 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+export interface PlanSettings {
+  /**
+   * @minimum 2020
+   * @maximum 2100
+   */
+  seasonPassYear: number;
+  seasonPassEndsAt: string;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  proMonthlyPrice: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  seasonPassPrice: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   * @nullable
+   */
+  founderSeasonPassPrice?: number | null;
+}
+
+export type BillingConfiguration = PlanSettings & {
+  regularSeasonPassPrice: number;
+  founderCutoff: string;
+};
+
+export type AdminConfiguration = PlanSettings & {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  xgStaleDays: number;
+};
+
+export interface AdminConfigurationPatch {
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  xgStaleDays?: number;
+  /**
+   * @minimum 2020
+   * @maximum 2100
+   */
+  seasonPassYear?: number;
+  seasonPassEndsAt?: string;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  proMonthlyPrice?: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  seasonPassPrice?: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   * @nullable
+   */
+  founderSeasonPassPrice?: number | null;
+}
+
 export interface SyncStatus {
   /** @nullable */
   lastSyncAt: string | null;

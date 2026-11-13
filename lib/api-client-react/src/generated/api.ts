@@ -17,8 +17,11 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminConfiguration,
+  AdminConfigurationPatch,
   AdminLogsResponse,
   AvailabilityListResponse,
+  BillingConfiguration,
   FormationComparison,
   GetAdminLogsParams,
   GetCurrentAvailabilityParams,
@@ -51,6 +54,230 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Current public prices and season validity
+ */
+export const getGetBillingConfigUrl = () => {
+  return `/api/billing/config`;
+};
+
+export const getBillingConfig = async (
+  options?: RequestInit,
+): Promise<BillingConfiguration> => {
+  return customFetch<BillingConfiguration>(getGetBillingConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBillingConfigQueryKey = () => {
+  return [`/api/billing/config`] as const;
+};
+
+export const getGetBillingConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBillingConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBillingConfigQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBillingConfig>>
+  > = ({ signal }) => getBillingConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBillingConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBillingConfig>>
+>;
+export type GetBillingConfigQueryError = ErrorType<void>;
+
+/**
+ * @summary Current public prices and season validity
+ */
+
+export function useGetBillingConfig<
+  TData = Awaited<ReturnType<typeof getBillingConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBillingConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetAdminConfigurationUrl = () => {
+  return `/api/admin/config`;
+};
+
+export const getAdminConfiguration = async (
+  options?: RequestInit,
+): Promise<AdminConfiguration> => {
+  return customFetch<AdminConfiguration>(getGetAdminConfigurationUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminConfigurationQueryKey = () => {
+  return [`/api/admin/config`] as const;
+};
+
+export const getGetAdminConfigurationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminConfiguration>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminConfigurationQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminConfiguration>>
+  > = ({ signal }) => getAdminConfiguration({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminConfigurationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminConfiguration>>
+>;
+export type GetAdminConfigurationQueryError = ErrorType<void>;
+
+export function useGetAdminConfiguration<
+  TData = Awaited<ReturnType<typeof getAdminConfiguration>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminConfigurationQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateAdminConfigurationUrl = () => {
+  return `/api/admin/config`;
+};
+
+export const updateAdminConfiguration = async (
+  adminConfigurationPatch: AdminConfigurationPatch,
+  options?: RequestInit,
+): Promise<AdminConfiguration> => {
+  return customFetch<AdminConfiguration>(getUpdateAdminConfigurationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminConfigurationPatch),
+  });
+};
+
+export const getUpdateAdminConfigurationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    TError,
+    { data: BodyType<AdminConfigurationPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>,
+  TError,
+  { data: BodyType<AdminConfigurationPatch> },
+  TContext
+> => {
+  const mutationKey = ["updateAdminConfiguration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    { data: BodyType<AdminConfigurationPatch> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateAdminConfiguration(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAdminConfigurationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>
+>;
+export type UpdateAdminConfigurationMutationBody =
+  BodyType<AdminConfigurationPatch>;
+export type UpdateAdminConfigurationMutationError = ErrorType<void>;
+
+export const useUpdateAdminConfiguration = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    TError,
+    { data: BodyType<AdminConfigurationPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>,
+  TError,
+  { data: BodyType<AdminConfigurationPatch> },
+  TContext
+> => {
+  return useMutation(getUpdateAdminConfigurationMutationOptions(options));
+};
 
 /**
  * @summary Public synchronization health without private provider logs

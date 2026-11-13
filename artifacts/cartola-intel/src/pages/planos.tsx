@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProBadge } from "@/components/ProBadge";
+import { useGetBillingConfig } from "@workspace/api-client-react";
 
 interface SubscriptionData {
   plan: string;
@@ -62,15 +63,13 @@ const PLANS = [
   {
     id: "pro_monthly" as const,
     name: "Pro Mensal",
-    price: "R$ 19,90",
-    period: "/mês",
-    description: "Acesso completo, renovado todo mês. Cancele quando quiser.",
+    period: "/30 dias",
+    description: "Pagamento avulso por 30 dias de acesso. Sem renovação automática.",
     best: false,
   },
   {
     id: "season_pass" as const,
     name: "Passe de Temporada",
-    price: "R$ 99,90",
     period: "/temporada",
     description: "Acesso completo durante toda a temporada. Melhor custo-benefício.",
     best: true,
@@ -120,6 +119,10 @@ export default function Planos() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const paywallTrackedRef = useRef(false);
+  const { data: billingConfig, isError: configError } = useGetBillingConfig({
+    query: { staleTime: 30_000, refetchOnWindowFocus: true },
+  });
+  const formatPrice = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const founderCutoff = user?.founderCutoff ?? null;
 
@@ -131,7 +134,8 @@ export default function Planos() {
   });
 
   // isRealPro: tem assinatura ativa — não conta acesso de campanha
-  const isRealPro = plan === "pro" || subscription?.status === "active";
+  const isRealPro = plan === "pro" || (subscription?.status === "active"
+    && !!subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > new Date());
   // isFounderAccess: campanha ativa, recebendo Pro gratuitamente
   const isFounderAccess = isPro && plan === "free" && founderCutoff !== null;
 
@@ -237,11 +241,17 @@ export default function Planos() {
           <AlertDescription>{checkoutError}</AlertDescription>
         </Alert>
       )}
+      {configError && (
+        <Alert variant="destructive" className="mb-5">
+          <AlertDescription>Não foi possível carregar os preços. Atualize a página antes de comprar.</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {PLANS.map((plan) => {
           const isLoading = loadingPlan === plan.id;
-          const isCurrentPlan = isRealPro;
+          const seasonExpired = plan.id === "season_pass" && !!billingConfig
+            && new Date(billingConfig.seasonPassEndsAt) <= new Date();
 
           return (
             <Card
@@ -263,18 +273,26 @@ export default function Planos() {
               <CardHeader className="pt-7 pb-3 px-6">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-bold">{plan.name}</h2>
+                    <h2 className="text-lg font-bold">{plan.name}{plan.id === "season_pass" && billingConfig ? ` ${billingConfig.seasonPassYear}` : ""}</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">{plan.description}</p>
+                    {plan.id === "season_pass" && billingConfig && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Válido até {new Date(billingConfig.seasonPassEndsAt).toLocaleString("pt-BR", {
+                          timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short",
+                        })} (Brasília).
+                      </p>
+                    )}
                   </div>
-                  {isCurrentPlan && (
+                  {isRealPro && (
                     <Badge variant="secondary" className="shrink-0 mt-0.5 text-xs">
-                      Plano atual
+                      Acesso Pro ativo
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-baseline gap-1 mt-4">
                    <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
-                    {plan.price}
+                    {billingConfig ? formatPrice(plan.id === "pro_monthly"
+                      ? billingConfig.proMonthlyPrice : billingConfig.seasonPassPrice) : "Carregando…"}
                   </span>
                   <span className="text-muted-foreground text-sm">{plan.period}</span>
                 </div>
@@ -304,15 +322,6 @@ export default function Planos() {
                       Entrar para assinar
                     </a>
                   </Button>
-                ) : isCurrentPlan ? (
-                  <Button
-                    disabled
-                    className="w-full font-semibold"
-                    variant="secondary"
-                  >
-                    <Check className="w-4 h-4 mr-1.5" />
-                     <span>Você já é</span> <ProBadge />
-                  </Button>
                 ) : (
                   <Button
                     className={`w-full font-semibold ${
@@ -321,7 +330,7 @@ export default function Planos() {
                         : ""
                     }`}
                     variant={plan.best ? "default" : "outline"}
-                    disabled={isLoading || loadingPlan !== null}
+                    disabled={isLoading || loadingPlan !== null || !billingConfig || configError || seasonExpired}
                     onClick={() => void handleCheckout(plan.id)}
                   >
                     {isLoading ? (
@@ -332,7 +341,7 @@ export default function Planos() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        Assinar {plan.name}
+                        {seasonExpired ? "Temporada encerrada" : `${isRealPro ? "Renovar" : "Assinar"} ${plan.name}`}
                       </>
                     )}
                   </Button>

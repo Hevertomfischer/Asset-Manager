@@ -7,6 +7,7 @@ export const subscriptionsTable = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => usersTable.id),
   plan: text("plan"),
+  billingPlan: text("billing_plan", { enum: ["pro_monthly", "season_pass", "grant", "dev"] }),
   status: text("status"),
   provider: text("provider"),
   externalId: text("external_id"),

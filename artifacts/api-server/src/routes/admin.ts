@@ -12,6 +12,8 @@ import { getLatestProjectionRound } from "../repositories/projectionRepository";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
 import { createLogger } from "../lib/logger";
 import axios from "axios";
+import { z } from "zod";
+import { defaultSeasonEnd, getPlanConfig, planConfigPatchSchema, planConfigSchema } from "../services/billing/planConfig";
 
 const log = createLogger("admin");
 const router = Router();
@@ -32,12 +34,9 @@ async function getConfigValue(key: string, defaultValue: number): Promise<number
   }
 }
 
-async function setConfigValue(key: string, value: string): Promise<void> {
-  await db
-    .insert(adminConfigTable)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: adminConfigTable.key, set: { value, updatedAt: new Date() } });
-}
+const adminConfigPatchSchema = planConfigPatchSchema.extend({
+  xgStaleDays: z.number().int().min(1).max(30).optional(),
+}).strict().refine((patch) => Object.keys(patch).length > 0, "Informe ao menos uma configuração");
 
 async function logAdminAction(source: string, status: string, message: string) {
   try {
@@ -353,7 +352,7 @@ router.post("/admin/sync/historical-round", async (req, res) => {
 router.get("/admin/config", async (_req, res) => {
   try {
     const xgStaleDays = await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT);
-    res.json({ xgStaleDays });
+    res.json({ xgStaleDays, ...await getPlanConfig() });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to fetch config", { error: msg });
@@ -363,16 +362,27 @@ router.get("/admin/config", async (_req, res) => {
 
 router.post("/admin/config", async (req, res) => {
   try {
-    const body = req.body as { xgStaleDays?: unknown };
-    const raw = body.xgStaleDays;
-    const parsed = typeof raw === "number" ? Math.round(raw) : typeof raw === "string" ? parseInt(raw, 10) : NaN;
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30) {
-      res.status(400).json({ error: "xgStaleDays must be an integer between 1 and 30" });
+    const result = adminConfigPatchSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Configuração inválida", details: result.error.issues });
       return;
     }
-    await setConfigValue("xgStaleDays", String(parsed));
-    await logAdminAction("admin_config", "success", `Updated xgStaleDays to ${parsed}`);
-    res.json({ xgStaleDays: parsed });
+    const { xgStaleDays, ...patch } = result.data;
+    // Mudar somente o ano também atualiza o vencimento, sem conservar um ano anterior.
+    if (patch.seasonPassYear !== undefined && patch.seasonPassEndsAt === undefined) {
+      patch.seasonPassEndsAt = defaultSeasonEnd(patch.seasonPassYear);
+    }
+    const effective = planConfigSchema.parse({ ...await getPlanConfig(), ...patch });
+    const entries = Object.entries({ ...patch, ...(xgStaleDays === undefined ? {} : { xgStaleDays }) });
+    await db.transaction(async (tx) => {
+      for (const [key, raw] of entries) {
+        const value = String(raw);
+        await tx.insert(adminConfigTable).values({ key, value })
+          .onConflictDoUpdate({ target: adminConfigTable.key, set: { value, updatedAt: new Date() } });
+      }
+    });
+    await logAdminAction("admin_config", "success", `Configurações atualizadas: ${entries.map(([key]) => key).join(", ")}`);
+    res.json({ ...effective, xgStaleDays: xgStaleDays ?? await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT) });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to update config", { error: msg });
@@ -615,13 +625,12 @@ router.post("/admin/users/grant-pro", async (req, res) => {
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
-  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.userId, user.id));
-
   const [sub] = await db.insert(subscriptionsTable).values({
     userId: user.id,
     plan: "pro",
     status: "active",
     provider: "admin",
+    billingPlan: "grant",
     externalId: `admin-${user.id}`,
     currentPeriodEnd: oneYearFromNow,
   }).returning();

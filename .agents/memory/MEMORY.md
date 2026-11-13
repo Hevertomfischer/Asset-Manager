@@ -12,3 +12,4 @@
 - [Integração com o Cartola](cartola-integration-boundary.md) — exportações orientam o uso do app oficial; nunca solicitar ou armazenar credenciais Globo.
 - [Formation comparison](formation-comparison-semantics.md) — rank strategy-specific suggestions, captain included; evaluation never saves teams or consumes generation quota.
 - [Administrative access](admin-access-policy.md) — all admin methods require admin or script header; public dashboard health must not depend on admin reads or Pro projections.
+- [Billing product rules](billing-product-rules.md) — pagamentos avulsos, sem recorrência; preservar campanha e dias adquiridos, sem presumir o tipo de compras antigas.

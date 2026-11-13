@@ -211,6 +211,7 @@ router.post("/auth/dev-login", async (req, res, next) => {
         plan: "pro",
         status: "active",
         provider: "dev",
+        billingPlan: "dev",
         externalId: `dev-${user.id}`,
         currentPeriodEnd: periodEnd,
       });

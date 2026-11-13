@@ -8,6 +8,180 @@
 import * as zod from "zod";
 
 /**
+ * @summary Current public prices and season validity
+ */
+export const getBillingConfigResponseOneSeasonPassYearMin = 2020;
+export const getBillingConfigResponseOneSeasonPassYearMax = 2100;
+
+export const getBillingConfigResponseOneProMonthlyPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneProMonthlyPriceMax = 100000;
+
+export const getBillingConfigResponseOneSeasonPassPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneSeasonPassPriceMax = 100000;
+
+export const getBillingConfigResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const GetBillingConfigResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(getBillingConfigResponseOneSeasonPassYearMin)
+      .max(getBillingConfigResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneProMonthlyPriceExclusiveMin)
+      .max(getBillingConfigResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneSeasonPassPriceExclusiveMin)
+      .max(getBillingConfigResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(getBillingConfigResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      regularSeasonPassPrice: zod.number(),
+      founderCutoff: zod.date(),
+    }),
+  );
+
+export const getAdminConfigurationResponseOneSeasonPassYearMin = 2020;
+export const getAdminConfigurationResponseOneSeasonPassYearMax = 2100;
+
+export const getAdminConfigurationResponseOneProMonthlyPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneProMonthlyPriceMax = 100000;
+
+export const getAdminConfigurationResponseOneSeasonPassPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
+
+export const getAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const getAdminConfigurationResponseTwoXgStaleDaysMax = 30;
+
+export const GetAdminConfigurationResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(getAdminConfigurationResponseOneSeasonPassYearMin)
+      .max(getAdminConfigurationResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneProMonthlyPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneSeasonPassPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      xgStaleDays: zod
+        .number()
+        .min(1)
+        .max(getAdminConfigurationResponseTwoXgStaleDaysMax),
+    }),
+  );
+
+export const updateAdminConfigurationBodyXgStaleDaysMax = 30;
+
+export const updateAdminConfigurationBodySeasonPassYearMin = 2020;
+export const updateAdminConfigurationBodySeasonPassYearMax = 2100;
+
+export const updateAdminConfigurationBodyProMonthlyPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodyProMonthlyPriceMax = 100000;
+
+export const updateAdminConfigurationBodySeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodySeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationBodyFounderSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodyFounderSeasonPassPriceMax = 100000;
+
+export const UpdateAdminConfigurationBody = zod.object({
+  xgStaleDays: zod
+    .number()
+    .min(1)
+    .max(updateAdminConfigurationBodyXgStaleDaysMax)
+    .optional(),
+  seasonPassYear: zod
+    .number()
+    .min(updateAdminConfigurationBodySeasonPassYearMin)
+    .max(updateAdminConfigurationBodySeasonPassYearMax)
+    .optional(),
+  seasonPassEndsAt: zod.date().optional(),
+  proMonthlyPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodyProMonthlyPriceExclusiveMin)
+    .max(updateAdminConfigurationBodyProMonthlyPriceMax)
+    .optional(),
+  seasonPassPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodySeasonPassPriceExclusiveMin)
+    .max(updateAdminConfigurationBodySeasonPassPriceMax)
+    .optional(),
+  founderSeasonPassPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodyFounderSeasonPassPriceExclusiveMin)
+    .max(updateAdminConfigurationBodyFounderSeasonPassPriceMax)
+    .nullish(),
+});
+
+export const updateAdminConfigurationResponseOneSeasonPassYearMin = 2020;
+export const updateAdminConfigurationResponseOneSeasonPassYearMax = 2100;
+
+export const updateAdminConfigurationResponseOneProMonthlyPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneProMonthlyPriceMax = 100000;
+
+export const updateAdminConfigurationResponseOneSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationResponseTwoXgStaleDaysMax = 30;
+
+export const UpdateAdminConfigurationResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(updateAdminConfigurationResponseOneSeasonPassYearMin)
+      .max(updateAdminConfigurationResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneProMonthlyPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneSeasonPassPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      xgStaleDays: zod
+        .number()
+        .min(1)
+        .max(updateAdminConfigurationResponseTwoXgStaleDaysMax),
+    }),
+  );
+
+/**
  * @summary Public synchronization health without private provider logs
  */
 export const GetSyncStatusResponse = zod.object({

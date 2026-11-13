@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./adminConfiguration";
+export * from "./adminConfigurationPatch";
 export * from "./adminLog";
 export * from "./adminLogsResponse";
 export * from "./availabilityItem";
 export * from "./availabilityItemPlayer";
 export * from "./availabilityListResponse";
+export * from "./billingConfiguration";
 export * from "./club";
 export * from "./formationComparison";
 export * from "./formationEvaluation";
@@ -30,6 +33,7 @@ export * from "./lineupSuggestion";
 export * from "./lineupValidationError";
 export * from "./match";
 export * from "./matchListResponse";
+export * from "./planSettings";
 export * from "./player";
 export * from "./playerAvailabilitySummary";
 export * from "./playerDetail";
