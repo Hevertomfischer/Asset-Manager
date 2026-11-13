@@ -5,7 +5,8 @@ const log = createLogger("projection-engine");
 import { isTrap as classifyTrap, knownPopularity, isDifferential, label } from "../lib/popularityRules";
 import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
 import { and, eq } from "drizzle-orm";
-import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
+import { PROJECTION_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
+import { positionFormScore } from "../lib/positionFormScore";
 import {
   getScoutsByPlayer,
   getAvailabilityByRound,
@@ -79,35 +80,6 @@ function weightedWindowAverage(scouts: PlayerScoutRound[]): {
   const volatility = stdDev(mediumPts.length > 0 ? mediumPts : pts.slice(0, 3));
 
   return { shortAvg, mediumAvg, longAvg, blendedFormScore, volatility };
-}
-
-function positionFormScore(scouts: PlayerScoutRound[], position: string): number {
-  if (scouts.length === 0) return 0;
-  const posWeights = POSITION_SCOUT_WEIGHTS[position] ?? {};
-  let total = 0;
-  for (const scout of scouts) {
-    let roundPts = scout.points ?? 0;
-    let adjustment = 0;
-    if (scout.goals) adjustment += (posWeights["G"] ?? 1) * scout.goals * 8;
-    if (scout.assists) adjustment += (posWeights["A"] ?? 1) * scout.assists * 5;
-    if (scout.saves) adjustment += (posWeights["PS"] ?? 1) * scout.saves * 3;
-    if (scout.cleanSheet) adjustment += (posWeights["SG"] ?? 1) * scout.cleanSheet * 5;
-    if (scout.tackles) adjustment += (posWeights["DE"] ?? 1) * scout.tackles * 1;
-    if (scout.interceptions) adjustment += (posWeights["DS"] ?? 1) * scout.interceptions * 1.2;
-    if (scout.shotsOnTarget) adjustment += (posWeights["FT"] ?? 1) * scout.shotsOnTarget * 3;
-    if (scout.foulsSuffered) adjustment += (posWeights["FS"] ?? 1) * scout.foulsSuffered * 0.5;
-    if (scout.yellowCards) adjustment -= (posWeights["CA"] ?? 1) * scout.yellowCards * 2;
-    if (scout.redCards) adjustment -= (posWeights["CV"] ?? 1) * scout.redCards * 5;
-    if (scout.penaltyMissed) adjustment -= (posWeights["PP"] ?? 1) * scout.penaltyMissed * 4;
-    if (scout.penaltySaved) adjustment += (posWeights["PS"] ?? 1) * scout.penaltySaved * 3;
-    if (scout.goalsConceded && ["GOL", "ZAG"].includes(position)) {
-      adjustment -= (posWeights["GC"] ?? 1) * scout.goalsConceded * 2;
-    }
-    const base = roundPts > 0 ? roundPts : 0;
-    const multiplier = Object.keys(posWeights).length > 0 ? 0.3 : 0;
-    total += base + multiplier * (adjustment - base);
-  }
-  return total / scouts.length;
 }
 
 function isDefensivePosition(position: string): boolean {

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "csv-parse/sync";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { mapCartolaScoutToColumns } from "../src/lib/mapCartolaScoutToColumns";
 
 const CSV_PATH = path.resolve(
   fileURLToPath(import.meta.url),
@@ -15,11 +16,6 @@ const CSV_PATH = path.resolve(
 );
 const SOURCE = "csv_2026";
 
-function toInt(v: string): number | null {
-  if (!v || v.trim() === "") return null;
-  const n = parseInt(v, 10);
-  return isNaN(n) ? null : n;
-}
 function toFloat(v: string): number | null {
   if (!v || v.trim() === "") return null;
   const n = parseFloat(v);
@@ -161,17 +157,18 @@ async function main() {
   for (const r of records) {
     const playerId = idMap.get(r.atleta_id);
     if (!playerId) { skipped++; continue; }
+    const scout = mapCartolaScoutToColumns(r);
 
     const vals: unknown[] = [
       playerId,               // player_id
       parseInt(r.rodada, 10), // round
       SOURCE,                 // source
       toFloat(r.pontuacao),  // points
-      toInt(r.G),  toInt(r.A),  toInt(r.FT), toInt(r.FD),
-      toInt(r.DS), toInt(r.I),  toInt(r.FS), toInt(r.FC),
-      toInt(r.DE), toInt(r.GS), toInt(r.SG),
-      toInt(r.CA), toInt(r.CV), toInt(r.PP), toInt(r.DP), toInt(r.GC),
-      toInt(r.FF), toInt(r.V),  toInt(r.PC), toInt(r.PS),
+      scout.goals, scout.assists, scout.shots, scout.shotsOnTarget,
+      scout.tackles, scout.interceptions, scout.foulsSuffered, scout.foulsCommitted,
+      scout.saves, scout.goalsConceded, scout.cleanSheet,
+      scout.yellowCards, scout.redCards, scout.penaltyMissed, scout.penaltySaved, scout.ownGoals,
+      scout.ff, scout.v, scout.pc, scout.ps,
       new Date(),
     ];
 

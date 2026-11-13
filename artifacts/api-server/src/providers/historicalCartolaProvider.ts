@@ -6,7 +6,7 @@ import crypto from "crypto";
 
 const BASE_URL = "https://api.cartola.globo.com";
 
-const HistoricalScoutSchema = z.object({
+export const HistoricalScoutSchema = z.object({
   atleta_id: z.number(),
   rodada_id: z.number(),
   pontos_num: z.number().optional(),
@@ -16,6 +16,10 @@ const HistoricalScoutSchema = z.object({
       A: z.number().optional(),
       FT: z.number().optional(),
       FD: z.number().optional(),
+      FF: z.number().optional(),
+      DP: z.number().optional(),
+      PC: z.number().optional(),
+      V: z.number().optional(),
       FS: z.number().optional(),
       FC: z.number().optional(),
       DE: z.number().optional(),

@@ -4,6 +4,7 @@ import { fetchMarket, fetchScouts } from "../providers/cartolaApiProvider";
 import { fetchProbables } from "../providers/geProbablesProvider";
 import { fetchHistoricalRound } from "../providers/historicalCartolaProvider";
 import { SCOUT_SCORING } from "../config/projectionWeights";
+import { mapCartolaScoutToColumns } from "../lib/mapCartolaScoutToColumns";
 import { fetchPlayerStatuses } from "../providers/cartolaStatusProvider";
 import type { CartolaStatusResult } from "../providers/cartolaStatusProvider";
 import { upsertClub, findClubByExternalId } from "../repositories/clubRepository";
@@ -167,22 +168,7 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           source: "cartola_api",
           points: scoutData["pontos"] ?? null,
           minutesPlayed: null,
-          goals: scoutData["G"] ?? null,
-          assists: scoutData["A"] ?? null,
-          shots: scoutData["FT"] ?? null,
-          shotsOnTarget: scoutData["FD"] ?? null,
-          tackles: scoutData["DS"] ?? null,
-          interceptions: scoutData["DE"] ?? null,
-          foulsSuffered: scoutData["FS"] ?? null,
-          foulsCommitted: scoutData["FC"] ?? null,
-          saves: scoutData["GS"] ?? null,
-          goalsConceded: scoutData["GC"] ?? null,
-          cleanSheet: scoutData["SG"] ?? null,
-          yellowCards: scoutData["CA"] ?? null,
-          redCards: scoutData["CV"] ?? null,
-          penaltyMissed: scoutData["PP"] ?? null,
-          penaltySaved: scoutData["PS"] ?? null,
-          ownGoals: null,
+          ...mapCartolaScoutToColumns(scoutData),
         });
         scoutsInserted++;
       } catch {
@@ -375,22 +361,7 @@ export async function syncHistoricalRound(round: number): Promise<void> {
         source: "historical_cartola",
         points,
         minutesPlayed: null,
-        goals: scout.scout?.G ?? null,
-        assists: scout.scout?.A ?? null,
-        shots: scout.scout?.FT ?? null,
-        shotsOnTarget: scout.scout?.FD ?? null,
-        tackles: scout.scout?.DS ?? null,
-        interceptions: scout.scout?.DE ?? null,
-        foulsSuffered: scout.scout?.FS ?? null,
-        foulsCommitted: scout.scout?.FC ?? null,
-        saves: scout.scout?.GS ?? null,
-        goalsConceded: scout.scout?.GC ?? null,
-        cleanSheet: scout.scout?.SG ?? null,
-        yellowCards: scout.scout?.CA ?? null,
-        redCards: scout.scout?.CV ?? null,
-        penaltyMissed: scout.scout?.PP ?? null,
-        penaltySaved: scout.scout?.PS ?? null,
-        ownGoals: null,
+        ...mapCartolaScoutToColumns(rawScouts),
       });
       inserted++;
     }
