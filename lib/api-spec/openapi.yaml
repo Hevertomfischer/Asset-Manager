@@ -701,6 +701,7 @@ components:
         explanationJson:
           type: object
           nullable: true
+          description: Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.
 
     PlayerAvailabilitySummary:
       type: object
@@ -731,13 +732,14 @@ components:
           type: [number, "null"]
           minimum: 0
           maximum: 1
-          description: Known fraction of selected teams in the same round; never an estimated default.
+          description: Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.
         popularityCount:
           type: [integer, "null"]
           minimum: 0
+          description: Pro only; omitted for Free and anonymous viewers.
         popularityListed:
           type: [boolean, "null"]
-          description: False only when absent from a list covering this player's position.
+          description: Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.
         id:
           type: integer
         name:
@@ -814,6 +816,10 @@ components:
     ProjectionItem:
       type: object
       properties:
+        explanationJson:
+          type: [object, "null"]
+          additionalProperties: true
+          description: Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
         id:
           type: integer
         playerId:
@@ -845,6 +851,11 @@ components:
     ProjectionListResponse:
       type: object
       properties:
+        limited:
+          type: boolean
+          description: True for Free and anonymous viewers; basic projections remain available.
+        proTeaser:
+          $ref: "#/components/schemas/ProjectionProTeaser"
         projections:
           type: array
           items:
@@ -854,6 +865,19 @@ components:
       required:
         - projections
         - round
+        - limited
+        - proTeaser
+
+    ProjectionProTeaser:
+      type: object
+      required: [differentials, traps]
+      properties:
+        differentials:
+          type: integer
+          minimum: 0
+        traps:
+          type: integer
+          minimum: 0
 
     Match:
       type: object

@@ -11,19 +11,20 @@ import type { PlayerProjectionSummary } from "./playerProjectionSummary";
 
 export interface Player {
   /**
-   * Known fraction of selected teams in the same round; never an estimated default.
+   * Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.
    * @minimum 0
    * @maximum 1
    * @nullable
    */
   popularity?: number | null;
   /**
+   * Pro only; omitted for Free and anonymous viewers.
    * @minimum 0
    * @nullable
    */
   popularityCount?: number | null;
   /**
-   * False only when absent from a list covering this player's position.
+   * Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.
    * @nullable
    */
   popularityListed?: boolean | null;

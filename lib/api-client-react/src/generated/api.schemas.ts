@@ -170,6 +170,9 @@ export interface Club {
   badgeUrl?: string | null;
 }
 
+/**
+ * Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.
+ */
 export type PlayerProjectionSummaryExplanationJson = {
   [key: string]: unknown;
 } | null;
@@ -181,6 +184,7 @@ export interface PlayerProjectionSummary {
   riskScore?: number | null;
   recommendationScore?: number | null;
   valueScore?: number | null;
+  /** Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers. */
   explanationJson?: PlayerProjectionSummaryExplanationJson;
 }
 
@@ -195,19 +199,20 @@ export interface PlayerAvailabilitySummary {
 
 export interface Player {
   /**
-   * Known fraction of selected teams in the same round; never an estimated default.
+   * Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.
    * @minimum 0
    * @maximum 1
    * @nullable
    */
   popularity?: number | null;
   /**
+   * Pro only; omitted for Free and anonymous viewers.
    * @minimum 0
    * @nullable
    */
   popularityCount?: number | null;
   /**
-   * False only when absent from a list covering this player's position.
+   * Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.
    * @nullable
    */
   popularityListed?: boolean | null;
@@ -244,9 +249,20 @@ export type PlayerDetail = Player & {
   projections?: PlayerDetailProjectionsItem[];
 };
 
+/**
+ * Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
+ * @nullable
+ */
+export type ProjectionItemExplanationJson = { [key: string]: unknown } | null;
+
 export type ProjectionItemPlayer = { [key: string]: unknown } | null;
 
 export interface ProjectionItem {
+  /**
+   * Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
+   * @nullable
+   */
+  explanationJson?: ProjectionItemExplanationJson;
   id?: number;
   playerId?: number;
   round?: number;
@@ -259,7 +275,17 @@ export interface ProjectionItem {
   player?: ProjectionItemPlayer;
 }
 
+export interface ProjectionProTeaser {
+  /** @minimum 0 */
+  differentials: number;
+  /** @minimum 0 */
+  traps: number;
+}
+
 export interface ProjectionListResponse {
+  /** True for Free and anonymous viewers; basic projections remain available. */
+  limited: boolean;
+  proTeaser: ProjectionProTeaser;
   projections: ProjectionItem[];
   round: number;
 }

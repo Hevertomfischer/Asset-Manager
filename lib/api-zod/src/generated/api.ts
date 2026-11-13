@@ -285,17 +285,18 @@ export const GetPlayersResponse = zod.object({
         .max(getPlayersResponsePlayersItemPopularityMax)
         .nullish()
         .describe(
-          "Known fraction of selected teams in the same round; never an estimated default.",
+          "Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.",
         ),
       popularityCount: zod
         .number()
         .min(getPlayersResponsePlayersItemPopularityCountMin)
-        .nullish(),
+        .nullish()
+        .describe("Pro only; omitted for Free and anonymous viewers."),
       popularityListed: zod
         .boolean()
         .nullish()
         .describe(
-          "False only when absent from a list covering this player's position.",
+          "Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.",
         ),
       id: zod.number(),
       name: zod.string(),
@@ -350,7 +351,13 @@ export const GetPlayersResponse = zod.object({
           riskScore: zod.number().nullish(),
           recommendationScore: zod.number().nullish(),
           valueScore: zod.number().nullish(),
-          explanationJson: zod.object({}).passthrough().nullish(),
+          explanationJson: zod
+            .object({})
+            .passthrough()
+            .nullish()
+            .describe(
+              "Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.",
+            ),
         })
         .optional(),
       availability: zod
@@ -375,9 +382,30 @@ export const GetCurrentProjectionsQueryParams = zod.object({
   round: zod.coerce.number().optional(),
 });
 
+export const getCurrentProjectionsResponseProTeaserDifferentialsMin = 0;
+
+export const getCurrentProjectionsResponseProTeaserTrapsMin = 0;
+
 export const GetCurrentProjectionsResponse = zod.object({
+  limited: zod
+    .boolean()
+    .describe(
+      "True for Free and anonymous viewers; basic projections remain available.",
+    ),
+  proTeaser: zod.object({
+    differentials: zod
+      .number()
+      .min(getCurrentProjectionsResponseProTeaserDifferentialsMin),
+    traps: zod.number().min(getCurrentProjectionsResponseProTeaserTrapsMin),
+  }),
   projections: zod.array(
     zod.object({
+      explanationJson: zod
+        .record(zod.string(), zod.unknown())
+        .nullish()
+        .describe(
+          "Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.",
+        ),
       id: zod.number().optional(),
       playerId: zod.number().optional(),
       round: zod.number().optional(),
@@ -413,17 +441,18 @@ export const GetPlayerByIdResponse = zod
       .max(getPlayerByIdResponseOnePopularityMax)
       .nullish()
       .describe(
-        "Known fraction of selected teams in the same round; never an estimated default.",
+        "Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.",
       ),
     popularityCount: zod
       .number()
       .min(getPlayerByIdResponseOnePopularityCountMin)
-      .nullish(),
+      .nullish()
+      .describe("Pro only; omitted for Free and anonymous viewers."),
     popularityListed: zod
       .boolean()
       .nullish()
       .describe(
-        "False only when absent from a list covering this player's position.",
+        "Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.",
       ),
     id: zod.number(),
     name: zod.string(),
@@ -478,7 +507,13 @@ export const GetPlayerByIdResponse = zod
         riskScore: zod.number().nullish(),
         recommendationScore: zod.number().nullish(),
         valueScore: zod.number().nullish(),
-        explanationJson: zod.object({}).passthrough().nullish(),
+        explanationJson: zod
+          .object({})
+          .passthrough()
+          .nullish()
+          .describe(
+            "Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.",
+          ),
       })
       .optional(),
     availability: zod

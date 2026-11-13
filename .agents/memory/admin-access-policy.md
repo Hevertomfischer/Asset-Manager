@@ -14,3 +14,9 @@ The ordinary user's dashboard must retain access to synchronization health even 
 **Why:** Data health is a public product feature, not administrative data or a Pro entitlement.
 
 **How to apply:** Keep dashboard status independent from private admin hooks and Pro-only projection requests.
+
+Basic player projections are available to Free and anonymous viewers even after Founder Access ends. Detailed Pro signals must be removed server-side, not merely hidden in the interface.
+
+**Why:** The user requires the Free dashboard to keep working after the campaign without exposing differential, trap or popularity signals through public player endpoints.
+
+**How to apply:** Determine effective entitlement with the access service, keep the public explanation allowlist conservative, and expose only aggregate Pro teasers. Popularity calibration takes precedence over teasers; access errors must not replace the whole dashboard.

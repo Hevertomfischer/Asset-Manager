@@ -37,6 +37,12 @@ import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
 import { SyncStatusCard } from "@/components/SyncStatusCard";
+import { ProGate } from "@/components/ProGate";
+
+function isAccessError(error: unknown): boolean {
+  return !!error && typeof error === "object" && "status" in error &&
+    [401, 402, 403].includes(Number(error.status));
+}
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -102,14 +108,18 @@ type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson }
 
 export default function Dashboard() {
   const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
-  const { user, isPro } = useAuth();
+  const { user, isPro, isLoading: authLoading } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: roundData, isLoading: roundLoading, isError: roundError, refetch: refetchRound } = useGetCurrentRound();
-  const { data: projectionsData, isLoading: projLoading, isError: projError, refetch: refetchProjections } = useGetCurrentProjections({
+  const { data: roundData, isLoading: roundLoading, isError: roundError, error: roundFailure, refetch: refetchRound } = useGetCurrentRound();
+  const { data: projectionsData, isLoading: projLoading, isError: projError, error: projFailure, refetch: refetchProjections } = useGetCurrentProjections({
     round: roundData?.round ?? undefined,
-  }, { query: { queryKey: getGetCurrentProjectionsQueryKey({ round: roundData?.round }), enabled: isPro } });
-  const { data: matchesData, isLoading: matchesLoading, isError: matchesError, refetch: refetchMatches } = useGetCurrentMatches();
+  }, { query: {
+    queryKey: [...getGetCurrentProjectionsQueryKey({ round: roundData?.round }), user?.id ?? "anonymous", isPro],
+    enabled: !authLoading,
+    retry: (count, error) => !isAccessError(error) && count < 2,
+  } });
+  const { data: matchesData, isLoading: matchesLoading, isError: matchesError, error: matchesFailure, refetch: refetchMatches } = useGetCurrentMatches();
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError, refetch: refetchAvailability } = useGetCurrentAvailability({});
   const projections = (projectionsData?.projections ?? []) as RichProjectionItem[];
   const matches = matchesData?.matches ?? [];
@@ -166,8 +176,9 @@ export default function Dashboard() {
 
   const positions = ["ATA", "MEI", "LAT", "ZAG", "GOL", "TEC"];
 
-  const primaryLoading = roundLoading || projLoading || matchesLoading;
-  const primaryError = roundError || projError || matchesError;
+  const primaryLoading = authLoading || roundLoading || projLoading || matchesLoading;
+  const primaryError = (roundError && !isAccessError(roundFailure)) ||
+    (projError && !isAccessError(projFailure)) || (matchesError && !isAccessError(matchesFailure));
   const syncStatusCard = <SyncStatusCard isAdmin={isAdmin} />;
   if (primaryLoading) return <PageSkeleton variant="cards" aria-label="Carregando painel" />;
   if (primaryError) {
@@ -179,14 +190,14 @@ export default function Dashboard() {
       /></div>
     );
   }
-  if (projections.length === 0) {
+  if (projections.length === 0 && !isAccessError(projFailure)) {
     return (
       <div className="space-y-6">{syncStatusCard}<EmptyState
         icon={Activity}
-        title={isPro ? "Ainda não há projeções para esta rodada" : "Projeções disponíveis no plano Pro"}
-        description={isPro ? "Consulte o histórico enquanto os dados da rodada são preparados." : "O status dos dados está disponível acima. Conheça o Pro para acessar as projeções."}
-        actionLabel={isPro ? "Ver histórico" : "Conhecer o Pro"}
-        actionHref={isPro ? "/historico" : "/planos"}
+        title="Ainda não há projeções para esta rodada"
+        description="Consulte o histórico enquanto os dados da rodada são preparados."
+        actionLabel="Ver histórico"
+        actionHref="/historico"
       /></div>
     );
   }
@@ -312,6 +323,14 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isAccessError(projFailure) && (
+                <Card className="md:col-span-2">
+                  <CardContent className="p-4 space-y-3">
+                    <p className="text-sm">Não foi possível acessar as projeções agora. As projeções básicas estão disponíveis para todos.</p>
+                    <Button variant="outline" onClick={() => refetchProjections()}>Tentar novamente</Button>
+                  </CardContent>
+                </Card>
+              )}
               {positions.map((pos) => {
                 const tops = getTopByPos(pos, 5);
                 if (!tops.length) return null;
@@ -426,7 +445,17 @@ export default function Dashboard() {
 
           {/* Diferenciais da Rodada */}
           {!popularityFeaturesEnabled && <PopularityCalibrationCard />}
-          {popularityFeaturesEnabled && diferenciais.length > 0 && (
+          {popularityFeaturesEnabled && !isPro && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ProGate message={`${projectionsData?.proTeaser.differentials ?? 0} diferenciais nesta rodada`}>
+                <Card className="min-h-56"><CardHeader><CardTitle>Diferenciais da rodada</CardTitle></CardHeader></Card>
+              </ProGate>
+              <ProGate message={`${projectionsData?.proTeaser.traps ?? 0} armadilhas nesta rodada`}>
+                <Card className="min-h-56"><CardHeader><CardTitle>Armadilhas da rodada</CardTitle></CardHeader></Card>
+              </ProGate>
+            </div>
+          )}
+          {popularityFeaturesEnabled && isPro && diferenciais.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent" />
@@ -467,7 +496,7 @@ export default function Dashboard() {
           )}
 
           {/* Armadilhas da Rodada */}
-          {popularityFeaturesEnabled && armadilhas.length > 0 && (
+          {popularityFeaturesEnabled && isPro && armadilhas.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bomb className="w-5 h-5 text-destructive" />
