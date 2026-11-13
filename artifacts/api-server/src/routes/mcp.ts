@@ -147,7 +147,7 @@ function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): 
           isClosed: boolean;
           players: Array<{
             name: string; nickname: string | null; position: string; price: number | null;
-            expectedPoints: number; playProbability: number | null; popularity: number;
+            expectedPoints: number; playProbability: number | null; popularity: number | null;
             isDifferencial: boolean; isTrap: boolean; slug: string;
             club: { abbreviation: string | null; name: string | null };
             actualPoints?: number | null;
@@ -170,7 +170,7 @@ function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): 
             price: p.price,
             expectedPoints: p.expectedPoints,
             playProbability: p.playProbability,
-            popularityPct: Math.round((p.popularity ?? 0) * 100),
+            popularityPct: p.popularity == null ? null : Math.round(p.popularity * 100),
             isDifferencial: p.isDifferencial,
             isTrap: p.isTrap,
             ...(p.actualPoints !== undefined && { actualPoints: p.actualPoints }),

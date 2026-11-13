@@ -254,9 +254,32 @@ export const GetPlayersQueryParams = zod.object({
   round: zod.coerce.number().optional(),
 });
 
+export const getPlayersResponsePlayersItemPopularityMin = 0;
+export const getPlayersResponsePlayersItemPopularityMax = 1;
+
+export const getPlayersResponsePlayersItemPopularityCountMin = 0;
+
 export const GetPlayersResponse = zod.object({
   players: zod.array(
     zod.object({
+      popularity: zod
+        .number()
+        .min(getPlayersResponsePlayersItemPopularityMin)
+        .max(getPlayersResponsePlayersItemPopularityMax)
+        .nullish()
+        .describe(
+          "Known fraction of selected teams in the same round; never an estimated default.",
+        ),
+      popularityCount: zod
+        .number()
+        .min(getPlayersResponsePlayersItemPopularityCountMin)
+        .nullish(),
+      popularityListed: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "False only when absent from a list covering this player's position.",
+        ),
       id: zod.number(),
       name: zod.string(),
       nickname: zod.string().nullish(),
@@ -360,8 +383,31 @@ export const GetPlayerByIdParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const getPlayerByIdResponseOnePopularityMin = 0;
+export const getPlayerByIdResponseOnePopularityMax = 1;
+
+export const getPlayerByIdResponseOnePopularityCountMin = 0;
+
 export const GetPlayerByIdResponse = zod
   .object({
+    popularity: zod
+      .number()
+      .min(getPlayerByIdResponseOnePopularityMin)
+      .max(getPlayerByIdResponseOnePopularityMax)
+      .nullish()
+      .describe(
+        "Known fraction of selected teams in the same round; never an estimated default.",
+      ),
+    popularityCount: zod
+      .number()
+      .min(getPlayerByIdResponseOnePopularityCountMin)
+      .nullish(),
+    popularityListed: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "False only when absent from a list covering this player's position.",
+      ),
     id: zod.number(),
     name: zod.string(),
     nickname: zod.string().nullish(),

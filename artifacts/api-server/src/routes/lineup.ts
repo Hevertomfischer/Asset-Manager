@@ -497,9 +497,10 @@ router.post("/lineup/simulate", requirePro, async (req, res) => {
         expectedPoints: proj.expectedPoints ?? 0,
         riskScore: proj.riskScore ?? 0,
         // popularity vem do explanationJson se disponível, senão do cadastro do jogador
-        popularity:
-          (expJson["popularity"] as number | undefined) ??
-          (player.popularity ?? null),
+        popularity: (expJson["popularity"] as number | null | undefined) ?? null,
+        popularityListed: (expJson["popularityListed"] as boolean | null | undefined) ?? null,
+        shortAvg: (expJson["shortAvg"] as number | undefined) ?? null,
+        mediumAvg: (expJson["mediumAvg"] as number | undefined) ?? null,
       };
     }
 

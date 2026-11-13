@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 
 async function main() {
   console.log("=== Testing Gato Mestre popularity fetch ===");
-  console.log("GLOBO_GLBID set:", !!process.env.GLOBO_GLBID);
+  console.log("Popularidade usa somente endpoints públicos; nenhum cookie Globo é necessário.");
   console.log("");
 
   const map = await fetchPopularityMap(19);

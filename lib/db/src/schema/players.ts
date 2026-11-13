@@ -15,6 +15,8 @@ export const playersTable = pgTable("players", {
   price: real("price"),
   averagePoints: real("average_points"),
   popularity: real("popularity"),
+  popularityCount: integer("popularity_count"),
+  popularityListed: boolean("popularity_listed"),
   priceVariation: real("price_variation"),
   playedLastRound: boolean("played_last_round"),
   gamesPlayed: integer("games_played"),

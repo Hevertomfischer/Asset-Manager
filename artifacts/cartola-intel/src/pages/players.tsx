@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Share2, Loader2, Zap } from "lucide-react";
 import { ProGate } from "@/components/ProGate";
 import { type ExplanationJson, getTopBadges, isDifferentialPlayer, isTrapPlayer } from "@/lib/explainPlayer";
+import { isDifferentialHighlight, label as popularityLabel } from "@/lib/popularityRules";
 import { useShareCard } from "@/hooks/useShareCard";
 import { ShareCardFrame } from "@/components/share/ShareCardFrame";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
@@ -127,7 +128,7 @@ export default function Players() {
 
   const topDiferencial = useMemo(() => {
     return allPlayersList
-      .filter((p) => isDifferentialPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
+      .filter((p) => isDifferentialHighlight({ ...(p.projection?.explanationJson ?? {}), expectedPoints: p.projection?.expectedPoints }))
       .sort((a, b) => {
         const da = ((a.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
         const db = ((b.projection?.explanationJson as ExplanationJson)?.differentialScore ?? 0);
@@ -139,8 +140,8 @@ export default function Players() {
     return allPlayersList
       .filter((p) => isTrapPlayer((p.projection?.explanationJson ?? {}) as ExplanationJson))
       .sort((a, b) => {
-        const pa = ((a.projection?.explanationJson as ExplanationJson)?.popularity ?? 0);
-        const pb = ((b.projection?.explanationJson as ExplanationJson)?.popularity ?? 0);
+        const pa = ((a.projection?.explanationJson as ExplanationJson)?.popularity ?? -1);
+        const pb = ((b.projection?.explanationJson as ExplanationJson)?.popularity ?? -1);
         return pb - pa;
       })[0] ?? null;
   }, [allPlayersList]);
@@ -506,7 +507,7 @@ export default function Players() {
                 </div>
                 <div className="text-right shrink-0">
                    <p className="text-lg font-bold text-attention font-mono tabular-nums">
-                    {(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%
+                    {popularityLabel((topArmadilha.projection?.explanationJson ?? {}) as ExplanationJson)}
                   </p>
                   <p className="text-xs text-muted-foreground">escalação</p>
                 </div>
@@ -582,7 +583,7 @@ export default function Players() {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                   {[
-                    { label: "Escalação", value: `${(((topArmadilha.projection?.explanationJson as ExplanationJson)?.popularity ?? 0) * 100).toFixed(0)}%`, color: "hsl(var(--attention))" },
+                    { label: "Escalação", value: popularityLabel((topArmadilha.projection?.explanationJson ?? {}) as ExplanationJson), color: "hsl(var(--attention))" },
                     { label: "Projeção",  value: `${(topArmadilha.projection?.expectedPoints ?? 0).toFixed(1)} pts`, color: "hsl(var(--danger))" },
                     { label: "Risco",     value: `${((topArmadilha.projection?.riskScore ?? 0) * 100).toFixed(0)}%`,     color: "hsl(var(--danger))" },
                   ].map(({ label, value, color }) => (

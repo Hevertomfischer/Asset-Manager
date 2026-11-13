@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
+import { isDifferentialHighlight, label as popularityLabel, POPULARITY_RULES } from "@/lib/popularityRules";
 import { PlayerBadges } from "@/components/PlayerCard";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Link } from "react-router-dom";
@@ -122,19 +123,19 @@ export default function Dashboard() {
     p.explanationJson ?? {};
 
   const diferenciais = projections
-    .filter((p) => isDifferentialPlayer(getExplanation(p)))
+    .filter((p) => isDifferentialHighlight({ ...getExplanation(p), expectedPoints: p.expectedPoints }))
     .sort((a, b) => {
       const popA = getExplanation(a).popularity ?? 1;
       const popB = getExplanation(b).popularity ?? 1;
       return popA - popB; // menor escalação = mais diferencial
     })
-    .slice(0, 5);
+    .slice(0, POPULARITY_RULES.highlightLimit);
 
   const armadilhas = projections
     .filter((p) => isTrapPlayer(getExplanation(p)))
     .sort((a, b) => {
-      const popA = getExplanation(a).popularity ?? 0;
-      const popB = getExplanation(b).popularity ?? 0;
+      const popA = getExplanation(a).popularity ?? -1;
+      const popB = getExplanation(b).popularity ?? -1;
       return popB - popA;
     })
     .slice(0, 5);
@@ -431,7 +432,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {diferenciais.map((p) => {
                   const exp = getExplanation(p);
-                  const pop = exp.popularity ?? 0;
+                  const popLabel = popularityLabel(exp);
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
@@ -452,7 +453,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
-                        <p className="text-xs text-muted-foreground tabular-nums">escal.: {(pop * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{popLabel}</p>
                       </div>
                     </div>
                   );
@@ -472,7 +473,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {armadilhas.map((p) => {
                   const exp = getExplanation(p);
-                  const pop = exp.popularity ?? 0;
+                  const popLabel = popularityLabel(exp);
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
@@ -492,7 +493,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-mono font-bold text-destructive">{(pop * 100).toFixed(0)}% escalado</p>
+                        <p className="text-sm font-mono font-bold text-destructive">{popLabel}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">{p.expectedPoints?.toFixed(1)} pts proj.</p>
                       </div>
                     </div>

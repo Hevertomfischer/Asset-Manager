@@ -1,4 +1,7 @@
 import { db } from "@workspace/db";
+import { createLogger } from "../lib/logger";
+const log = createLogger("projection-engine");
+import { isTrap as classifyTrap, knownPopularity, isDifferential, label } from "../lib/popularityRules";
 import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
 import { and, eq } from "drizzle-orm";
 import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
@@ -153,6 +156,12 @@ function buildTecProjection(
 
   const formScore = winRate * 5 + drawRate * 2;
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
+  const popularitySignals = {
+    popularity: knownPopularity(player.popularity),
+    popularityListed: player.popularityListed,
+    expectedPoints: Number(expectedPoints.toFixed(2)),
+    riskScore: Number(clamp(1 - playProbability, 0, 1).toFixed(3)),
+  };
 
   return {
     expectedPoints: Number(expectedPoints.toFixed(2)),
@@ -168,6 +177,12 @@ function buildTecProjection(
     attackParticipationProbability: 0,
     recommendationScore: Number(clamp(expectedPoints * 0.6 + playProbability * 5, 0, 100).toFixed(2)),
     explanationJson: {
+      ...popularitySignals,
+      popularityVersion: 2,
+      popularityCount: player.popularityCount,
+      popularityLabel: label(popularitySignals),
+      isDifferential: isDifferential(popularitySignals),
+      isTrap: classifyTrap(popularitySignals),
       tecFormula: true,
       averagePoints,
       winRate: Number(winRate.toFixed(2)),
@@ -297,7 +312,7 @@ async function calculateProjection(
 
   const averagePoints = player.averagePoints ?? 0;
   const price = player.price ?? 1;
-  const popularity = (player.popularity ?? 0.5) / 100;
+  const popularity = knownPopularity(player.popularity);
   const priceVariation = player.priceVariation ?? 0;
   const gamesPlayed = player.gamesPlayed ?? null;
 
@@ -440,14 +455,17 @@ async function calculateProjection(
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
 
   const differentialScore = clamp(
-    expectedPoints * (1 - clamp(popularity, 0, 1)) * (1 + valueScore * 0.2),
+    popularity === null && player.popularityListed !== false ? 0
+      : expectedPoints * (popularity === null ? 1 : 1 - popularity) * (1 + valueScore * 0.2),
     0, 100
   );
 
-  const isTrap =
-    popularity > PROJECTION_WEIGHTS.differential.trapPopularityThreshold &&
-    riskScore > PROJECTION_WEIGHTS.differential.trapRiskThreshold &&
-    shortAvg < mediumAvg * PROJECTION_WEIGHTS.differential.trapFormDeclineThreshold;
+  const popularitySignals = {
+    popularity, popularityListed: player.popularityListed,
+    expectedPoints: Number(expectedPoints.toFixed(2)), riskScore: Number(riskScore.toFixed(3)),
+    shortAvg: Number(shortAvg.toFixed(2)), mediumAvg: Number(mediumAvg.toFixed(2)),
+  };
+  const isTrap = classifyTrap(popularitySignals);
 
   const recommendationScore = clamp(
     expectedPoints * 0.5 +
@@ -480,7 +498,14 @@ async function calculateProjection(
     recentRoundsAnalyzed: longScouts.length,
     position: player.position,
     price,
-    popularity: Number(popularity.toFixed(3)),
+    popularity,
+    popularityVersion: 2,
+    popularityListed: player.popularityListed,
+    popularityCount: player.popularityCount,
+    popularityLabel: label(popularitySignals),
+    expectedPoints: popularitySignals.expectedPoints,
+    riskScore: popularitySignals.riskScore,
+    isDifferential: isDifferential(popularitySignals),
     valueScore: Number(valueScore.toFixed(3)),
     differentialScore: Number(differentialScore.toFixed(2)),
     isTrap,
@@ -522,10 +547,10 @@ export async function runProjectionEngine(round: number): Promise<void> {
       for (const [pos, mult] of Object.entries(cal.positionMultipliers ?? {})) {
         _calibrationMultipliers.set(pos, mult);
       }
-      console.log(`[projectionEngine] Loaded calibration for ${_calibrationMultipliers.size} positions`);
+      log.info("Loaded calibration", { positions: _calibrationMultipliers.size });
     }
   } catch (err) {
-    console.warn("[projectionEngine] Could not load calibration weights, using defaults:", err instanceof Error ? err.message : String(err));
+    log.warn("Could not load calibration weights, using defaults", { error: err instanceof Error ? err.message : String(err) });
   }
 
   const players = await db.query.playersTable.findMany();
@@ -620,5 +645,5 @@ export async function runProjectionEngine(round: number): Promise<void> {
     processed++;
   }
 
-  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round} (skipped ${skippedNoMatch} players from clubs with no valid match; deleted ${deletedStale} stale projections)`);
+  log.info("Generated projections", { processed, round, skippedNoMatch, deletedStale });
 }

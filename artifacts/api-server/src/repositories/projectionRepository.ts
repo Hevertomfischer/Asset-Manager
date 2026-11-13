@@ -1,4 +1,5 @@
 import { db } from "@workspace/db";
+import { cleanPopularityExplanation } from "../lib/popularityRules";
 import {
   playerProjectionTable,
   playerAvailabilityTable,
@@ -31,10 +32,11 @@ export async function upsertProjection(proj: InsertPlayerProjection): Promise<Pl
 }
 
 export async function getProjectionsByRound(round: number): Promise<PlayerProjection[]> {
-  return db.query.playerProjectionTable.findMany({
+  const projections = await db.query.playerProjectionTable.findMany({
     where: (t) => eq(t.round, round),
     orderBy: (t) => [desc(t.recommendationScore)],
   });
+  return projections.map((p) => ({ ...p, explanationJson: cleanPopularityExplanation(p.explanationJson) }));
 }
 
 export async function getLatestProjectionRound(): Promise<number | null> {

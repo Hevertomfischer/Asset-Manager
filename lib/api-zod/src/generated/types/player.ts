@@ -10,6 +10,23 @@ import type { PlayerAvailabilitySummary } from "./playerAvailabilitySummary";
 import type { PlayerProjectionSummary } from "./playerProjectionSummary";
 
 export interface Player {
+  /**
+   * Known fraction of selected teams in the same round; never an estimated default.
+   * @minimum 0
+   * @maximum 1
+   * @nullable
+   */
+  popularity?: number | null;
+  /**
+   * @minimum 0
+   * @nullable
+   */
+  popularityCount?: number | null;
+  /**
+   * False only when absent from a list covering this player's position.
+   * @nullable
+   */
+  popularityListed?: boolean | null;
   id: number;
   name: string;
   nickname?: string | null;

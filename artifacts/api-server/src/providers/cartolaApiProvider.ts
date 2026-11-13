@@ -5,6 +5,9 @@ import { roundSnapshotTable, dataCollectionLogTable } from "@workspace/db/schema
 import { desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
 import { fetchPopularityMap } from "./gatoMestreProvider";
+import { buildPopularityResolver } from "./popularityResolver";
+import { createLogger } from "../lib/logger";
+const log = createLogger("cartola-api");
 
 const BASE_URL = "https://api.cartola.globo.com";
 
@@ -102,6 +105,8 @@ export type CartolaPlayer = {
   price: number | null;
   averagePoints: number | null;
   popularity: number | null;
+  popularityCount: number | null;
+  popularityListed: boolean | null;
   priceVariation: number | null;
   playedLastRound: boolean | null;
   gamesPlayed: number | null;
@@ -131,7 +136,7 @@ async function logCollection(source: string, entityType: string, status: string,
       metadataJson: metadata ?? null,
     });
   } catch {
-    console.error("[cartolaApiProvider] Failed to write collection log");
+    log.error("Failed to write collection log");
   }
 }
 
@@ -167,6 +172,8 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
 
   // Fetch popularity from Gato Mestre (2-hour cache in DB)
   const popularityMap = await fetchPopularityMap(roundNumber).catch(() => new Map<string, number>());
+  const popularityFor = buildPopularityResolver(market.atletas, popularityMap,
+    roundParsed.success ? roundParsed.data.times_escalados ?? null : null);
 
   const clubs: CartolaClub[] = Object.entries(market.clubes).map(([, clube]) => ({
     externalSource: "cartola_api",
@@ -187,7 +194,7 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
     status: atleta.status_id != null ? (STATUS_MAP[atleta.status_id] ?? null) : null,
     price: atleta.preco_num ?? null,
     averagePoints: atleta.media_num ?? null,
-    popularity: atleta.times_escalados ?? popularityMap.get(String(atleta.atleta_id)) ?? null,
+    ...popularityFor(atleta),
     priceVariation: atleta.variacao_num ?? null,
     playedLastRound: atleta.entrou_em_campo ?? null,
     gamesPlayed: atleta.jogos_num ?? null,
@@ -209,11 +216,8 @@ async function getLastMarketSnapshot(): Promise<CartolaMarketResult | null> {
 export async function fetchMarket(): Promise<CartolaMarketResult> {
   const source = "cartola_api";
   try {
-    const glbId = process.env.GLOBO_GLLIB ?? "";
-    const authHeaders = glbId ? { Cookie: `GLBID=${glbId}` } : {};
-
     const [marketRes, roundRes] = await Promise.all([
-      axios.get(`${BASE_URL}/atletas/mercado`, { timeout: 15000, headers: authHeaders }),
+      axios.get(`${BASE_URL}/atletas/mercado`, { timeout: 15000 }),
       axios.get(`${BASE_URL}/mercado/status`, { timeout: 15000 }),
     ]);
 
@@ -232,6 +236,8 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
 
     // Fetch popularity from Gato Mestre (2-hour DB cache, non-blocking on failure)
     const popularityMap = await fetchPopularityMap(roundNumber).catch(() => new Map<string, number>());
+    const popularityFor = buildPopularityResolver(market.atletas, popularityMap,
+      roundParsed.success ? roundParsed.data.times_escalados ?? null : null);
 
     const clubs: CartolaClub[] = Object.entries(market.clubes).map(([, clube]) => ({
       externalSource: source,
@@ -252,7 +258,7 @@ export async function fetchMarket(): Promise<CartolaMarketResult> {
       status: atleta.status_id != null ? (STATUS_MAP[atleta.status_id] ?? null) : null,
       price: atleta.preco_num ?? null,
       averagePoints: atleta.media_num ?? null,
-      popularity: atleta.times_escalados ?? popularityMap.get(String(atleta.atleta_id)) ?? null,
+      ...popularityFor(atleta),
       priceVariation: atleta.variacao_num ?? null,
       playedLastRound: atleta.entrou_em_campo ?? null,
       gamesPlayed: atleta.jogos_num ?? null,

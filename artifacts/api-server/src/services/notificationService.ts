@@ -1,4 +1,5 @@
 import { db } from "@workspace/db";
+import { isTrap, readPopularitySignals } from "../lib/popularityRules";
 import {
   notificationsTable,
   playerProjectionTable,
@@ -20,12 +21,6 @@ const HIGH_REC_THRESHOLD = 7.0;
 const PRICE_ALERT_MIN_C = 2.0;
 /** Play probability below which a high-rec player triggers a status_change alert. */
 const LOW_PROB_THRESHOLD = 0.50;
-/** Popularity fraction (0–1) above which a player is considered mass-owned. */
-const HIGH_POPULARITY_THRESHOLD = 0.20;
-/** Expected points below which a mass-owned player is flagged as a trap. */
-const TRAP_POINTS_MAX = 3.5;
-/** Recommendation score below which a mass-owned player is flagged as a trap. */
-const TRAP_REC_MAX = 4.5;
 // ─────────────────────────────────────────────────────────────────────────────
 
 type NotificationType = "status_change" | "price" | "trap" | "market_open" | "market_close" | "round_result";
@@ -90,6 +85,7 @@ export async function generateEtlNotifications(round: number): Promise<void> {
       price: playersTable.price,
       priceVariation: playersTable.priceVariation,
       popularity: playersTable.popularity,
+      explanationJson: playerProjectionTable.explanationJson,
       expectedPoints: playerProjectionTable.expectedPoints,
       recommendationScore: playerProjectionTable.recommendationScore,
       playProbability: playerProjectionTable.playProbability,
@@ -108,7 +104,8 @@ export async function generateEtlNotifications(round: number): Promise<void> {
     const pts = r.expectedPoints ?? 0;
     const variation = r.priceVariation ?? 0;
     const price = r.price ?? 0;
-    const pop = r.popularity ?? 0;
+    const signals = readPopularitySignals(r.explanationJson);
+    const pop = signals.popularity;
 
     // ── status_change ────────────────────────────────────────────────────────
     // A high-recommended player (rec >= 7) has probability < 50 % of playing.
@@ -141,9 +138,8 @@ export async function generateEtlNotifications(round: number): Promise<void> {
     }
 
     // ── trap ─────────────────────────────────────────────────────────────────
-    // Mass-owned player (pop >= 20 %) with weak expected output and low rec.
-    // High ownership + low projection = differential disadvantage for everyone.
-    if (pop >= HIGH_POPULARITY_THRESHOLD && pts < TRAP_POINTS_MAX && rec < TRAP_REC_MAX) {
+    // Mesma classificação de armadilha usada pelo motor e pelas páginas públicas.
+    if (isTrap(signals) && pop != null) {
       const ok = await createNotification({
         type: "trap",
         title: `🪤 Armadilha: ${name}`,

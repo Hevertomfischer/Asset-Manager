@@ -4,6 +4,9 @@
   "files": [],
   "references": [
     {
+      "path": "./lib/popularity-rules"
+    },
+    {
       "path": "./lib/db"
     },
     {

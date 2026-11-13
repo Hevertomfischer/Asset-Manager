@@ -1,3 +1,5 @@
+import { POPULARITY_RULES } from "../lib/popularityRules";
+
 // Official Cartola FC scout values — https://www.cartolafcbrasil.com.br/scouts
 export const SCOUT_SCORING: Record<string, number> = {
   G:  8.0,   // Gol
@@ -73,11 +75,11 @@ export const PROJECTION_WEIGHTS = {
     minExpectedMinutes: 30,
   },
   differential: {
-    lowPopularityThreshold: 0.2,
-    highProjectionThreshold: 5.0,
-    trapPopularityThreshold: 0.6,
-    trapRiskThreshold: 0.4,
-    trapFormDeclineThreshold: 0.7,
+    lowPopularityThreshold: POPULARITY_RULES.differential,
+    highProjectionThreshold: POPULARITY_RULES.highlightMinPoints,
+    trapPopularityThreshold: POPULARITY_RULES.trap,
+    trapRiskThreshold: POPULARITY_RULES.trapRisk,
+    trapFormDeclineThreshold: POPULARITY_RULES.trapFormRatio,
   },
   valorizacao: {
     /**

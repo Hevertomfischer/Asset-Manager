@@ -10,6 +10,7 @@ import { eq, and, gte, lte, SQL, desc } from "drizzle-orm";
 import { getPlayerById } from "../repositories/playerRepository";
 import { requirePro } from "../middlewares/requirePro";
 import axios from "axios";
+import { cleanPopularityExplanation, knownPopularity } from "../lib/popularityRules";
 
 async function resolveCurrentRound(override?: string): Promise<number> {
   if (override) return Number(override);
@@ -86,6 +87,7 @@ router.get("/players", async (req, res) => {
 
       return {
         ...player,
+        popularity: knownPopularity(player.popularity),
         minimoParaValorizar: player.minimoParaValorizar ?? null,
         baseAverage,
         club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
@@ -97,7 +99,7 @@ router.get("/players", async (req, res) => {
               riskScore: proj.riskScore,
               recommendationScore: proj.recommendationScore,
               valueScore: proj.valueScore,
-              explanationJson: proj.explanationJson,
+              explanationJson: cleanPopularityExplanation(proj.explanationJson),
             }
           : null,
         availability: avail
@@ -156,6 +158,7 @@ router.get("/players/projections/current", requirePro, async (req, res) => {
       const club = player?.clubId ? clubMap.get(player.clubId) : null;
       return {
         ...proj,
+        explanationJson: cleanPopularityExplanation(proj.explanationJson),
         player: player
           ? {
               id: player.id,
@@ -203,8 +206,9 @@ router.get("/players/:id", async (req, res) => {
 
     res.json({
       ...player,
+      popularity: knownPopularity(player.popularity),
       club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
-      projections,
+      projections: projections.map((p) => ({ ...p, explanationJson: cleanPopularityExplanation(p.explanationJson) })),
     });
   } catch (error) {
     console.error("[player/:id route]", error);

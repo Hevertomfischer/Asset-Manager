@@ -696,6 +696,17 @@ components:
     Player:
       type: object
       properties:
+        popularity:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+          description: Known fraction of selected teams in the same round; never an estimated default.
+        popularityCount:
+          type: [integer, "null"]
+          minimum: 0
+        popularityListed:
+          type: [boolean, "null"]
+          description: False only when absent from a list covering this player's position.
         id:
           type: integer
         name:

@@ -18,6 +18,7 @@ import {
 } from "@workspace/db/schema";
 import { and, inArray, isNotNull, eq, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
+import { isDifferential, isDifferentialHighlight, isTrap, label, readPopularitySignals } from "../lib/popularityRules";
 
 const log = createLogger("stats");
 const router = Router();
@@ -295,6 +296,7 @@ router.get("/stats/top-projections", async (_req, res) => {
         position: playersTable.position,
         price: playersTable.price,
         popularity: playersTable.popularity,
+        explanationJson: playerProjectionTable.explanationJson,
         clubAbbreviation: clubsTable.abbreviation,
         clubBadgeUrl: clubsTable.badgeUrl,
         clubName: clubsTable.name,
@@ -317,10 +319,11 @@ router.get("/stats/top-projections", async (_req, res) => {
       nickname: r.nickname,
       position: r.position,
       price: r.price,
-      popularity: r.popularity,
+      popularity: readPopularitySignals(r.explanationJson).popularity ?? null,
+      popularityLabel: label(readPopularitySignals(r.explanationJson)),
       expectedPoints: r.expectedPoints,
       playProbability: r.playProbability,
-      isDifferencial: (r.popularity ?? 1) < 0.15,
+      isDifferencial: isDifferential(readPopularitySignals(r.explanationJson)),
       club: {
         abbreviation: r.clubAbbreviation,
         badgeUrl: r.clubBadgeUrl,
@@ -389,6 +392,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         position: playersTable.position,
         price: playersTable.price,
         popularity: playersTable.popularity,
+        explanationJson: playerProjectionTable.explanationJson,
         clubAbbreviation: clubsTable.abbreviation,
         clubBadgeUrl: clubsTable.badgeUrl,
         clubName: clubsTable.name,
@@ -436,7 +440,8 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     const players = projections.map((p) => {
       const actual = actualMap.get(p.playerId);
       const expectedPoints = p.expectedPoints ?? 0;
-      const popularity = p.popularity ?? 0.5;
+      const signals = readPopularitySignals(p.explanationJson);
+      const popularity = signals.popularity ?? null;
       const riskScore = p.riskScore ?? 0;
       return {
         playerId: p.playerId,
@@ -446,14 +451,17 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         position: p.position,
         price: p.price,
         popularity,
+        popularityListed: signals.popularityListed ?? null,
+        popularityLabel: label(signals),
         expectedPoints,
         floorPoints: p.floorPoints,
         ceilingPoints: p.ceilingPoints,
         riskScore,
         recommendationScore: p.recommendationScore,
         playProbability: p.playProbability,
-        isDifferencial: popularity < 0.15 && expectedPoints > 0,
-        isTrap: popularity >= 0.35 && riskScore >= 0.55,
+        isDifferencial: isDifferential(signals),
+        isDifferentialHighlight: isDifferentialHighlight(signals),
+        isTrap: isTrap(signals),
         ...(isClosed && {
           actualPoints: actual ?? null,
           beatProjection: actual != null ? actual >= expectedPoints * 0.9 : null,
@@ -463,12 +471,12 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     });
 
     const topDiferencial = players
-      .filter((p) => p.isDifferencial)
+      .filter((p) => p.isDifferentialHighlight)
       .sort((a, b) => b.expectedPoints - a.expectedPoints)[0] ?? null;
 
     const topArmadilha = players
       .filter((p) => p.isTrap)
-      .sort((a, b) => b.popularity - a.popularity)[0] ?? null;
+      .sort((a, b) => (b.popularity ?? -1) - (a.popularity ?? -1))[0] ?? null;
 
     let summary = null;
     if (isClosed) {
@@ -476,8 +484,8 @@ router.get("/stats/rodada/:numero", async (req, res) => {
       const mae = paired.length > 0
         ? paired.reduce((s, p) => s + Math.abs(p.expectedPoints - ((p as { actualPoints: number }).actualPoints ?? 0)), 0) / paired.length
         : null;
-      const trapCount = paired.filter((p) => ((p as { actualPoints: number }).actualPoints ?? 0) < p.expectedPoints * 0.5 && p.popularity >= 0.35).length;
-      const differentialHits = paired.filter((p) => p.popularity < 0.15 && ((p as { actualPoints: number }).actualPoints ?? 0) > 0).length;
+      const trapCount = paired.filter((p) => p.isTrap && ((p as { actualPoints: number }).actualPoints ?? 0) < p.expectedPoints * 0.5).length;
+      const differentialHits = paired.filter((p) => p.isDifferencial && ((p as { actualPoints: number }).actualPoints ?? 0) > 0).length;
       summary = { mae: mae != null ? Number(mae.toFixed(2)) : null, trapCount, differentialHits, pairedCount: paired.length };
     }
 
@@ -590,8 +598,7 @@ router.get("/stats/jogador/:slug", async (req, res) => {
     const history = projections.map((proj) => {
       const actual = actualMap.get(proj.round);
       const exp = proj.expectedPoints ?? 0;
-      const expJson = proj.explanationJson as { popularity?: number } | null;
-      const pop = expJson?.popularity ?? null;
+      const signals = readPopularitySignals(proj.explanationJson);
       const riskScore = proj.riskScore ?? 0;
       return {
         round: proj.round,
@@ -601,8 +608,11 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         riskScore,
         playProbability: proj.playProbability,
         formScore: proj.formScore,
-        isDifferencial: (pop ?? 1) < 0.15,
-        isTrap: (pop ?? 0) >= 0.35 && riskScore >= 0.55,
+        popularity: signals.popularity ?? null,
+        popularityListed: signals.popularityListed ?? null,
+        popularityLabel: label(signals),
+        isDifferencial: isDifferential(signals),
+        isTrap: isTrap(signals),
         actual: actual?.points ?? null,
         actualGoals: actual?.goals ?? null,
         actualAssists: actual?.assists ?? null,

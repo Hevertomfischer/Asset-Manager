@@ -112,6 +112,8 @@ export async function runCurrentRoundETL(): Promise<ETLResult> {
           price: player.price,
           averagePoints: player.averagePoints,
           popularity: player.popularity,
+          popularityCount: player.popularityCount,
+          popularityListed: player.popularityListed,
           priceVariation: player.priceVariation,
           playedLastRound: player.playedLastRound,
           gamesPlayed: player.gamesPlayed,
