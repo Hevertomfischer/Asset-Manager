@@ -44,7 +44,7 @@ for (let i=0; i<tickLen; i++) {
   let env = Math.exp(-i / (sampleRate * 0.01));
   tickSamples[i] = Math.sin(2 * Math.PI * 1000 * i / sampleRate) * env * 0.5;
 }
-writeWav('artifacts/mitometro-video/public/audio/tick.wav', sampleRate, tickSamples);
+writeWav(new URL('../public/audio/tick.wav', import.meta.url), sampleRate, tickSamples);
 
 // 2. Hit
 let hitLen = 0.5 * sampleRate;
@@ -54,7 +54,7 @@ for (let i=0; i<hitLen; i++) {
   let freq = 100 * Math.exp(-i / (sampleRate * 0.05));
   hitSamples[i] = (Math.random() * 2 - 1) * env * 0.2 + Math.sin(2 * Math.PI * freq * i / sampleRate) * env * 0.6;
 }
-writeWav('artifacts/mitometro-video/public/audio/hit.wav', sampleRate, hitSamples);
+writeWav(new URL('../public/audio/hit.wav', import.meta.url), sampleRate, hitSamples);
 
 // 3. Whoosh
 let whooshLen = 0.6 * sampleRate;
@@ -65,6 +65,6 @@ for (let i=0; i<whooshLen; i++) {
   let noise = Math.random() * 2 - 1;
   whooshSamples[i] = noise * env * env * 0.4;
 }
-writeWav('artifacts/mitometro-video/public/audio/whoosh.wav', sampleRate, whooshSamples);
+writeWav(new URL('../public/audio/whoosh.wav', import.meta.url), sampleRate, whooshSamples);
 
 console.log("SFX generated");

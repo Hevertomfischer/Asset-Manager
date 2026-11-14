@@ -1259,6 +1259,10 @@ components:
         price:
           type: number
           nullable: true
+        averagePoints:
+          type: number
+          nullable: true
+          description: Official player average, when available.
         orderIndex:
           type: integer
         name:

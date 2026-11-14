@@ -60,5 +60,5 @@ for (let i=0; i<length; i++) {
   samples[i] = (kick + hat + bass) * 0.3;
 }
 
-writeWav('artifacts/mitometro-video/public/audio/music.wav', sampleRate, samples);
+writeWav(new URL('../public/audio/music.wav', import.meta.url), sampleRate, samples);
 console.log("Music generated");

@@ -2,6 +2,8 @@
 
 Production schema is managed by Publish. Do not run schema SQL against production,
 do not use `drizzle-kit push`, and do not put migrations in startup or deploy hooks.
+The journal lists every migration, including the staged 0008. Registration does
+not mean it has been applied: do not run the entire journal during stage 1.
 
 1. Apply **0007 only** to development; rebuild `@workspace/db` declarations.
    **0008 is deliberately not applied to development yet**: Publish introspects

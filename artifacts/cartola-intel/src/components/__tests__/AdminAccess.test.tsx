@@ -66,7 +66,7 @@ test("loading authentication never flashes admin content", () => {
   expect(screen.getByRole("status")).toHaveTextContent("Verificando acesso");
   expect(screen.queryByText("Admin privado")).not.toBeInTheDocument();
 });
-test("ordinary free dashboard shows public status and disables Pro projection requests", () => {
+test("ordinary free dashboard shows public status and requests public sanitized projections", () => {
   render(<MemoryRouter><Dashboard /></MemoryRouter>);
   expect(screen.getByText("Status dos dados")).toBeInTheDocument();
   expect(screen.getByText("Dados sincronizados")).toBeInTheDocument();
@@ -74,7 +74,7 @@ test("ordinary free dashboard shows public status and disables Pro projection re
   expect(screen.queryByText("Não foi possível carregar o painel")).not.toBeInTheDocument();
   expect(screen.queryByText("Gerenciar Pipeline")).not.toBeInTheDocument();
   expect(mocks.projections).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-    query: expect.objectContaining({ enabled: false }),
+    query: expect.objectContaining({ enabled: true }),
   }));
 });
 test("public status query error remains confined to the status card", () => {

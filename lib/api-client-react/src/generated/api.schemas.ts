@@ -531,6 +531,8 @@ export interface LineupReservePlayer {
   floorPoints?: number | null;
   ceilingPoints?: number | null;
   price?: number | null;
+  /** Official player average, when available. */
+  averagePoints?: number | null;
   orderIndex?: number;
   name?: string;
   nickname?: string | null;

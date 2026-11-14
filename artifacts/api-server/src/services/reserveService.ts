@@ -17,6 +17,7 @@ export interface ReservePlayer {
   floorPoints: number;
   ceilingPoints: number;
   price: number;
+  averagePoints?: number | null;
   isLuxuryReserve: boolean;
   orderIndex: number;
 }
@@ -52,6 +53,7 @@ interface RawProjection {
   floorPoints: number;
   ceilingPoints: number;
   price: number;
+  averagePoints?: number | null;
   playProbability: number;
 }
 
@@ -110,6 +112,7 @@ export function selectReserves(
       floorPoints: best.floorPoints,
       ceilingPoints: best.ceilingPoints,
       price: best.price,
+      averagePoints: best.averagePoints ?? null,
       orderIndex: orderIdx++,
     });
   }

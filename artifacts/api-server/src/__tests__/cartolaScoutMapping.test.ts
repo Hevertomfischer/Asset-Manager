@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// This suite exercises parsing only; importing the provider must not open a DB.
+vi.mock("@workspace/db", () => ({ db: {} }));
+
 import { mapCartolaScoutToColumns } from "../lib/mapCartolaScoutToColumns";
 import { HistoricalScoutSchema } from "../providers/historicalCartolaProvider";
 

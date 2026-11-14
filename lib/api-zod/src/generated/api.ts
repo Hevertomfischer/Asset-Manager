@@ -846,6 +846,10 @@ export const GenerateLineupResponse = zod.object({
           floorPoints: zod.number().nullish(),
           ceilingPoints: zod.number().nullish(),
           price: zod.number().nullish(),
+          averagePoints: zod
+            .number()
+            .nullish()
+            .describe("Official player average, when available."),
           orderIndex: zod.number().optional(),
           name: zod.string().optional(),
           nickname: zod.string().nullish(),

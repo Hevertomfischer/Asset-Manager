@@ -82,7 +82,7 @@ interface DotPayload extends FrontierTier {
 
 function CustomDot(props: { cx?: number; cy?: number; payload?: DotPayload }) {
   const { cx = 0, cy = 0, payload } = props;
-  if (!payload) return null;
+  if (!payload) return <g />;
   return (
     <g>
       <circle
@@ -488,9 +488,7 @@ export default function Fronteira() {
                     />
                     <Scatter
                       data={chartData}
-                      shape={(props: unknown) =>
-                        CustomDot(props as { cx?: number; cy?: number; payload?: DotPayload })
-                      }
+                      shape={<CustomDot />}
                     >
                       {chartData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />

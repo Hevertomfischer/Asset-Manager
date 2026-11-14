@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Generated media retained locally, not in Git.
+/generated-artifacts/

@@ -3,6 +3,12 @@ import express from "express";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
+// Access checks must stop before optimization and work without live credentials.
+vi.mock("@workspace/db", () => ({
+  db: { select: () => ({ from: () => ({ where: async () => [] }) }) },
+}));
+vi.mock("../jobs/syncJob", () => ({ triggerFullSyncIfStale: vi.fn() }));
+
 vi.mock("../services/accessService", () => ({ isPro: async () => false }));
 vi.mock("../services/popularityFeatureService", async (original) => {
   const actual = await original<typeof import("../services/popularityFeatureService")>();
@@ -27,9 +33,9 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => { server = app.listen(0, "127.0.0.1", () => resolve()); });
   url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
-afterAll(() => {
+afterAll(async () => {
   vi.unstubAllEnvs();
-  return new Promise<void>((resolve) => server?.close(() => resolve()));
+  if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
 it.each(["generate", "compare-formations"])("bloqueia Antimassa com 409 em %s antes de gerar/consumir cota", async (route) => {

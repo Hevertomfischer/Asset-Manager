@@ -563,6 +563,7 @@ export function calculateLineup(
       floorPoints: pw.projection.floorPoints ?? 0,
       ceilingPoints: pw.projection.ceilingPoints ?? 0,
       price: pw.player.price ?? 0,
+      averagePoints: pw.player.averagePoints ?? null,
       playProbability: pw.projection.playProbability ?? 0,
     }));
 
