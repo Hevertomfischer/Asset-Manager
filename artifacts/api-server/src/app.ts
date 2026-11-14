@@ -266,11 +266,11 @@ void (async () => {
     }
 
     const countResult = await db.execute<{ cnt: string }>(
-      drizzleSql`SELECT COUNT(*) AS cnt FROM player_scout_round WHERE source = 'csv_2026'`
+      drizzleSql`SELECT COUNT(*) AS cnt FROM player_scout_round WHERE source IN ('csv_2026', 'historical_cartola')`
     );
     const existing = parseInt(countResult.rows[0]?.cnt ?? "0", 10);
     if (existing > 0) {
-      log.info("[csv-bootstrap] csv_2026 already present — skipping import", { rows: existing });
+      log.info("[csv-bootstrap] Histórico existente; importação legada não executada", { rows: existing });
       return;
     }
 
@@ -308,17 +308,7 @@ void (async () => {
         yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
         ff, v, pc, ps, collected_at
       ) VALUES %ROWS%
-      ON CONFLICT (player_id, round, source) DO UPDATE SET
-        points=EXCLUDED.points, goals=EXCLUDED.goals, assists=EXCLUDED.assists,
-        shots=EXCLUDED.shots, shots_on_target=EXCLUDED.shots_on_target,
-        tackles=EXCLUDED.tackles, interceptions=EXCLUDED.interceptions,
-        fouls_suffered=EXCLUDED.fouls_suffered, fouls_committed=EXCLUDED.fouls_committed,
-        saves=EXCLUDED.saves, goals_conceded=EXCLUDED.goals_conceded,
-        clean_sheet=EXCLUDED.clean_sheet, yellow_cards=EXCLUDED.yellow_cards,
-        red_cards=EXCLUDED.red_cards, penalty_missed=EXCLUDED.penalty_missed,
-        penalty_saved=EXCLUDED.penalty_saved, own_goals=EXCLUDED.own_goals,
-        ff=EXCLUDED.ff, v=EXCLUDED.v, pc=EXCLUDED.pc, ps=EXCLUDED.ps,
-        collected_at=now()
+      ON CONFLICT DO NOTHING
     `;
 
     const BATCH = 200;

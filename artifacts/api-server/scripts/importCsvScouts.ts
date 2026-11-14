@@ -63,29 +63,7 @@ async function main() {
         yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
         ff, v, pc, ps, collected_at
       ) VALUES ${rowSql}
-      ON CONFLICT (player_id, round, source) DO UPDATE SET
-        points          = EXCLUDED.points,
-        goals           = EXCLUDED.goals,
-        assists         = EXCLUDED.assists,
-        shots           = EXCLUDED.shots,
-        shots_on_target = EXCLUDED.shots_on_target,
-        tackles         = EXCLUDED.tackles,
-        interceptions   = EXCLUDED.interceptions,
-        fouls_suffered  = EXCLUDED.fouls_suffered,
-        fouls_committed = EXCLUDED.fouls_committed,
-        saves           = EXCLUDED.saves,
-        goals_conceded  = EXCLUDED.goals_conceded,
-        clean_sheet     = EXCLUDED.clean_sheet,
-        yellow_cards    = EXCLUDED.yellow_cards,
-        red_cards       = EXCLUDED.red_cards,
-        penalty_missed  = EXCLUDED.penalty_missed,
-        penalty_saved   = EXCLUDED.penalty_saved,
-        own_goals       = EXCLUDED.own_goals,
-        ff              = EXCLUDED.ff,
-        v               = EXCLUDED.v,
-        pc              = EXCLUDED.pc,
-        ps              = EXCLUDED.ps,
-        collected_at    = now()
+      ON CONFLICT DO NOTHING
     `;
   };
 
@@ -114,29 +92,7 @@ async function main() {
       yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
       ff, v, pc, ps, collected_at
     ) VALUES %ROWS%
-    ON CONFLICT (player_id, round, source) DO UPDATE SET
-      points          = EXCLUDED.points,
-      goals           = EXCLUDED.goals,
-      assists         = EXCLUDED.assists,
-      shots           = EXCLUDED.shots,
-      shots_on_target = EXCLUDED.shots_on_target,
-      tackles         = EXCLUDED.tackles,
-      interceptions   = EXCLUDED.interceptions,
-      fouls_suffered  = EXCLUDED.fouls_suffered,
-      fouls_committed = EXCLUDED.fouls_committed,
-      saves           = EXCLUDED.saves,
-      goals_conceded  = EXCLUDED.goals_conceded,
-      clean_sheet     = EXCLUDED.clean_sheet,
-      yellow_cards    = EXCLUDED.yellow_cards,
-      red_cards       = EXCLUDED.red_cards,
-      penalty_missed  = EXCLUDED.penalty_missed,
-      penalty_saved   = EXCLUDED.penalty_saved,
-      own_goals       = EXCLUDED.own_goals,
-      ff              = EXCLUDED.ff,
-      v               = EXCLUDED.v,
-      pc              = EXCLUDED.pc,
-      ps              = EXCLUDED.ps,
-      collected_at    = now()
+    ON CONFLICT DO NOTHING
   `;
 
   let valueSets: string[] = [];

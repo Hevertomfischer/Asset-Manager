@@ -8,6 +8,145 @@
 import * as zod from "zod";
 
 /**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+export const GetPerformanceStatsResponse = zod
+  .object({
+    empty: zod.boolean(),
+    message: zod.string().optional(),
+    season: zod.object({
+      totalRounds: zod.number(),
+      totalDataPoints: zod.number(),
+      mae: zod.number().nullable(),
+      overestimatedPct: zod.number().nullable(),
+    }),
+    byRound: zod.array(
+      zod.object({
+        round: zod.number(),
+        mae: zod.number(),
+        count: zod.number(),
+      }),
+    ),
+    calibration: zod.array(
+      zod.object({
+        label: zod.string(),
+        bucket: zod.string(),
+        avgProjected: zod.number(),
+        avgActual: zod.number(),
+        count: zod.number(),
+      }),
+    ),
+    byPosition: zod.record(
+      zod.string(),
+      zod.object({
+        mae: zod.number(),
+        count: zod.number(),
+        overestimatedPct: zod.number(),
+      }),
+    ),
+    differentials: zod
+      .object({
+        total: zod.number(),
+        hits: zod.number(),
+        hitRate: zod.number(),
+      })
+      .optional(),
+    traps: zod
+      .object({
+        total: zod.number(),
+        count: zod.number(),
+        rate: zod.number(),
+      })
+      .optional(),
+    meta: zod.object({
+      generatedAt: zod.string(),
+      disclaimer: zod.string(),
+    }),
+  })
+  .and(
+    zod.object({
+      popularityFeaturesEnabled: zod.boolean(),
+      legacy: zod
+        .object({
+          empty: zod.boolean(),
+          message: zod.string().optional(),
+          season: zod.object({
+            totalRounds: zod.number(),
+            totalDataPoints: zod.number(),
+            mae: zod.number().nullable(),
+            overestimatedPct: zod.number().nullable(),
+          }),
+          byRound: zod.array(
+            zod.object({
+              round: zod.number(),
+              mae: zod.number(),
+              count: zod.number(),
+            }),
+          ),
+          calibration: zod.array(
+            zod.object({
+              label: zod.string(),
+              bucket: zod.string(),
+              avgProjected: zod.number(),
+              avgActual: zod.number(),
+              count: zod.number(),
+            }),
+          ),
+          byPosition: zod.record(
+            zod.string(),
+            zod.object({
+              mae: zod.number(),
+              count: zod.number(),
+              overestimatedPct: zod.number(),
+            }),
+          ),
+          differentials: zod
+            .object({
+              total: zod.number(),
+              hits: zod.number(),
+              hitRate: zod.number(),
+            })
+            .optional(),
+          traps: zod
+            .object({
+              total: zod.number(),
+              count: zod.number(),
+              rate: zod.number(),
+            })
+            .optional(),
+          meta: zod.object({
+            generatedAt: zod.string(),
+            disclaimer: zod.string(),
+          }),
+        })
+        .and(
+          zod.object({
+            disclaimer: zod.string(),
+          }),
+        ),
+    }),
+  );
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+export const GetHistoricalRepairProgressResponse = zod.object({
+  progress: zod
+    .object({
+      status: zod.enum(["running", "completed", "failed"]).optional(),
+      startedAt: zod.string().optional(),
+      finishedAt: zod.string().optional(),
+      lastClosedRound: zod.number().optional(),
+      completedRounds: zod.number().optional(),
+      upserted: zod.number().optional(),
+      missingPlayers: zod.number().optional(),
+      error: zod.string().optional(),
+      calibration: zod.record(zod.string(), zod.unknown()).optional(),
+    })
+    .nullable(),
+});
+
+/**
  * @summary Current real subscription and its recorded period
  */
 export const GetBillingSubscriptionResponse = zod.object({

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { playersTable } from "./players";
@@ -32,7 +32,10 @@ export const playerScoutRoundTable = pgTable("player_scout_round", {
   pc: integer("pc"),  // Pênalti Cometido       (-0.3 each)
   ps: integer("ps"),  // Pênalti Sofrido        (+0.5 each)
   collectedAt: timestamp("collected_at").defaultNow().notNull(),
-});
+}, (t) => [
+  // Rollout: apply 0008 only after the canonical repair in production.
+  uniqueIndex("player_scout_round_player_round_unique").on(t.playerId, t.round),
+]);
 
 export const insertPlayerScoutRoundSchema = createInsertSchema(playerScoutRoundTable).omit({ id: true, collectedAt: true });
 export type InsertPlayerScoutRound = z.infer<typeof insertPlayerScoutRoundSchema>;

@@ -20,6 +20,7 @@ import { and, inArray, isNotNull, eq, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
 import { isDifferential, isDifferentialHighlight, isTrap, label, readPopularitySignals } from "../lib/popularityRules";
 import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
+import { invalidateOgStatsCache } from "../services/ogStats";
 
 const log = createLogger("stats");
 const router = Router();
@@ -36,8 +37,9 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 router.get("/stats/performance", async (_req, res) => {
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   // Serve from cache if fresh
-  if (cache && Date.now() < cache.expiry) {
+  if (cache && Date.now() < cache.expiry && (cache.data as { popularityFeaturesEnabled?: boolean }).popularityFeaturesEnabled === popularityFeaturesEnabled) {
     res.json(cache.data);
     return;
   }
@@ -51,19 +53,13 @@ router.get("/stats/performance", async (_req, res) => {
         playerId: playerProjectionTable.playerId,
         round: playerProjectionTable.round,
         expectedPoints: playerProjectionTable.expectedPoints,
+        lockedAt: playerProjectionTable.lockedAt,
+        explanationJson: playerProjectionTable.explanationJson,
         position: playersTable.position,
       })
       .from(playerProjectionTable)
       .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
       .where(isNotNull(playerProjectionTable.expectedPoints));
-
-    if (projections.length === 0) {
-      res.json({
-        empty: true,
-        message: "Ainda não há dados históricos suficientes. Sincronize projeções e aguarde o fim de uma rodada.",
-      });
-      return;
-    }
 
     const rounds = [...new Set(projections.map((p) => p.round))];
 
@@ -80,7 +76,7 @@ router.get("/stats/performance", async (_req, res) => {
         and(
           inArray(playerScoutRoundTable.round, rounds),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -104,6 +100,8 @@ router.get("/stats/performance", async (_req, res) => {
       actual: number;
       absError: number;
       overestimated: boolean;
+      lockedAt: Date | null;
+      explanationJson: unknown;
     }
 
     const compared: DataPoint[] = [];
@@ -118,15 +116,20 @@ router.get("/stats/performance", async (_req, res) => {
         actual,
         absError: Math.abs(projected - actual),
         overestimated: projected > actual,
+        lockedAt: proj.lockedAt,
+        explanationJson: proj.explanationJson,
       });
     }
 
+    function summarize(compared: DataPoint[]) {
     if (compared.length === 0) {
-      res.json({
+      return {
         empty: true,
-        message: "Rodadas com projeções ainda não têm pontuações reais. Aguarde o fim de uma rodada.",
-      });
-      return;
+        message: "A série confiável começa com as próximas projeções congeladas. Aguarde o encerramento de uma rodada.",
+        season: { totalRounds: 0, totalDataPoints: 0, mae: null, overestimatedPct: null },
+        byRound: [], calibration: [], byPosition: {},
+        meta: { generatedAt: new Date().toISOString(), disclaimer: "Somente projeções congeladas e pontuações finais oficiais." },
+      };
     }
 
     // ── 4. Season-level summary ────────────────────────────────────────────────
@@ -165,7 +168,7 @@ router.get("/stats/performance", async (_req, res) => {
       { label: "Menos projetados", bucket: "q4", slice: sortedByProjected.slice(0, qSize) },
     ];
 
-    const calibration = quartileConfig.map(({ label, bucket, slice }) => ({
+    const calibration = quartileConfig.filter(({ slice }) => slice.length > 0).map(({ label, bucket, slice }) => ({
       label,
       bucket,
       avgProjected: Number(
@@ -177,15 +180,12 @@ router.get("/stats/performance", async (_req, res) => {
       count: slice.length,
     }));
 
-    // ── 7. Differentials: top-quartile players who beat global actual median ──
-    const sortedActuals2 = compared.map((c) => c.actual).sort((a, b) => a - b);
-    const globalMedianActual = sortedActuals2[Math.floor(sortedActuals2.length / 2)] ?? 0;
-
-    const topQuartile = sortedByProjected.slice(n - qSize);
-    const differentialHits = topQuartile.filter((c) => c.actual >= globalMedianActual);
-
-    // ── 8. Traps: top-quartile players who scored < 50 % of their projection ─
-    const traps = topQuartile.filter((c) => c.actual < c.projected * 0.5);
+    // Classify using the signals frozen WITH the projection, never today's
+    // player popularity. Missing historical coverage does not mean 0%.
+    const differentials = compared.filter((c) => isDifferential(readPopularitySignals(c.explanationJson, popularityFeaturesEnabled)));
+    const differentialHits = differentials.filter((c) => c.actual >= c.projected);
+    const trapCandidates = compared.filter((c) => isTrap(readPopularitySignals(c.explanationJson, popularityFeaturesEnabled)));
+    const traps = trapCandidates.filter((c) => c.actual < c.projected * 0.5);
 
     // ── 9. By-position MAE ─────────────────────────────────────────────────────
     const posMap = new Map<string, DataPoint[]>();
@@ -209,7 +209,8 @@ router.get("/stats/performance", async (_req, res) => {
     );
 
     // ── Build response ─────────────────────────────────────────────────────────
-    const responseData = {
+    return {
+      empty: false,
       season: {
         totalRounds: uniqueRounds.length,
         totalDataPoints: compared.length,
@@ -219,25 +220,35 @@ router.get("/stats/performance", async (_req, res) => {
       byRound,
       calibration,
       byPosition,
-      differentials: {
-        total: topQuartile.length,
+      ...(popularityFeaturesEnabled ? { differentials: {
+        total: differentials.length,
         hits: differentialHits.length,
         hitRate: Number(
-          ((differentialHits.length / Math.max(1, topQuartile.length)) * 100).toFixed(1)
+          ((differentialHits.length / Math.max(1, differentials.length)) * 100).toFixed(1)
         ),
       },
       traps: {
-        total: topQuartile.length,
+        total: trapCandidates.length,
         count: traps.length,
         rate: Number(
-          ((traps.length / Math.max(1, topQuartile.length)) * 100).toFixed(1)
+          ((traps.length / Math.max(1, trapCandidates.length)) * 100).toFixed(1)
         ),
-      },
+      } } : {}),
       meta: {
         generatedAt: new Date().toISOString(),
         disclaimer:
           "Dados históricos baseados em projeções do modelo e pontuações reais do Cartola FC. " +
-          "MAE = Erro Médio Absoluto em pontos. Quartis calculados sobre todos os pares projeção-real disponíveis.",
+          "MAE = Erro Médio Absoluto em pontos. A série confiável usa somente projeções congeladas. " +
+          "Diferenciais e armadilhas usam as regras de popularidade e sinais históricos da própria projeção.",
+      },
+    };
+    }
+    const responseData = {
+      ...summarize(compared.filter((c) => c.lockedAt !== null)),
+      popularityFeaturesEnabled,
+      legacy: {
+        ...summarize(compared.filter((c) => c.lockedAt === null)),
+        disclaimer: "Legado: projeções sem garantia de congelamento antes dos jogos. Não integra a série confiável; resultados podem mudar após correções da fonte.",
       },
     };
 
@@ -245,8 +256,8 @@ router.get("/stats/performance", async (_req, res) => {
     cache = { data: responseData, expiry: Date.now() + CACHE_TTL_MS };
 
     log.info("Performance stats computed", {
-      rounds: uniqueRounds.length,
-      dataPoints: compared.length,
+      rounds: responseData.season.totalRounds,
+      dataPoints: responseData.season.totalDataPoints,
       mae: responseData.season.mae,
     });
 
@@ -405,7 +416,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
       .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
       .leftJoin(clubsTable, eq(playersTable.clubId, clubsTable.id))
       .where(
-        and(eq(playerProjectionTable.round, roundNum), isNotNull(playerProjectionTable.expectedPoints))
+        and(eq(playerProjectionTable.round, roundNum), isNotNull(playerProjectionTable.expectedPoints), isNotNull(playerProjectionTable.lockedAt))
       )
       .orderBy(desc(playerProjectionTable.expectedPoints));
 
@@ -425,7 +436,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         and(
           eq(playerScoutRoundTable.round, roundNum),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -587,7 +598,7 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         and(
           eq(playerScoutRoundTable.playerId, playerId),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -664,7 +675,7 @@ export async function getSitemapData(): Promise<{ closedRounds: number[]; player
     db
       .selectDistinct({ round: playerScoutRoundTable.round })
       .from(playerScoutRoundTable)
-      .where(inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])),
+      .where(inArray(playerScoutRoundTable.source, ["historical_cartola"])),
     db
       .selectDistinct({
         id: playersTable.id,
@@ -687,6 +698,15 @@ export async function getSitemapData(): Promise<{ closedRounds: number[]; player
   const data = { closedRounds, players };
   sitemapDataCache = { data, expiry: Date.now() + SITEMAP_CACHE_TTL_MS };
   return data;
+}
+
+export function invalidateStatsCaches() {
+  invalidateOgStatsCache();
+  cache = null;
+  topProjectionsCache = null;
+  roundCaches.clear();
+  playerStatsCaches.clear();
+  sitemapDataCache = null;
 }
 
 export default router;

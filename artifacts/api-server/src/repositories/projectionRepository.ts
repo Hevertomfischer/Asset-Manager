@@ -5,6 +5,7 @@ import {
   playerProjectionTable,
   playerAvailabilityTable,
   playerScoutRoundTable,
+  adminConfigTable,
   type InsertPlayerProjection,
   type InsertPlayerAvailability,
   type InsertPlayerScoutRound,
@@ -12,24 +13,48 @@ import {
   type PlayerAvailability,
   type PlayerScoutRound,
 } from "@workspace/db/schema";
-import { eq, and, desc, max } from "drizzle-orm";
+import { eq, and, desc, max, sql, isNull, lt, ne } from "drizzle-orm";
 
-export async function upsertProjection(proj: InsertPlayerProjection): Promise<PlayerProjection> {
-  const existing = await db.query.playerProjectionTable.findFirst({
+export async function upsertProjection(proj: InsertPlayerProjection): Promise<PlayerProjection | null> {
+  return db.transaction(async (tx) => {
+  // Same transaction-scoped fence as lockRoundProjections: a concurrent close
+  // cannot be followed by a stale writer or an insertion for a new player.
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(73501, ${proj.round})`);
+  const existing = await tx.query.playerProjectionTable.findFirst({
     where: (t) => and(eq(t.playerId, proj.playerId), eq(t.round, proj.round)),
   });
 
+  const fence = await tx.query.adminConfigTable.findFirst({
+    where: (t) => eq(t.key, `projectionLockedRound:${proj.round}`),
+  });
+  if (existing?.lockedAt || fence) return existing ?? null;
+  const { lockedAt: _ignored, ...values } = proj;
   if (existing) {
-    const [updated] = await db
+    const [updated] = await tx
       .update(playerProjectionTable)
-      .set({ ...proj, generatedAt: new Date() })
-      .where(eq(playerProjectionTable.id, existing.id))
+      .set({ ...values, generatedAt: new Date() })
+      .where(and(eq(playerProjectionTable.id, existing.id), isNull(playerProjectionTable.lockedAt)))
       .returning();
     return updated!;
   }
 
-  const [inserted] = await db.insert(playerProjectionTable).values(proj).returning();
+  const [inserted] = await tx.insert(playerProjectionTable).values(values).returning();
   return inserted!;
+  });
+}
+
+export async function lockRoundProjections(round: number): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(73501, ${round})`);
+    const lockedAt = new Date();
+    await tx.insert(adminConfigTable).values({
+      key: `projectionLockedRound:${round}`, value: lockedAt.toISOString(),
+    }).onConflictDoNothing();
+    const rows = await tx.update(playerProjectionTable).set({ lockedAt })
+      .where(and(eq(playerProjectionTable.round, round), isNull(playerProjectionTable.lockedAt)))
+      .returning({ id: playerProjectionTable.id });
+    return rows.length;
+  });
 }
 
 export async function getProjectionsByRound(round: number): Promise<PlayerProjection[]> {
@@ -73,13 +98,35 @@ export async function getAvailabilityByRound(round: number): Promise<PlayerAvail
 }
 
 export async function insertScoutRound(scout: InsertPlayerScoutRound): Promise<PlayerScoutRound> {
-  const [inserted] = await db.insert(playerScoutRoundTable).values(scout).returning();
-  return inserted!;
+  // Works during the two-stage rollout, before the global unique index exists.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${scout.playerId}, ${scout.round})`);
+    const existing = await tx.query.playerScoutRoundTable.findFirst({
+      where: (t) => and(eq(t.playerId, scout.playerId), eq(t.round, scout.round)),
+      orderBy: (t) => [sql`CASE WHEN ${t.source} = 'historical_cartola' THEN 0 ELSE 1 END`, desc(t.collectedAt), desc(t.id)],
+    });
+    if (!existing) {
+      const [inserted] = await tx.insert(playerScoutRoundTable).values(scout).returning();
+      return inserted!;
+    }
+    // CSV import must never replace canonical official final scores.
+    if (existing.source === "historical_cartola" && scout.source !== "historical_cartola") return existing;
+    // Consolidate first: older databases also have a unique (player,round,source)
+    // constraint. Changing a live row's source before merging would violate it.
+    await tx.delete(playerScoutRoundTable).where(and(
+      eq(playerScoutRoundTable.playerId, scout.playerId), eq(playerScoutRoundTable.round, scout.round),
+      ne(playerScoutRoundTable.id, existing.id),
+    ));
+    const [updated] = await tx.update(playerScoutRoundTable)
+      .set({ ...scout, collectedAt: new Date() }).where(eq(playerScoutRoundTable.id, existing.id)).returning();
+    return updated!;
+  });
 }
 
-export async function getScoutsByPlayer(playerId: number, limit = 10): Promise<PlayerScoutRound[]> {
+export async function getScoutsByPlayer(playerId: number, limit = 10, beforeRound?: number): Promise<PlayerScoutRound[]> {
   return db.query.playerScoutRoundTable.findMany({
-    where: (t) => eq(t.playerId, playerId),
+    where: (t) => and(eq(t.playerId, playerId), ne(t.source, "cartola_api"),
+      beforeRound === undefined ? undefined : lt(t.round, beforeRound)),
     orderBy: (t) => [desc(t.round)],
     limit,
   });

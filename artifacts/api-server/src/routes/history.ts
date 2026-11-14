@@ -18,6 +18,7 @@ const router = Router();
 interface BacktestPlayer {
   playerId: number;
   name: string;
+  nickname: string | null;
   position: string;
   round: number;
   projected: number;
@@ -50,6 +51,7 @@ router.get("/history/backtest", requirePro, async (req, res) => {
       .where(
         and(
           isNotNull(playerProjectionTable.expectedPoints),
+          isNotNull(playerProjectionTable.lockedAt),
           roundParam ? eq(playerProjectionTable.round, roundParam) : undefined
         )
       );
@@ -72,7 +74,7 @@ router.get("/history/backtest", requirePro, async (req, res) => {
         and(
           inArray(playerScoutRoundTable.round, rounds),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -185,7 +187,7 @@ router.get("/history/rounds", async (_req, res) => {
     const projRounds = await db
       .selectDistinct({ round: playerProjectionTable.round })
       .from(playerProjectionTable)
-      .where(isNotNull(playerProjectionTable.expectedPoints));
+      .where(and(isNotNull(playerProjectionTable.expectedPoints), isNotNull(playerProjectionTable.lockedAt)));
 
     const projRoundSet = new Set(projRounds.map((r) => r.round));
 
@@ -195,7 +197,7 @@ router.get("/history/rounds", async (_req, res) => {
       .where(
         and(
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       )
       .orderBy(playerScoutRoundTable.round);
@@ -280,7 +282,7 @@ router.get("/history/lineup-backtest", requirePro, async (req, res) => {
           and(
             inArray(playerScoutRoundTable.round, lineupRounds),
             isNotNull(playerScoutRoundTable.points),
-            inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+            inArray(playerScoutRoundTable.source, ["historical_cartola"])
           )
         ),
     ]);
@@ -295,7 +297,8 @@ router.get("/history/lineup-backtest", requirePro, async (req, res) => {
       .where(
         and(
           inArray(playerProjectionTable.round, lineupRounds),
-          isNotNull(playerProjectionTable.expectedPoints)
+          isNotNull(playerProjectionTable.expectedPoints),
+          isNotNull(playerProjectionTable.lockedAt)
         )
       );
 
@@ -329,7 +332,10 @@ router.get("/history/lineup-backtest", requirePro, async (req, res) => {
       playersByLineup.get(lp.lineupSuggestionId)!.push(lp);
     }
 
-    const result = targetLineups.map((lineup) => {
+    const result = targetLineups.filter((lineup) => {
+      const players = playersByLineup.get(lineup.id) ?? [];
+      return players.length > 0 && players.every((p) => projMap.has(`${p.playerId}-${lineup.round}`));
+    }).map((lineup) => {
       const players = playersByLineup.get(lineup.id) ?? [];
       const captainId = lineup.captainPlayerId;
       const nonCoachPlayers = players.filter((p) => p.position !== "TEC");
@@ -422,6 +428,8 @@ router.get("/history/lineup-rounds", async (_req, res) => {
     const rows = await db
       .selectDistinct({ round: lineupSuggestionTable.round })
       .from(lineupSuggestionTable)
+      .innerJoin(playerProjectionTable, eq(playerProjectionTable.round, lineupSuggestionTable.round))
+      .where(isNotNull(playerProjectionTable.lockedAt))
       .orderBy(lineupSuggestionTable.round);
     res.json({ rounds: rows.map((r) => r.round) });
   } catch (err) {
@@ -460,7 +468,7 @@ router.get("/history/perfect-team", requirePro, async (req, res) => {
         and(
           eq(playerScoutRoundTable.round, roundParam),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -476,9 +484,13 @@ router.get("/history/perfect-team", requirePro, async (req, res) => {
         expectedPoints: playerProjectionTable.expectedPoints,
       })
       .from(playerProjectionTable)
-      .where(eq(playerProjectionTable.round, roundParam));
+      .where(and(eq(playerProjectionTable.round, roundParam), isNotNull(playerProjectionTable.lockedAt)));
 
     const projMap = new Map(projections.map((p) => [p.playerId, p.expectedPoints ?? 0]));
+    if (projections.length === 0) {
+      res.json({ round: roundParam, perfectTeam: [], stats: null, message: "Sem projeções congeladas para esta rodada. Dados antigos são legado." });
+      return;
+    }
 
     // 3. Our lineup suggestion for the round (latest one)
     const lineupSuggestions = await db
@@ -642,6 +654,12 @@ router.get("/history/budget-optimal", requirePro, async (req, res) => {
       res.status(400).json({ error: "round param required" });
       return;
     }
+    const frozen = await db.select({ id: playerProjectionTable.id }).from(playerProjectionTable)
+      .where(and(eq(playerProjectionTable.round, roundParam), isNotNull(playerProjectionTable.lockedAt))).limit(1);
+    if (!frozen.length) {
+      res.json({ round: roundParam, strategies: [], message: "Sem projeções congeladas. Esta rodada pertence ao legado." });
+      return;
+    }
 
     // 1. All lineup suggestions for this round (latest per strategy)
     const allSuggestions = await db
@@ -686,7 +704,7 @@ router.get("/history/budget-optimal", requirePro, async (req, res) => {
         and(
           eq(playerScoutRoundTable.round, roundParam),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -838,7 +856,8 @@ router.get("/history/perfect-team-rounds", requirePro, async (_req, res) => {
     const rows = await db
       .selectDistinct({ round: playerScoutRoundTable.round })
       .from(playerScoutRoundTable)
-      .where(inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"]))
+      .innerJoin(playerProjectionTable, eq(playerProjectionTable.round, playerScoutRoundTable.round))
+      .where(and(eq(playerScoutRoundTable.source, "historical_cartola"), isNotNull(playerProjectionTable.lockedAt)))
       .orderBy(playerScoutRoundTable.round);
     res.json({ rounds: rows.map((r) => r.round) });
   } catch (err) {

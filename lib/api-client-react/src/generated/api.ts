@@ -29,11 +29,13 @@ import type {
   GetCurrentProjectionsParams,
   GetPlayersParams,
   HealthStatus,
+  HistoricalRepairStatus,
   LineupAccessError,
   LineupGenerateRequest,
   LineupGenerateResponse,
   LineupValidationError,
   MatchListResponse,
+  PerformanceStats,
   PlayerDetail,
   PlayerListResponse,
   PopularityUnavailableError,
@@ -57,6 +59,242 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+export const getGetPerformanceStatsUrl = () => {
+  return `/api/stats/performance`;
+};
+
+export const getPerformanceStats = async (
+  options?: RequestInit,
+): Promise<PerformanceStats> => {
+  return customFetch<PerformanceStats>(getGetPerformanceStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPerformanceStatsQueryKey = () => {
+  return [`/api/stats/performance`] as const;
+};
+
+export const getGetPerformanceStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPerformanceStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPerformanceStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPerformanceStats>>
+  > = ({ signal }) => getPerformanceStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPerformanceStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPerformanceStats>>
+>;
+export type GetPerformanceStatsQueryError = ErrorType<void>;
+
+/**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+
+export function useGetPerformanceStats<
+  TData = Awaited<ReturnType<typeof getPerformanceStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPerformanceStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+export const getGetHistoricalRepairProgressUrl = () => {
+  return `/api/admin/sync/closed-rounds`;
+};
+
+export const getHistoricalRepairProgress = async (
+  options?: RequestInit,
+): Promise<HistoricalRepairStatus> => {
+  return customFetch<HistoricalRepairStatus>(
+    getGetHistoricalRepairProgressUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetHistoricalRepairProgressQueryKey = () => {
+  return [`/api/admin/sync/closed-rounds`] as const;
+};
+
+export const getGetHistoricalRepairProgressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetHistoricalRepairProgressQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>
+  > = ({ signal }) =>
+    getHistoricalRepairProgress({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHistoricalRepairProgressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHistoricalRepairProgress>>
+>;
+export type GetHistoricalRepairProgressQueryError = ErrorType<void>;
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+
+export function useGetHistoricalRepairProgress<
+  TData = Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHistoricalRepairProgressQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Force all closed rounds, consolidate scouts and calibrate after success
+ */
+export const getStartHistoricalRepairUrl = () => {
+  return `/api/admin/sync/closed-rounds`;
+};
+
+export const startHistoricalRepair = async (
+  options?: RequestInit,
+): Promise<HistoricalRepairStatus> => {
+  return customFetch<HistoricalRepairStatus>(getStartHistoricalRepairUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStartHistoricalRepairMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startHistoricalRepair>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["startHistoricalRepair"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    void
+  > = () => {
+    return startHistoricalRepair(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartHistoricalRepairMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startHistoricalRepair>>
+>;
+
+export type StartHistoricalRepairMutationError = ErrorType<void>;
+
+/**
+ * @summary Force all closed rounds, consolidate scouts and calibrate after success
+ */
+export const useStartHistoricalRepair = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startHistoricalRepair>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getStartHistoricalRepairMutationOptions(options));
+};
 
 /**
  * @summary Current real subscription and its recorded period

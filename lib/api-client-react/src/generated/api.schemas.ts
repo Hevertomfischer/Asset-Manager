@@ -5,6 +5,97 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * @nullable
+ */
+export type HistoricalRepairStatusProgress = {
+  status?: "running" | "completed" | "failed";
+  startedAt?: string;
+  finishedAt?: string;
+  lastClosedRound?: number;
+  completedRounds?: number;
+  upserted?: number;
+  missingPlayers?: number;
+  error?: string;
+  calibration?: { [key: string]: unknown };
+} | null;
+
+export interface HistoricalRepairStatus {
+  /** @nullable */
+  progress: HistoricalRepairStatusProgress;
+}
+
+export interface PerformanceRound {
+  round: number;
+  mae: number;
+  count: number;
+}
+
+export type PerformanceAggregateSeason = {
+  totalRounds: number;
+  totalDataPoints: number;
+  /** @nullable */
+  mae: number | null;
+  /** @nullable */
+  overestimatedPct: number | null;
+};
+
+export interface PerformancePosition {
+  mae: number;
+  count: number;
+  overestimatedPct: number;
+}
+
+export type PerformanceAggregateByPosition = {
+  [key: string]: PerformancePosition;
+};
+
+export type PerformanceAggregateDifferentials = {
+  total: number;
+  hits: number;
+  hitRate: number;
+};
+
+export type PerformanceAggregateTraps = {
+  total: number;
+  count: number;
+  rate: number;
+};
+
+export type PerformanceAggregateMeta = {
+  generatedAt: string;
+  disclaimer: string;
+};
+
+export interface PerformanceCalibrationBucket {
+  label: string;
+  bucket: string;
+  avgProjected: number;
+  avgActual: number;
+  count: number;
+}
+
+export interface PerformanceAggregate {
+  empty: boolean;
+  message?: string;
+  season: PerformanceAggregateSeason;
+  byRound: PerformanceRound[];
+  calibration: PerformanceCalibrationBucket[];
+  byPosition: PerformanceAggregateByPosition;
+  differentials?: PerformanceAggregateDifferentials;
+  traps?: PerformanceAggregateTraps;
+  meta: PerformanceAggregateMeta;
+}
+
+export type PerformanceStatsLegacy = PerformanceAggregate & {
+  disclaimer: string;
+};
+
+export type PerformanceStats = PerformanceAggregate & {
+  popularityFeaturesEnabled: boolean;
+  legacy: PerformanceStatsLegacy;
+};
+
 export interface BillingSubscription {
   plan: string;
   status: string;

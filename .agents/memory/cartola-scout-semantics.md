@@ -5,9 +5,9 @@ description: Why old scouts must be refetched and why victory scoring must not b
 
 Correct historical scouts by fetching the source again, not by swapping or remapping existing database columns with UPDATE.
 
-**Why:** The user explicitly reserved resynchronization for a separate request. Previously stored columns mixed unrelated event meanings, and the meaning of aggregate shots changed; existing values cannot safely recover the original events.
+**Why:** Previously stored columns mixed unrelated event meanings, and the meaning of aggregate shots changed; existing values cannot safely recover the original events.
 
-**How to apply:** Keep code corrections separate from historical repair and projection regeneration. Do not execute importers or trigger a resynchronization just to validate mapper changes.
+**How to apply:** Historical repairs must explicitly refetch official final scores and raw scouts. Never swap old columns or reconstruct official points by summing scouts; preserve official zero and negative scores.
 
 Victory (V) remains intentionally unscored until an approved scoring value is defined.
 

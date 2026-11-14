@@ -23,6 +23,55 @@ tags:
   - name: admin
     description: Admin operations
 paths:
+  /stats/performance:
+    get:
+      operationId: getPerformanceStats
+      tags: [stats]
+      summary: Frozen-projection performance, with explicitly separated legacy data
+      responses:
+        "200":
+          description: Trusted metrics and legacy metrics never aggregated together
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceStats"
+        "500":
+          description: Performance unavailable
+  /admin/sync/closed-rounds:
+    get:
+      operationId: getHistoricalRepairProgress
+      tags: [admin]
+      summary: Admin-only progress of the official historical repair
+      responses:
+        "200":
+          description: Current or most recent repair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalRepairStatus"
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+    post:
+      operationId: startHistoricalRepair
+      tags: [admin]
+      summary: Force all closed rounds, consolidate scouts and calibrate after success
+      responses:
+        "202":
+          description: Repair started in background
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalRepairStatus"
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+        "409":
+          description: Synchronization already running
+        "502":
+          description: Official market status unavailable
   /billing/subscription:
     get:
       operationId: getBillingSubscription
@@ -482,6 +531,116 @@ paths:
 
 components:
   schemas:
+    HistoricalRepairStatus:
+      type: object
+      required: [progress]
+      properties:
+        progress:
+          type: [object, "null"]
+          properties:
+            status:
+              type: string
+              enum: [running, completed, failed]
+            startedAt:
+              type: string
+            finishedAt:
+              type: string
+            lastClosedRound:
+              type: integer
+            completedRounds:
+              type: integer
+            upserted:
+              type: integer
+            missingPlayers:
+              type: integer
+            error:
+              type: string
+            calibration:
+              type: object
+              additionalProperties: true
+    PerformanceRound:
+      type: object
+      required: [round, mae, count]
+      properties:
+        round: { type: integer }
+        mae: { type: number }
+        count: { type: integer }
+    PerformanceAggregate:
+      type: object
+      required: [empty, season, byRound, calibration, byPosition, meta]
+      properties:
+        empty: { type: boolean }
+        message: { type: string }
+        season:
+          type: object
+          required: [totalRounds, totalDataPoints, mae, overestimatedPct]
+          properties:
+            totalRounds: { type: integer }
+            totalDataPoints: { type: integer }
+            mae: { type: [number, "null"] }
+            overestimatedPct: { type: [number, "null"] }
+        byRound:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceRound"
+        calibration:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceCalibrationBucket"
+        byPosition:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PerformancePosition"
+        differentials:
+          type: object
+          required: [total, hits, hitRate]
+          properties:
+            total: { type: integer }
+            hits: { type: integer }
+            hitRate: { type: number }
+        traps:
+          type: object
+          required: [total, count, rate]
+          properties:
+            total: { type: integer }
+            count: { type: integer }
+            rate: { type: number }
+        meta:
+          type: object
+          required: [generatedAt, disclaimer]
+          properties:
+            generatedAt: { type: string }
+            disclaimer: { type: string }
+    PerformancePosition:
+      type: object
+      required: [mae, count, overestimatedPct]
+      properties:
+        mae: { type: number }
+        count: { type: integer }
+        overestimatedPct: { type: number }
+    PerformanceCalibrationBucket:
+      type: object
+      required: [label, bucket, avgProjected, avgActual, count]
+      properties:
+        label: { type: string }
+        bucket: { type: string }
+        avgProjected: { type: number }
+        avgActual: { type: number }
+        count: { type: integer }
+    PerformanceStats:
+      allOf:
+        - $ref: "#/components/schemas/PerformanceAggregate"
+        - type: object
+          required: [popularityFeaturesEnabled, legacy]
+          properties:
+            popularityFeaturesEnabled: { type: boolean }
+            legacy:
+              allOf:
+                - $ref: "#/components/schemas/PerformanceAggregate"
+                - type: object
+                  required: [disclaimer]
+                  properties:
+                    disclaimer: { type: string }
     BillingSubscription:
       type: object
       required: [plan, status, currentPeriodEnd, currentPeriodStart]

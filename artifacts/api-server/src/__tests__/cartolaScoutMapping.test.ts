@@ -11,6 +11,10 @@ const mappings = [
 ] as const;
 
 describe("mapCartolaScoutToColumns", () => {
+  it("aceita pontuação zero oficial com scout nulo (ex.: técnico que não entrou)", () => {
+    expect(HistoricalScoutSchema.parse({ atleta_id: 40990, rodada_id: 2, pontos_num: 0, scout: null }))
+      .toMatchObject({ pontos_num: 0, scout: null });
+  });
   it.each(mappings)("%s é mapeado para %s, tanto em JSON como em CSV", (code, column) => {
     expect(mapCartolaScoutToColumns({ [code]: 3 })[column]).toBe(3);
     expect(mapCartolaScoutToColumns({ [code]: "3" })[column]).toBe(3);

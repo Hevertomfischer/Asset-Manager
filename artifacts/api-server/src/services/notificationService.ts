@@ -205,7 +205,7 @@ export async function generateRoundResultNotifications(round: number): Promise<v
       .where(
         and(
           eq(playerScoutRoundTable.round, round),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"]),
+          inArray(playerScoutRoundTable.source, ["historical_cartola"]),
           isNotNull(playerScoutRoundTable.points)
         )
       ),

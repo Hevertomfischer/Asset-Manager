@@ -4,6 +4,8 @@ import { adminConfigTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { createLogger } from "../lib/logger";
+import { observeProjectionMarket } from "../services/projectionLockService";
+import { isHistoricalRepairRunning } from "../services/historicalRepairService";
 import { generateEtlNotifications, createMarketNotification, generateRoundResultNotifications } from "../services/notificationService";
 
 const log = createLogger("sync-job");
@@ -111,9 +113,11 @@ async function autoSyncClosedRounds(currentRound: number): Promise<void> {
         log.warn(`Bootstrap: round ${currentRound - 1} sync failed (non-fatal, will retry next run)`, {
           error: error instanceof Error ? error.message : String(error),
         });
+        return;
       }
     }
     log.info(`Initialising lastKnownRound to ${currentRound}`);
+    // On failure leave the pointer unset so bootstrap retries.
     await setLastKnownRound(currentRound);
     return;
   }
@@ -167,7 +171,7 @@ async function checkMarketStatus(): Promise<void> {
   log.debug("Running lightweight market status check...");
   try {
     const axios = await import("axios");
-    const resp = await axios.default.get<{ status_mercado?: number; rodada_atual?: number }>(
+    const resp = await axios.default.get<{ status_mercado?: number; rodada_atual?: number; fechamento?: { timestamp?: number } }>(
       "https://api.cartola.globo.com/mercado/status",
       { timeout: 5000 }
     );
@@ -180,6 +184,9 @@ async function checkMarketStatus(): Promise<void> {
       return;
     }
 
+    // Freeze even on first observation after a restart or a missed transition.
+    // Persisting the notification status must never happen before this fence.
+    if (typeof round === "number") await observeProjectionMarket(statusCode, round, resp.data.fechamento?.timestamp);
     // Cartola code 1 = open; everything else = closed
     const currentStatus = statusCode === 1 ? "open" : "closed";
     const storedStatus = await getStoredMarketStatus();
@@ -236,7 +243,7 @@ async function getLastFullSyncAt(): Promise<Date | null> {
  * caller — fires-and-forgets.
  */
 export function triggerFullSyncIfStale(): void {
-  if (isSyncing) {
+  if (isSyncing || isHistoricalRepairRunning()) {
     log.debug("triggerFullSyncIfStale: sync already in progress, skipping");
     return;
   }
@@ -250,7 +257,7 @@ export function triggerFullSyncIfStale(): void {
         log.debug("triggerFullSyncIfStale: data is fresh, skipping", { ageMinutes: Math.round(ageMs / 60000) });
         return;
       }
-      if (isSyncing) return;
+      if (isSyncing || isHistoricalRepairRunning()) return;
       isSyncing = true;
       log.info("triggerFullSyncIfStale: data is stale, running background sync", { ageMinutes: Math.round(ageMs / 60000) });
       try {
@@ -285,7 +292,7 @@ export function startSyncJob(): void {
   }
 
   cron.schedule(cron.validate(FULL_SYNC_CRON) ? FULL_SYNC_CRON : "0 * * * *", async () => {
-    if (isSyncing) {
+    if (isSyncing || isHistoricalRepairRunning()) {
       log.warn("Sync already in progress, skipping");
       return;
     }
@@ -325,4 +332,5 @@ export function startSyncJob(): void {
 
   const validMarketCheck = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "*/30 * * * *";
   cron.schedule(validMarketCheck, checkMarketStatus);
+  void checkMarketStatus();
 }

@@ -146,7 +146,7 @@ export async function runAvailabilityEngine(
       ? (cartolaStatusMap.get(player.externalId) ?? null)
       : null;
 
-    const recentScouts = await getScoutsByPlayer(player.id, 5);
+    const recentScouts = await getScoutsByPlayer(player.id, 5, round);
     const recentAvgMinutes =
       recentScouts.length > 0
         ? recentScouts.reduce((sum, s) => sum + (s.minutesPlayed ?? 0), 0) / recentScouts.length

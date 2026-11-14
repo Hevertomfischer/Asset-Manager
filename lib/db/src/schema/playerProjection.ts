@@ -22,6 +22,7 @@ export const playerProjectionTable = pgTable("player_projection", {
   strategyType: text("strategy_type"),
   explanationJson: jsonb("explanation_json"),
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  lockedAt: timestamp("locked_at"),
 });
 
 export const insertPlayerProjectionSchema = createInsertSchema(playerProjectionTable).omit({ id: true, generatedAt: true });

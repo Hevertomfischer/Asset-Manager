@@ -16,3 +16,4 @@
 - [Regras de popularidade](popularity-product-rules.md) — 15%/60% aprovados; cobertura parcial não implica 0%; sem fallbacks autenticados do Gato Mestre.
 - [Geração gratuita](free-lineup-access.md) — após Fundador, iniciar em estratégia acessível; login anônimo exigido por padrão e cota Free configurável.
 - [Semântica dos scouts](cartola-scout-semantics.md) — históricos devem ser buscados novamente, não remapeados via UPDATE; pontuação de V não deve ser inventada.
+- [Legado e desempenho confiável](projection-legacy-policy.md) — usuário escolheu manter legado separado; corrigir resultados não torna projeções antigas uma validação prospectiva.

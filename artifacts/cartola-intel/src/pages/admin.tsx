@@ -18,6 +18,7 @@ import {
   type FeedbackType,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/useAuth";
+import { HistoricalRepairCard } from "@/components/HistoricalRepairCard";
 import { useSyncStatus } from "@/components/AutoSync";
 import { usePopularityFeatures, popularityReasonLabel } from "@/hooks/usePopularityFeatures";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -632,9 +633,11 @@ export default function Admin() {
     if (!historicalRound) return;
     setHistoricalSyncing(true);
     try {
-      const res = await fetch(`/api/admin/sync/historical/${historicalRound}`, {
+      const res = await fetch("/api/admin/sync/historical-round", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ round: Number(historicalRound), force: true }),
       });
       const json = (await res.json()) as { message?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
@@ -702,6 +705,7 @@ export default function Admin() {
 
         {/* ── Aba Sistema ─────────────────────────────────────────────────── */}
         <TabsContent value="sistema" className="space-y-8">
+          {isAdmin && <HistoricalRepairCard />}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {/* Engine Configuration */}
             <Card className="bg-card shadow-lg border-border/50">

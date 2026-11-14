@@ -1,10 +1,11 @@
 import { db } from "@workspace/db";
 import { createLogger } from "../lib/logger";
 import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
+import { canGenerateProjections } from "../services/projectionLockService";
 const log = createLogger("projection-engine");
 import { isTrap as classifyTrap, knownPopularity, isDifferential, label } from "../lib/popularityRules";
 import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { PROJECTION_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
 import { positionFormScore } from "../lib/positionFormScore";
 import {
@@ -283,8 +284,8 @@ async function calculateProjection(
     return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm, popularityFeaturesEnabled);
   }
 
-  const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
-  const allScouts = await getScoutsByPlayer(player.id, 20);
+  const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds, round);
+  const allScouts = await getScoutsByPlayer(player.id, 20, round);
 
   const averagePoints = player.averagePoints ?? 0;
   const price = player.price ?? 1;
@@ -512,7 +513,11 @@ async function calculateProjection(
   };
 }
 
-export async function runProjectionEngine(round: number): Promise<void> {
+export async function runProjectionEngine(round: number): Promise<boolean> {
+  if (!await canGenerateProjections(round)) {
+    log.info("Mercado fechado ou rodada antiga: projeções preservadas", { round });
+    return false;
+  }
   // Load historical calibration multipliers from admin_config (if available).
   // These are position-specific bias-correction factors computed by POST /admin/calibrate-projection-weights.
   _calibrationMultipliers.clear();
@@ -587,7 +592,7 @@ export async function runProjectionEngine(round: number): Promise<void> {
       skippedNoMatch++;
       const deleted = await db
         .delete(playerProjectionTable)
-        .where(and(eq(playerProjectionTable.playerId, player.id), eq(playerProjectionTable.round, round)))
+        .where(and(eq(playerProjectionTable.playerId, player.id), eq(playerProjectionTable.round, round), isNull(playerProjectionTable.lockedAt)))
         .returning({ id: playerProjectionTable.id });
       if (deleted.length > 0) deletedStale++;
       continue;
@@ -624,4 +629,5 @@ export async function runProjectionEngine(round: number): Promise<void> {
   }
 
   log.info("Generated projections", { processed, round, skippedNoMatch, deletedStale });
+  return true;
 }
