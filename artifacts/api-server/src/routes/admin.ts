@@ -17,7 +17,8 @@ import { defaultSeasonEnd, getPlanConfig, planConfigPatchSchema, planConfigSchem
 import { getLineupAccessConfig, lineupAccessPatchSchema } from "../services/lineupAccessConfig";
 import { getHistoricalRepairProgress, isHistoricalRepairRunning, startHistoricalRepair } from "../services/historicalRepairService";
 import { calibrateProjectionWeights } from "../services/projectionCalibrationService";
-import { getIsSyncing } from "../jobs/syncJob";
+import { getIsSyncing, checkMarketStatus } from "../jobs/syncJob";
+import { SyncBusyError } from "../services/syncLease";
 
 const log = createLogger("admin");
 const router = Router();
@@ -83,6 +84,7 @@ router.post("/admin/sync/full", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (error instanceof SyncBusyError) { res.status(409).json({ error: msg }); return; }
     log.error("Full sync failed", { error: msg });
     await logAdminAction("admin_full_sync", "error", `Full sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
@@ -99,11 +101,11 @@ router.post("/admin/sync/market", async (_req, res) => {
 
   syncInProgress = true;
   try {
-    const r = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 10000 });
-    const status = r.data as { rodada_atual?: number; status_mercado?: number };
-    const round = status.rodada_atual ?? 1;
+    const outcome = await checkMarketStatus();
+    if (!outcome.executed) { res.status(409).json({ error: "Checagem do mercado já em andamento." }); return; }
+    const { round, marketStatusCode } = outcome.result;
     await logAdminAction("admin_market_sync", "success", `Market sync completed for round ${round}`);
-    res.json({ success: true, round, marketStatus: status.status_mercado });
+    res.json({ success: true, round, marketStatus: marketStatusCode });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Market sync failed", { error: msg });
@@ -144,6 +146,7 @@ router.post("/admin/sync/current-round", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (error instanceof SyncBusyError) { res.status(409).json({ error: msg }); return; }
     log.error("Current round sync failed", { error: msg });
     await logAdminAction("admin_current_round_sync", "error", `Current round sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });

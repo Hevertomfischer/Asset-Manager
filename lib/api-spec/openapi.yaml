@@ -139,6 +139,44 @@ paths:
           description: Authentication required
         "403":
           description: Administrator required
+  /internal/cron/{job}:
+    post:
+      operationId: dispatchInternalCron
+      tags: [internal]
+      summary: Dispatch a protected synchronization job
+      parameters:
+        - name: job
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [full-sync, market-check]
+        - name: x-cron-secret
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job finished or skipped because its resource is locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CronDispatchStatus"
+        "202":
+          description: Still running after the response budget; best-effort background execution, not a durable queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CronDispatchStatus"
+        "401":
+          description: Invalid scheduler secret
+        "404":
+          description: Unknown job
+        "502":
+          description: Job failed
+        "503":
+          description: Scheduler secret not configured
   /sync/status:
     get:
       operationId: getSyncStatus
@@ -744,12 +782,43 @@ components:
           type: [number, "null"]
           exclusiveMinimum: 0
           maximum: 100000
+    CronDispatchStatus:
+      type: object
+      required: [job, status]
+      properties:
+        job:
+          type: string
+          enum: [full-sync, market-check]
+        status:
+          type: string
+          enum: [completed, failed, skipped, running]
+        reason:
+          type: string
+        success:
+          type: boolean
+        round:
+          type: integer
+        durationMs:
+          type: number
+        durable:
+          type: boolean
+        statusUrl:
+          type: string
     SyncStatus:
       type: object
-      required: [lastSyncAt, isRunning, marketStatus, providersDegraded, lastMarketCheckAt, popularityFeaturesEnabled, popularity]
+      required: [lastSyncAt, lastFullSyncAt, lastFullSyncDurationMs, degraded, isRunning, marketStatus, providersDegraded, lastMarketCheckAt, popularityFeaturesEnabled, popularity]
       properties:
         lastSyncAt:
           type: [string, "null"]
+        lastFullSyncAt:
+          type: [string, "null"]
+          description: Last successfully completed full ETL; alias of lastSyncAt
+        lastFullSyncDurationMs:
+          type: [number, "null"]
+          description: Measured duration of the last full ETL attempt in milliseconds
+        degraded:
+          type: boolean
+          description: True before the first successful full ETL or when it is older than two hours
         isRunning:
           type: boolean
         marketStatus:

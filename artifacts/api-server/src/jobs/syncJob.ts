@@ -5,19 +5,17 @@ import { eq } from "drizzle-orm";
 import { runCurrentRoundETL, syncHistoricalRound } from "../etl/etlPipeline";
 import { createLogger } from "../lib/logger";
 import { observeProjectionMarket } from "../services/projectionLockService";
-import { isHistoricalRepairRunning } from "../services/historicalRepairService";
 import { generateEtlNotifications, createMarketNotification, generateRoundResultNotifications } from "../services/notificationService";
+import { withSyncLease, isSyncingLocally } from "../services/syncLease";
 
 const log = createLogger("sync-job");
 
-let isSyncing = false;
-
 export function getIsSyncing(): boolean {
-  return isSyncing;
+  return isSyncingLocally();
 }
 
 const FULL_SYNC_CRON = process.env["CARTOLA_FULL_SYNC_CRON"] ?? "0 * * * *";
-const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "*/30 * * * *";
+const MARKET_CHECK_CRON = process.env["CARTOLA_MARKET_CHECK_CRON"] ?? "*/15 * * * *";
 
 const LAST_FULL_SYNC_AT_KEY = "lastFullSyncAt";
 const STALE_THRESHOLD_MS = 55 * 60 * 1000;
@@ -80,6 +78,7 @@ async function setStoredMarketStatus(status: string): Promise<void> {
       });
   } catch (e) {
     log.warn("Failed to persist marketStatus", { error: e instanceof Error ? e.message : String(e) });
+    throw e;
   }
 }
 
@@ -97,7 +96,11 @@ async function setStoredMarketStatus(status: string): Promise<void> {
  * fails, the loop breaks so the same round is retried on the next cron tick —
  * no closed round is silently skipped due to a transient error.
  */
-async function autoSyncClosedRounds(currentRound: number): Promise<void> {
+export async function autoSyncClosedRounds(currentRound: number) {
+  return withSyncLease("full-sync", () => syncClosedRoundsUnlocked(currentRound));
+}
+
+async function syncClosedRoundsUnlocked(currentRound: number): Promise<void> {
   const lastKnown = await getLastKnownRound();
 
   if (lastKnown === null) {
@@ -167,7 +170,11 @@ async function autoSyncClosedRounds(currentRound: number): Promise<void> {
  *   6 = closed between rounds
  * We treat only code 1 as "open"; all other codes are "closed".
  */
-async function checkMarketStatus(): Promise<void> {
+export async function checkMarketStatus() {
+  return withSyncLease("market-check", checkMarketStatusUnlocked);
+}
+
+async function checkMarketStatusUnlocked() {
   log.debug("Running lightweight market status check...");
   try {
     const axios = await import("axios");
@@ -179,9 +186,9 @@ async function checkMarketStatus(): Promise<void> {
     const statusCode = resp.data?.status_mercado;
     const round = resp.data?.rodada_atual;
 
-    if (typeof statusCode !== "number") {
+    if (typeof statusCode !== "number" || !Number.isInteger(round) || (round ?? 0) < 1) {
       log.debug("Market status check OK (no parseable status code)");
-      return;
+      throw new Error("Fonte retornou status de mercado inválido.");
     }
 
     // Freeze even on first observation after a restart or a missed transition.
@@ -202,23 +209,10 @@ async function checkMarketStatus(): Promise<void> {
 
     // Always persist the latest status
     await setStoredMarketStatus(currentStatus);
-  } catch {
+    return { success: true, round, marketStatus: currentStatus, marketStatusCode: statusCode };
+  } catch (error) {
     log.warn("Market status check failed (non-critical)");
-  }
-}
-
-async function persistLastFullSyncAt(): Promise<void> {
-  try {
-    const now = new Date().toISOString();
-    await db
-      .insert(adminConfigTable)
-      .values({ key: LAST_FULL_SYNC_AT_KEY, value: now })
-      .onConflictDoUpdate({
-        target: adminConfigTable.key,
-        set: { value: now, updatedAt: new Date() },
-      });
-  } catch (e) {
-    log.warn("Failed to persist lastFullSyncAt", { error: e instanceof Error ? e.message : String(e) });
+    throw error;
   }
 }
 
@@ -242,95 +236,45 @@ async function getLastFullSyncAt(): Promise<Date | null> {
  * if data is stale (last sync > STALE_THRESHOLD_MS ago). Does not block the
  * caller — fires-and-forgets.
  */
-export function triggerFullSyncIfStale(): void {
-  if (isSyncing || isHistoricalRepairRunning()) {
-    log.debug("triggerFullSyncIfStale: sync already in progress, skipping");
-    return;
-  }
-
-  // Run the staleness check and conditional sync in the background
-  void (async () => {
-    try {
-      const lastSync = await getLastFullSyncAt();
-      const ageMs = lastSync ? Date.now() - lastSync.getTime() : Infinity;
-      if (ageMs < STALE_THRESHOLD_MS) {
-        log.debug("triggerFullSyncIfStale: data is fresh, skipping", { ageMinutes: Math.round(ageMs / 60000) });
-        return;
-      }
-      if (isSyncing || isHistoricalRepairRunning()) return;
-      isSyncing = true;
-      log.info("triggerFullSyncIfStale: data is stale, running background sync", { ageMinutes: Math.round(ageMs / 60000) });
-      try {
-        const result = await runCurrentRoundETL();
-        await persistLastFullSyncAt();
-        log.info("triggerFullSyncIfStale: sync complete", { round: result.round, errors: result.errors.length });
-        await autoSyncClosedRounds(result.round);
-        try {
-          await generateEtlNotifications(result.round);
-        } catch (notifError) {
-          log.warn("triggerFullSyncIfStale: generateEtlNotifications failed (non-fatal)", {
-            error: notifError instanceof Error ? notifError.message : String(notifError),
-          });
-        }
-      } catch (error) {
-        log.error("triggerFullSyncIfStale: sync failed", { error: error instanceof Error ? error.message : String(error) });
-      } finally {
-        isSyncing = false;
-      }
-    } catch (outer) {
-      log.warn("triggerFullSyncIfStale: staleness check failed", { error: outer instanceof Error ? outer.message : String(outer) });
-    }
-  })();
+export async function runFullSyncJob() {
+  return withSyncLease("full-sync", async () => {
+    const result = await runCurrentRoundETL();
+    if (!result.success) return result;
+    await autoSyncClosedRounds(result.round);
+    try { await generateEtlNotifications(result.round); }
+    catch (error) { log.warn("generateEtlNotifications failed (non-fatal)", { error: String(error) }); }
+    return result;
+  });
 }
 
+export type CronJob = "full-sync" | "market-check";
+export function runCronJob(job: CronJob) {
+  return job === "full-sync" ? runFullSyncJob() : checkMarketStatus();
+}
+
+export function triggerFullSyncIfStale(): void {
+  void (async () => {
+    const lastSync = await getLastFullSyncAt();
+    if (lastSync && Date.now() - lastSync.getTime() < STALE_THRESHOLD_MS) return;
+    await runFullSyncJob();
+  })().catch((error) => log.error("Sincronização após login falhou", { error: String(error) }));
+}
+
+let scheduled = false;
 export function startSyncJob(): void {
-  log.info(`Scheduling full sync with cron: "${FULL_SYNC_CRON}"`);
-  log.info(`Scheduling market check with cron: "${MARKET_CHECK_CRON}"`);
-
-  if (!cron.validate(FULL_SYNC_CRON)) {
-    log.error(`Invalid CARTOLA_FULL_SYNC_CRON: "${FULL_SYNC_CRON}". Falling back to "0 * * * *"`);
+  if (process.env["ENABLE_IN_PROCESS_CRON"] !== "true") {
+    log.info("Cron interno desabilitado; aguardando agendador externo.");
+    return;
   }
-
-  cron.schedule(cron.validate(FULL_SYNC_CRON) ? FULL_SYNC_CRON : "0 * * * *", async () => {
-    if (isSyncing || isHistoricalRepairRunning()) {
-      log.warn("Sync already in progress, skipping");
-      return;
-    }
-    isSyncing = true;
-    log.info("Running scheduled round sync...");
-    try {
-      const result = await runCurrentRoundETL();
-      await persistLastFullSyncAt();
-      log.info(
-        `Sync complete for round ${result.round}. ` +
-        `Players: ${result.playersUpserted}, Clubs: ${result.clubsUpserted}, ` +
-        `Scouts: ${result.scoutsInserted}, Matches: ${result.matchesUpserted}, ` +
-        `Errors: ${result.errors.length}`
-      );
-      if (result.errors.length > 0) {
-        log.warn("Sync completed with errors", { errors: result.errors });
-      }
-
-      await autoSyncClosedRounds(result.round);
-
-      // Generate player-event notifications after a successful ETL run.
-      // Non-fatal: a failure here must not prevent future syncs.
-      try {
-        await generateEtlNotifications(result.round);
-      } catch (notifError) {
-        log.warn("generateEtlNotifications failed (non-fatal)", {
-          round: result.round,
-          error: notifError instanceof Error ? notifError.message : String(notifError),
-        });
-      }
-    } catch (error) {
-      log.error("Scheduled sync failed", { error: error instanceof Error ? error.message : String(error) });
-    } finally {
-      isSyncing = false;
-    }
-  });
-
-  const validMarketCheck = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "*/30 * * * *";
-  cron.schedule(validMarketCheck, checkMarketStatus);
-  void checkMarketStatus();
+  if (scheduled) return;
+  scheduled = true;
+  const full = cron.validate(FULL_SYNC_CRON) ? FULL_SYNC_CRON : "0 * * * *";
+  const market = cron.validate(MARKET_CHECK_CRON) ? MARKET_CHECK_CRON : "*/15 * * * *";
+  const run = (job: CronJob) => {
+    void runCronJob(job).catch((error) => log.error("Job agendado falhou", { job, error: String(error) }));
+  };
+  cron.schedule(full, () => run("full-sync"));
+  cron.schedule(market, () => run("market-check"));
+  log.info("Cron interno habilitado", { full, market });
+  run("market-check");
 }

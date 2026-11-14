@@ -17,12 +17,14 @@ import syncRouter from "./sync";
 import userTeamsRouter from "./userTeams";
 import feedbackRouter from "./feedback";
 import mcpRouter from "./mcp";
+import internalCronRouter from "./internalCron";
 import { adminAuthMiddleware } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
 
 // Guard before every child router, including future admin routes.
 router.use(adminAuthMiddleware);
+router.use(internalCronRouter);
 router.use(authRouter);
 router.use(billingRouter);
 router.use(usersRouter);

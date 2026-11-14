@@ -10,6 +10,18 @@ import type { SyncStatusPopularity } from "./syncStatusPopularity";
 export interface SyncStatus {
   /** @nullable */
   lastSyncAt: string | null;
+  /**
+   * Last successfully completed full ETL; alias of lastSyncAt
+   * @nullable
+   */
+  lastFullSyncAt: string | null;
+  /**
+   * Measured duration of the last full ETL attempt in milliseconds
+   * @nullable
+   */
+  lastFullSyncDurationMs: number | null;
+  /** True before the first successful full ETL or when it is older than two hours */
+  degraded: boolean;
   isRunning: boolean;
   /** @nullable */
   marketStatus: string | null;

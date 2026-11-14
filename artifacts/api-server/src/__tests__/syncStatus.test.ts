@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(), isSyncing: vi.fn(), error: vi.fn(), popularity: vi.fn(),
 }));
 vi.mock("@workspace/db", () => ({ db: { select: mocks.select } }));
-vi.mock("../jobs/syncJob", () => ({ getIsSyncing: mocks.isSyncing }));
+vi.mock("../services/syncLease", () => ({ isSyncingGlobally: mocks.isSyncing }));
 vi.mock("../lib/logger", () => ({ createLogger: () => ({ error: mocks.error }) }));
 vi.mock("../services/popularityFeatureService", () => ({ getPopularityFeatureStatus: mocks.popularity }));
 import syncRouter from "../routes/sync";
@@ -49,6 +49,7 @@ test("public status preserves fields and exposes only aggregate provider health"
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(await response.json()).toEqual({
     lastSyncAt: config[0]!.value, marketStatus: "open", isRunning: false,
+    lastFullSyncAt: config[0]!.value, lastFullSyncDurationMs: null, degraded: true,
     providersDegraded: false, lastMarketCheckAt: "2026-11-13T10:30:00.000Z",
     popularityFeaturesEnabled: false,
     popularity: { lastCollectionAt: null, lastSuccessfulCollectionAt: null, coverage: 0, minimumCoverage: 20, maxAgeHours: 24, reason: "no_data" },
@@ -68,6 +69,7 @@ test("missing observations remain nullable rather than inventing timestamps", as
   mocks.isSyncing.mockReturnValue(true);
   expect(await (await fetch(url)).json()).toEqual({
     lastSyncAt: null, marketStatus: null, isRunning: true,
+    lastFullSyncAt: null, lastFullSyncDurationMs: null, degraded: true,
     providersDegraded: false, lastMarketCheckAt: null,
     popularityFeaturesEnabled: false,
     popularity: { lastCollectionAt: null, lastSuccessfulCollectionAt: null, coverage: 0, minimumCoverage: 20, maxAgeHours: 24, reason: "no_data" },
@@ -77,4 +79,9 @@ test("database failure returns 500 and logs a failure", async () => {
   mocks.select.mockImplementation(() => { throw new Error("test database unavailable"); });
   expect((await fetch(url)).status).toBe(500);
   expect(mocks.error).toHaveBeenCalled();
+});
+test("fresh successful sync is not degraded and exposes its measured duration", async () => {
+  config[0]!.value = new Date().toISOString();
+  config.push({ key: "lastFullSyncDurationMs", value: "1467000" });
+  expect(await (await fetch(url)).json()).toMatchObject({ degraded: false, lastFullSyncDurationMs: 1467000 });
 });

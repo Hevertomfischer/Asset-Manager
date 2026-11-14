@@ -23,6 +23,8 @@ import crypto from "crypto";
 import { refreshPopularityFeatures } from "../services/popularityFeatureService";
 import { createLogger } from "../lib/logger";
 import { invalidateStatsCaches } from "../routes/stats";
+import { requireSyncLease } from "../services/syncLease";
+import { measureFullSync } from "../services/syncMetrics";
 const logger = createLogger("etl");
 
 export interface ETLResult {
@@ -71,6 +73,10 @@ async function saveSnapshot(round: number, source: string, payload: unknown) {
 }
 
 export async function runCurrentRoundETL(): Promise<ETLResult> {
+  return requireSyncLease("full-sync", () => measureFullSync(runCurrentRoundETLUnlocked));
+}
+
+async function runCurrentRoundETLUnlocked(): Promise<ETLResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
 

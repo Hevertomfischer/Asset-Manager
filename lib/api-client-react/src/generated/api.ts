@@ -23,6 +23,7 @@ import type {
   AvailabilityListResponse,
   BillingConfiguration,
   BillingSubscription,
+  CronDispatchStatus,
   FormationComparison,
   GetAdminLogsParams,
   GetCurrentAvailabilityParams,
@@ -594,6 +595,92 @@ export const useUpdateAdminConfiguration = <
   TContext
 > => {
   return useMutation(getUpdateAdminConfigurationMutationOptions(options));
+};
+
+/**
+ * @summary Dispatch a protected synchronization job
+ */
+export const getDispatchInternalCronUrl = (
+  job: "full-sync" | "market-check",
+) => {
+  return `/api/internal/cron/${job}`;
+};
+
+export const dispatchInternalCron = async (
+  job: "full-sync" | "market-check",
+  options?: RequestInit,
+): Promise<CronDispatchStatus> => {
+  return customFetch<CronDispatchStatus>(getDispatchInternalCronUrl(job), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDispatchInternalCronMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    TError,
+    { job: "full-sync" | "market-check" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dispatchInternalCron>>,
+  TError,
+  { job: "full-sync" | "market-check" },
+  TContext
+> => {
+  const mutationKey = ["dispatchInternalCron"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    { job: "full-sync" | "market-check" }
+  > = (props) => {
+    const { job } = props ?? {};
+
+    return dispatchInternalCron(job, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DispatchInternalCronMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dispatchInternalCron>>
+>;
+
+export type DispatchInternalCronMutationError = ErrorType<void>;
+
+/**
+ * @summary Dispatch a protected synchronization job
+ */
+export const useDispatchInternalCron = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    TError,
+    { job: "full-sync" | "market-check" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dispatchInternalCron>>,
+  TError,
+  { job: "full-sync" | "market-check" },
+  TContext
+> => {
+  return useMutation(getDispatchInternalCronMutationOptions(options));
 };
 
 /**

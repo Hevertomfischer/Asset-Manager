@@ -1,4 +1,5 @@
-import { pgTable, text, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users";
 
 /**
@@ -22,16 +23,19 @@ export const mcpAuthCodesTable = pgTable("mcp_auth_codes", {
 export type McpAuthCode = typeof mcpAuthCodesTable.$inferSelect;
 
 /**
- * Access tokens emitidos ao final do fluxo OAuth.
+ * SHA-256 dos access tokens emitidos ao final do fluxo OAuth (nunca o bearer).
  * Expiram em 1 hora (TTL configurável via MCP_TOKEN_TTL_SECONDS).
  */
 export const mcpAccessTokensTable = pgTable("mcp_access_tokens", {
   id: serial("id").primaryKey(),
-  token: text("token").notNull().unique(),
+  tokenHash: text("token_hash").notNull(),
   userId: integer("user_id").references(() => usersTable.id).notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("mcp_access_tokens_token_hash_unique").on(table.tokenHash),
+  check("mcp_access_tokens_token_hash_format", sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
+]);
 
 export type McpAccessToken = typeof mcpAccessTokensTable.$inferSelect;
 

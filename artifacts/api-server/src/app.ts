@@ -6,7 +6,6 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import passport from "passport";
-import cors from "cors";
 import { eq, sql as drizzleSql } from "drizzle-orm";
 import router from "./routes";
 import mcpOauthRouter from "./routes/mcpOauth";
@@ -23,6 +22,7 @@ import { applyMpvToDatabase } from "./services/mpvService";
 import { runProjectionEngine } from "./engines/projectionEngine";
 import { getLatestProjectionRound } from "./repositories/projectionRepository";
 import { mapCartolaScoutToColumns } from "./lib/mapCartolaScoutToColumns";
+import { createBrowserCors, sessionCookieOptions } from "./lib/browserSecurity";
 
 const log = rootLogger;
 
@@ -43,13 +43,7 @@ const app: Express = express();
 app.set("trust proxy", 1);
 
 app.use(cookieParser());
-// CORS global: permite todas as origens e expõe WWW-Authenticate para que
-// clientes OAuth (Claude, browsers) possam ler o cabeçalho de discovery.
-app.use((req, res, next) => cors({
-  exposedHeaders: ["WWW-Authenticate"],
-  // Admin preflight must also reach session authentication and authorization.
-  preflightContinue: /^\/api\/admin(?:\/|$)/i.test(req.path),
-})(req, res, next));
+app.use(createBrowserCors());
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -66,7 +60,7 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "lax", secure: false },
+    cookie: sessionCookieOptions(),
   })
 );
 

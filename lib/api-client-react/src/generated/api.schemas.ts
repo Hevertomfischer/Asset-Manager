@@ -204,6 +204,35 @@ export interface AdminConfigurationPatch {
   founderSeasonPassPrice?: number | null;
 }
 
+export type CronDispatchStatusJob =
+  (typeof CronDispatchStatusJob)[keyof typeof CronDispatchStatusJob];
+
+export const CronDispatchStatusJob = {
+  "full-sync": "full-sync",
+  "market-check": "market-check",
+} as const;
+
+export type CronDispatchStatusStatus =
+  (typeof CronDispatchStatusStatus)[keyof typeof CronDispatchStatusStatus];
+
+export const CronDispatchStatusStatus = {
+  completed: "completed",
+  failed: "failed",
+  skipped: "skipped",
+  running: "running",
+} as const;
+
+export interface CronDispatchStatus {
+  job: CronDispatchStatusJob;
+  status: CronDispatchStatusStatus;
+  reason?: string;
+  success?: boolean;
+  round?: number;
+  durationMs?: number;
+  durable?: boolean;
+  statusUrl?: string;
+}
+
 export type SyncStatusPopularityReason =
   (typeof SyncStatusPopularityReason)[keyof typeof SyncStatusPopularityReason];
 
@@ -231,6 +260,18 @@ export type SyncStatusPopularity = {
 export interface SyncStatus {
   /** @nullable */
   lastSyncAt: string | null;
+  /**
+   * Last successfully completed full ETL; alias of lastSyncAt
+   * @nullable
+   */
+  lastFullSyncAt: string | null;
+  /**
+   * Measured duration of the last full ETL attempt in milliseconds
+   * @nullable
+   */
+  lastFullSyncDurationMs: number | null;
+  /** True before the first successful full ETL or when it is older than two hours */
+  degraded: boolean;
   isRunning: boolean;
   /** @nullable */
   marketStatus: string | null;

@@ -35,28 +35,17 @@ Edite `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) ou
 
 Substitua `SEU_DOMINIO_PUBLICADO` pelo domínio onde o Mitometro está publicado.
 
-### Proteção por token (se configurada pelo operador)
+### Autenticação OAuth obrigatória
 
-Se o servidor exigir token (variável `MCP_ACCESS_TOKEN` definida no deploy), adicione:
-
-```json
-{
-  "mcpServers": {
-    "mitometro": {
-      "type": "http",
-      "url": "https://SEU_DOMINIO_PUBLICADO/api/mcp",
-      "headers": {
-        "Authorization": "Bearer SEU_TOKEN"
-      }
-    }
-  }
-}
-```
+Use um cliente compatível com OAuth 2.0 e PKCE S256. Ao conectar, ele descobre
+os endpoints pelo `WWW-Authenticate`, abre o login Google e pede autorização.
+Tokens estáticos e cookies compartilhados do operador não são aceitos no MCP remoto.
+Não configure manualmente um cabeçalho `Authorization` fixo.
 
 ### Estratégias Pro via servidor remoto
 
-Para usar estratégias avançadas (`aggressive`, `cost-benefit`, `antimassa`, `valorizacao`),
-o operador pode definir `MCP_PRO_SESSION` no servidor. Sem isso, apenas `safe` funciona.
+As permissões são as da conta que autorizou o cliente OAuth. Estratégias avançadas
+exigem acesso Pro dessa conta; não existe sessão Pro compartilhada do operador.
 
 ---
 
@@ -120,8 +109,8 @@ pnpm --filter @workspace/mcp-server build
 
 | Variável | Descrição |
 |---|---|
-| `MCP_ACCESS_TOKEN` | Se definido, exige `Authorization: Bearer <token>` em todas as requisições |
-| `MCP_PRO_SESSION` | Cookie de sessão Pro usado nas chamadas internas (habilita estratégias avançadas) |
+| `ALLOWED_ORIGINS` | Secret obrigatório em produção: origens web permitidas, separadas por vírgula; clientes nativos sem Origin continuam funcionando |
+| `MCP_TOKEN_TTL_SECONDS` | Duração do access token OAuth em segundos (default: 3600) |
 | `MCP_RATE_LIMIT` | Requisições permitidas por IP por minuto (default: 30) |
 
 ---

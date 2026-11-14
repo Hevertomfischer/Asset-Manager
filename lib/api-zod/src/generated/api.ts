@@ -371,10 +371,45 @@ export const UpdateAdminConfigurationResponse = zod
   );
 
 /**
+ * @summary Dispatch a protected synchronization job
+ */
+export const DispatchInternalCronParams = zod.object({
+  job: zod.enum(["full-sync", "market-check"]),
+});
+
+export const DispatchInternalCronHeader = zod.object({
+  "x-cron-secret": zod.string(),
+});
+
+export const DispatchInternalCronResponse = zod.object({
+  job: zod.enum(["full-sync", "market-check"]),
+  status: zod.enum(["completed", "failed", "skipped", "running"]),
+  reason: zod.string().optional(),
+  success: zod.boolean().optional(),
+  round: zod.number().optional(),
+  durationMs: zod.number().optional(),
+  durable: zod.boolean().optional(),
+  statusUrl: zod.string().optional(),
+});
+
+/**
  * @summary Public synchronization health without private provider logs
  */
 export const GetSyncStatusResponse = zod.object({
   lastSyncAt: zod.string().nullable(),
+  lastFullSyncAt: zod
+    .string()
+    .nullable()
+    .describe("Last successfully completed full ETL; alias of lastSyncAt"),
+  lastFullSyncDurationMs: zod
+    .number()
+    .nullable()
+    .describe("Measured duration of the last full ETL attempt in milliseconds"),
+  degraded: zod
+    .boolean()
+    .describe(
+      "True before the first successful full ETL or when it is older than two hours",
+    ),
   isRunning: zod.boolean(),
   marketStatus: zod.string().nullable(),
   providersDegraded: zod.boolean(),

@@ -10,7 +10,7 @@ name = "API Server"
 paths = ["/api", "/authorize", "/token", "/register", "/.well-known", "/robots.txt", "/sitemap.xml", "/rodada", "/jogador", "/assets"]
 
 [services.development]
-run = "pnpm --filter @workspace/api-server run dev"
+run = { args = ["pnpm", "--filter", "@workspace/api-server", "run", "dev"], env = { ENABLE_IN_PROCESS_CRON = "true" } }
 
 [services.production]
 build = "pnpm --filter @workspace/api-server run build"
@@ -21,6 +21,7 @@ args = ["node", "artifacts/api-server/dist/index.cjs"]
 [services.production.run.env]
 PORT = "8080"
 FRONTEND_DIST_PATH = "artifacts/cartola-intel/dist/public"
+ENABLE_IN_PROCESS_CRON = "false"
 
 [services.production.health.startup]
 path = "/api/healthz"
