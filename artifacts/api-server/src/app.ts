@@ -134,16 +134,32 @@ const _currentDir =
     ? __dirname // bundle CJS — artifacts/api-server/dist
     : path.dirname(fileURLToPath(import.meta.url)); // dev tsx — artifacts/api-server/src
 const FRONTEND_DIST =
-  process.env["FRONTEND_DIST_PATH"] ??
-  path.resolve(_currentDir, "../../cartola-intel/dist/public");
+  process.env["FRONTEND_DIST_PATH"]
+    ? path.resolve(process.env["FRONTEND_DIST_PATH"])
+    : path.resolve(_currentDir, "../../cartola-intel/dist/public");
 
 const INDEX_HTML = path.join(FRONTEND_DIST, "index.html");
 const hasFrontendBuild = existsSync(INDEX_HTML);
+
+if (!hasFrontendBuild && process.env["NODE_ENV"] === "production") {
+  log.error("Build do frontend ausente; rotas públicas e OG não podem ser publicadas", {
+    expectedDist: FRONTEND_DIST,
+  });
+  throw new Error(`Build do frontend não encontrado em ${INDEX_HTML}. Publique o frontend junto com a API.`);
+}
 
 if (hasFrontendBuild) {
   log.info("Frontend build encontrado — ativando servir estático + OG injection", {
     dist: FRONTEND_DIST,
   });
+
+  // Public HTML served by Express references Vite's hashed /assets files.
+  // Route these to the same build in both preview and production; the Vite
+  // dev server would otherwise return its SPA HTML for a built JS filename.
+  app.use("/assets",
+    express.static(path.join(FRONTEND_DIST, "assets"), { immutable: true, maxAge: "1y", index: false }),
+    (_req: Request, res: Response) => { res.status(404).end(); },
+  );
 
   // Serve assets (JS/CSS/imagens) sem tocar no index.html
   app.use(express.static(FRONTEND_DIST, { index: false }));
@@ -217,9 +233,10 @@ ${allUrls.map((u) => `  <url>
   });
 
   // ── OG injection para rotas públicas ────────────────────────────────────────
-  const ogMiddleware = createOgMiddleware(["/", "/desempenho"]);
+  const ogOptions = { indexHtmlPath: INDEX_HTML, publicUrl: buildAppUrl() };
+  const ogMiddleware = createOgMiddleware(["/", "/desempenho"], ogOptions);
   app.use(ogMiddleware);
-  app.use(createDynamicOgMiddleware());
+  app.use(createDynamicOgMiddleware(ogOptions));
 
   // ── SPA fallback — todas as demais rotas servem index.html ──────────────────
   // Express 5 + path-to-regexp@8 não aceita "*" puro; usar "/{*path}"
