@@ -10,6 +10,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { explainPlayer } from "../explainPlayer";
+import { label } from "../popularityRules";
 import {
   isDifferentialPlayer,
   isTrapPlayer,
@@ -28,6 +30,18 @@ interface FixtureProjection {
 }
 
 const fixtures: FixtureProjection[] = [
+  {
+    id: "outside_list",
+    explanationJson: { popularity: null, popularityListed: false, expectedPoints: 8 },
+    expectedDifferential: true,
+    expectedTrap: false,
+  },
+  {
+    id: "unknown",
+    explanationJson: { popularity: null, popularityListed: null },
+    expectedDifferential: false,
+    expectedTrap: false,
+  },
   // ── Diferenciais claros (popularity << 0.15, sem isTrap) ────────────────────
   {
     id: "A",
@@ -81,22 +95,21 @@ const fixtures: FixtureProjection[] = [
   // ── Armadilhas (isTrap = true) ───────────────────────────────────────────────
   {
     id: "H",
-    explanationJson: { popularity: 0.55, isTrap: true, expectedPoints: 3 },
+    explanationJson: { popularity: 0.65, riskScore: 0.6, shortAvg: 2, mediumAvg: 5, isTrap: true, expectedPoints: 3 },
     expectedDifferential: false,
     expectedTrap: true,
   },
   {
     id: "I",
-    explanationJson: { popularity: 0.70, isTrap: true },
+    explanationJson: { popularity: 0.70, riskScore: 0.6, shortAvg: 2, mediumAvg: 5, isTrap: true },
     expectedDifferential: false,
     expectedTrap: true,
   },
 
-  // ── Caso extremo: isTrap=true E popularity < 0.15
-  //    Deve ser Armadilha, NÃO Diferencial (isDifferential exige !isTrap) ───────
+  // Fronteira inclusiva de armadilha: 60%, com risco e queda de forma.
   {
     id: "J_trap_and_low_popularity",
-    explanationJson: { popularity: 0.08, isTrap: true },
+    explanationJson: { popularity: 0.60, riskScore: 0.6, shortAvg: 2, mediumAvg: 5, isTrap: true },
     expectedDifferential: false,
     expectedTrap: true,
   },
@@ -117,6 +130,14 @@ const fixtures: FixtureProjection[] = [
     expectedTrap: false,
   },
 ];
+
+it("ausência comprovada usa selo sem percentual; desconhecido não vira zero", () => {
+  const exp = { popularity: null, popularityListed: false };
+  expect(explainPlayer(exp)).toContainEqual(expect.objectContaining({
+    text: "Fora dos mais escalados", badgeLabel: "Fora dos mais escalados",
+  }));
+  expect(label({ popularity: null })).not.toContain("%");
+});
 
 // ── Helpers que replicam a lógica de dashboard.tsx ────────────────────────────
 
@@ -181,8 +202,8 @@ describe("isDifferentialPlayer — limiares e casos extremos", () => {
     expect(isDifferentialPlayer({ popularity: 0.15 })).toBe(false);
   });
 
-  it("isTrap=true bloqueia diferencial mesmo com popularity < 0.15", () => {
-    expect(isDifferentialPlayer({ popularity: 0.05, isTrap: true })).toBe(false);
+  it("flag legada de armadilha não sobrepõe popularidade real abaixo de 15%", () => {
+    expect(isDifferentialPlayer({ popularity: 0.05, isTrap: true })).toBe(true);
   });
 });
 
@@ -203,9 +224,10 @@ describe("isTrapPlayer — limiares e casos extremos", () => {
     expect(isTrapPlayer({ isTrap: false })).toBe(false);
   });
 
-  it("isTrap=true independe do valor de popularity", () => {
-    expect(isTrapPlayer({ popularity: 0.01, isTrap: true })).toBe(true);
-    expect(isTrapPlayer({ popularity: 0.99, isTrap: true })).toBe(true);
+  it("isTrap=true não substitui popularidade conhecida, risco e queda de forma", () => {
+    expect(isTrapPlayer({ popularity: 0.01, isTrap: true })).toBe(false);
+    expect(isTrapPlayer({ popularity: 0.99, isTrap: true })).toBe(false);
+    expect(isTrapPlayer({ popularity: 0.99, riskScore: 0.6, shortAvg: 2, mediumAvg: 5 })).toBe(true);
   });
 });
 
@@ -339,10 +361,11 @@ describe("regressão de limiar — valores absolutos documentados", () => {
     expect(isDifferentialPlayer({ popularity: DIFFERENTIAL_THRESHOLD + 0.001 })).toBe(false);
   });
 
-  it("Armadilha depende APENAS de isTrap=true, não de popularity", () => {
+  it("Armadilha exige 60% conhecidos, risco e queda; ignora flag isolada", () => {
     for (const pop of [0, 0.05, 0.15, 0.5, 1]) {
-      expect(isTrapPlayer({ popularity: pop, isTrap: true })).toBe(true);
+      expect(isTrapPlayer({ popularity: pop, isTrap: true })).toBe(false);
       expect(isTrapPlayer({ popularity: pop, isTrap: false })).toBe(false);
+      expect(isTrapPlayer({ popularity: pop, riskScore: 0.6, shortAvg: 2, mediumAvg: 5 })).toBe(pop >= 0.6);
     }
   });
 });

@@ -49,4 +49,16 @@ describe("getReplacementSuggestions", () => {
 
     expect(result.map((suggestion) => suggestion.player.id)).toEqual([6]);
   });
+
+  it.each(["Contundido", "Contusão", "Lesionado", "Suspenso", "Indisponível"])(
+    "excludes %s even when the reported play probability is high",
+    (injuryStatus) => {
+      const players = [
+        candidate(4, 10, { availability: { playProbability: 0.95, injuryStatus } }),
+        candidate(6, 6),
+      ];
+      const result = getReplacementSuggestions(players, outPlayer, new Set([1]));
+      expect(result.map(({ player }) => player.id)).toEqual([6]);
+    },
+  );
 });

@@ -1,10 +1,9 @@
 import {
   useGetCurrentRound,
-  useGetProvidersStatus,
   useGetCurrentProjections,
+  getGetCurrentProjectionsQueryKey,
   useGetCurrentMatches,
   useGetCurrentAvailability,
-  useGetAdminConfig,
   type ProjectionItem,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,13 +26,23 @@ import {
 } from "lucide-react";
 import { getPositionColor } from "@/hooks/use-custom-api";
 import { isDifferentialPlayer, isTrapPlayer, getTopBadges, type ExplanationJson } from "@/lib/explainPlayer";
+import { isDifferentialHighlight, label as popularityLabel, POPULARITY_RULES } from "@/lib/popularityRules";
 import { PlayerBadges } from "@/components/PlayerCard";
+import { PopularityCalibrationCard } from "@/components/PopularityCalibrationCard";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
+import { SyncStatusCard } from "@/components/SyncStatusCard";
+import { ProGate } from "@/components/ProGate";
+
+function isAccessError(error: unknown): boolean {
+  return !!error && typeof error === "object" && "status" in error &&
+    [401, 402, 403].includes(Number(error.status));
+}
 
 type PlayerField = string | number | boolean | null | undefined;
 
@@ -98,19 +107,20 @@ function ClubBadge({ club }: { club: MatchClub }) {
 type RichProjectionItem = ProjectionItem & { explanationJson?: ExplanationJson };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
+  const { user, isPro, isLoading: authLoading } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: roundData, isLoading: roundLoading, isError: roundError, refetch: refetchRound } = useGetCurrentRound();
-  const { data: providersData, isError: providersError, refetch: refetchProviders } = useGetProvidersStatus();
-  const { data: projectionsData, isLoading: projLoading, isError: projError, refetch: refetchProjections } = useGetCurrentProjections({
+  const { data: roundData, isLoading: roundLoading, isError: roundError, error: roundFailure, refetch: refetchRound } = useGetCurrentRound();
+  const { data: projectionsData, isLoading: projLoading, isError: projError, error: projFailure, refetch: refetchProjections } = useGetCurrentProjections({
     round: roundData?.round ?? undefined,
-  });
-  const { data: matchesData, isLoading: matchesLoading, isError: matchesError, refetch: refetchMatches } = useGetCurrentMatches();
+  }, { query: {
+    queryKey: [...getGetCurrentProjectionsQueryKey({ round: roundData?.round }), user?.id ?? "anonymous", isPro],
+    enabled: !authLoading,
+    retry: (count, error) => !isAccessError(error) && count < 2,
+  } });
+  const { data: matchesData, isLoading: matchesLoading, isError: matchesError, error: matchesFailure, refetch: refetchMatches } = useGetCurrentMatches();
   const { data: availabilityData, isLoading: availabilityLoading, isError: availabilityError, refetch: refetchAvailability } = useGetCurrentAvailability({});
-  const { data: configData } = useGetAdminConfig();
-
-  const providers = providersData?.providers ?? [];
   const projections = (projectionsData?.projections ?? []) as RichProjectionItem[];
   const matches = matchesData?.matches ?? [];
   const availabilityList = availabilityData?.availability ?? [];
@@ -126,19 +136,19 @@ export default function Dashboard() {
     p.explanationJson ?? {};
 
   const diferenciais = projections
-    .filter((p) => isDifferentialPlayer(getExplanation(p)))
+    .filter((p) => isDifferentialHighlight({ ...getExplanation(p), expectedPoints: p.expectedPoints }))
     .sort((a, b) => {
       const popA = getExplanation(a).popularity ?? 1;
       const popB = getExplanation(b).popularity ?? 1;
       return popA - popB; // menor escalação = mais diferencial
     })
-    .slice(0, 5);
+    .slice(0, POPULARITY_RULES.highlightLimit);
 
   const armadilhas = projections
     .filter((p) => isTrapPlayer(getExplanation(p)))
     .sort((a, b) => {
-      const popA = getExplanation(a).popularity ?? 0;
-      const popB = getExplanation(b).popularity ?? 0;
+      const popA = getExplanation(a).popularity ?? -1;
+      const popB = getExplanation(b).popularity ?? -1;
       return popB - popA;
     })
     .slice(0, 5);
@@ -166,27 +176,29 @@ export default function Dashboard() {
 
   const positions = ["ATA", "MEI", "LAT", "ZAG", "GOL", "TEC"];
 
-  const primaryLoading = roundLoading || projLoading || matchesLoading;
-  const primaryError = roundError || projError || matchesError;
+  const primaryLoading = authLoading || roundLoading || projLoading || matchesLoading;
+  const primaryError = (roundError && !isAccessError(roundFailure)) ||
+    (projError && !isAccessError(projFailure)) || (matchesError && !isAccessError(matchesFailure));
+  const syncStatusCard = <SyncStatusCard isAdmin={isAdmin} />;
   if (primaryLoading) return <PageSkeleton variant="cards" aria-label="Carregando painel" />;
   if (primaryError) {
     return (
-      <ErrorState
+      <div className="space-y-6">{syncStatusCard}<ErrorState
         title="Não foi possível carregar o painel"
         description="Os dados principais do painel não puderam ser carregados."
         onRetry={() => Promise.all([refetchRound(), refetchProjections(), refetchMatches()])}
-      />
+      /></div>
     );
   }
-  if (projections.length === 0) {
+  if (projections.length === 0 && !isAccessError(projFailure)) {
     return (
-      <EmptyState
+      <div className="space-y-6">{syncStatusCard}<EmptyState
         icon={Activity}
         title="Ainda não há projeções para esta rodada"
         description="Consulte o histórico enquanto os dados da rodada são preparados."
         actionLabel="Ver histórico"
         actionHref="/historico"
-      />
+      /></div>
     );
   }
 
@@ -311,6 +323,14 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isAccessError(projFailure) && (
+                <Card className="md:col-span-2">
+                  <CardContent className="p-4 space-y-3">
+                    <p className="text-sm">Não foi possível acessar as projeções agora. As projeções básicas estão disponíveis para todos.</p>
+                    <Button variant="outline" onClick={() => refetchProjections()}>Tentar novamente</Button>
+                  </CardContent>
+                </Card>
+              )}
               {positions.map((pos) => {
                 const tops = getTopByPos(pos, 5);
                 if (!tops.length) return null;
@@ -424,7 +444,18 @@ export default function Dashboard() {
           ) : null}
 
           {/* Diferenciais da Rodada */}
-          {diferenciais.length > 0 && (
+          {!popularityFeaturesEnabled && <PopularityCalibrationCard />}
+          {popularityFeaturesEnabled && !isPro && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ProGate message={`${projectionsData?.proTeaser.differentials ?? 0} diferenciais nesta rodada`}>
+                <Card className="min-h-56"><CardHeader><CardTitle>Diferenciais da rodada</CardTitle></CardHeader></Card>
+              </ProGate>
+              <ProGate message={`${projectionsData?.proTeaser.traps ?? 0} armadilhas nesta rodada`}>
+                <Card className="min-h-56"><CardHeader><CardTitle>Armadilhas da rodada</CardTitle></CardHeader></Card>
+              </ProGate>
+            </div>
+          )}
+          {popularityFeaturesEnabled && isPro && diferenciais.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-accent" />
@@ -434,7 +465,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {diferenciais.map((p) => {
                   const exp = getExplanation(p);
-                  const pop = exp.popularity ?? 0;
+                  const popLabel = popularityLabel(exp);
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
@@ -455,7 +486,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold text-accent">{p.expectedPoints?.toFixed(1)} pts</p>
-                        <p className="text-xs text-muted-foreground tabular-nums">escal.: {(pop * 100).toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{popLabel}</p>
                       </div>
                     </div>
                   );
@@ -465,7 +496,7 @@ export default function Dashboard() {
           )}
 
           {/* Armadilhas da Rodada */}
-          {armadilhas.length > 0 && (
+          {popularityFeaturesEnabled && isPro && armadilhas.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Bomb className="w-5 h-5 text-destructive" />
@@ -475,7 +506,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {armadilhas.map((p) => {
                   const exp = getExplanation(p);
-                  const pop = exp.popularity ?? 0;
+                  const popLabel = popularityLabel(exp);
                   const name = getPlayerName(p);
                   const clubName = getNestedField(p, "club", "name") as string | undefined;
                   const position = getPlayerField(p, "position") as string | undefined;
@@ -495,7 +526,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-mono font-bold text-destructive">{(pop * 100).toFixed(0)}% escalado</p>
+                        <p className="text-sm font-mono font-bold text-destructive">{popLabel}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">{p.expectedPoints?.toFixed(1)} pts proj.</p>
                       </div>
                     </div>
@@ -508,66 +539,7 @@ export default function Dashboard() {
 
         {/* Right sidebar */}
         <div className="space-y-6">
-          {/* Data Pipeline Status — admin only */}
-          {isAdmin && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-6 h-6 text-accent" />
-                <h2 className="text-2xl font-display font-bold">Pipeline</h2>
-              </div>
-
-              {providersError ? (
-                <ErrorState
-                  title="Status dos provedores indisponível"
-                  description="Não foi possível carregar o status do pipeline."
-                  onRetry={refetchProviders}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {providers.map((provider) => (
-                    <Card key={provider.source} className="bg-card border-border/50 overflow-hidden">
-                      <div className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              provider.status === "ok"
-                                ? "bg-primary shadow-[0_0_8px_hsl(var(--positive) / 0.5)]"
-                                : provider.status === "error"
-                                  ? "bg-destructive shadow-[0_0_8px_hsl(var(--danger) / 0.5)]"
-                                  : "bg-attention"
-                            }`}
-                          />
-                          <div>
-                            <h4 className="font-semibold text-sm capitalize">{provider.source.replace(/_/g, " ")}</h4>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {provider.lastCollectedAt
-                                ? new Date(provider.lastCollectedAt).toLocaleTimeString("pt-BR")
-                                : "Nunca sincronizado"}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            provider.status === "ok" ? "default" : provider.status === "error" ? "destructive" : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {provider.status === "ok" ? "ok" : provider.status === "error" ? "erro" : "degradado"}
-                        </Badge>
-                      </div>
-                    </Card>
-                  ))}
-
-                  <Button variant="outline" className="w-full bg-secondary/30 hover:bg-secondary font-semibold" asChild>
-                    <Link to="/admin">
-                      <Zap className="w-4 h-4 ml-2 text-accent mr-2" />
-                      Gerenciar Pipeline
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          {syncStatusCard}
 
           {/* Matches/Fixtures */}
           <div className="space-y-4">

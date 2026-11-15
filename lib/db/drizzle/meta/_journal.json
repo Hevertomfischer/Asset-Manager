@@ -8,6 +8,83 @@
       "when": 1780667551843,
       "tag": "0000_fast_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780667551844,
+      "tag": "0001_add_minimo_para_valorizar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780667551845,
+      "tag": "0002_add_user_teams",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780667551846,
+      "tag": "0003_add_mcp_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780667551847,
+      "tag": "0004_subscription_billing_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780667551848,
+      "tag": "0005_subscription_period_start",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780667551849,
+      "tag": "0006_player_popularity_fraction",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780667551850,
+      "tag": "0007_projection_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780667551851,
+      "tag": "0008_scout_round_uniqueness",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780667551852,
+      "tag": "0009_add_mcp_clients",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780667551853,
+      "tag": "0010_add_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780667551854,
+      "tag": "0011_mcp_access_token_hash",
+      "breakpoints": true
     }
   ]
 }

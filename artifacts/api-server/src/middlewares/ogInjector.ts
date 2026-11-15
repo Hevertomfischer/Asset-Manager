@@ -12,7 +12,6 @@
  * de express.static, para que assets (js/css/imagens) sejam servidos direto.
  */
 
-import path from "path";
 import { readFile } from "fs/promises";
 import type { Request, Response } from "express";
 import { getOgStats } from "../services/ogStats";
@@ -23,13 +22,12 @@ import { eq } from "drizzle-orm";
 
 const log = createLogger("og-injector");
 
-// ── Caminho para o build do frontend ─────────────────────────────────────────
-// process.cwd() = artifacts/api-server/  quando iniciado via pnpm --filter
-const FRONTEND_DIST =
-  process.env["FRONTEND_DIST_PATH"] ??
-  path.resolve(process.cwd(), "../cartola-intel/dist/public");
-
-const INDEX_HTML_PATH = path.join(FRONTEND_DIST, "index.html");
+// Use exactly the build found by app.ts, including when production runs at
+// the workspace root rather than the api-server package directory.
+interface OgOptions {
+  indexHtmlPath: string;
+  publicUrl: string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -117,16 +115,18 @@ function buildMetaForDesempenho(
 
 // ── Construção do HTML injetado ───────────────────────────────────────────────
 
-function injectMeta(html: string, meta: MetaSet): string {
+function injectMeta(html: string, meta: MetaSet, publicUrl: string, pathname: string): string {
+  const imageUrl = new URL(meta.imageUrl, publicUrl).href;
   let out = html;
   out = upsertTitle(out, meta.title);
   out = upsertMeta(out, "name",     "description",         meta.description);
   out = upsertMeta(out, "property", "og:title",            meta.title);
   out = upsertMeta(out, "property", "og:description",      meta.description);
-  out = upsertMeta(out, "property", "og:image",            meta.imageUrl);
+  out = upsertMeta(out, "property", "og:image",            imageUrl);
+  out = upsertMeta(out, "property", "og:url",              new URL(pathname, publicUrl).href);
   out = upsertMeta(out, "name",     "twitter:title",       meta.title);
   out = upsertMeta(out, "name",     "twitter:description", meta.description);
-  out = upsertMeta(out, "name",     "twitter:image",       meta.imageUrl);
+  out = upsertMeta(out, "name",     "twitter:image",       imageUrl);
   out = upsertMeta(out, "name",     "twitter:card",        "summary_large_image");
   return out;
 }
@@ -135,7 +135,7 @@ function injectMeta(html: string, meta: MetaSet): string {
 
 type OgRoute = "/" | "/desempenho";
 
-export function createOgMiddleware(routes: OgRoute[]) {
+export function createOgMiddleware(routes: OgRoute[], options: OgOptions) {
   const routeSet = new Set<string>(routes);
 
   return async function ogMiddleware(
@@ -150,10 +150,10 @@ export function createOgMiddleware(routes: OgRoute[]) {
 
     let rawHtml: string;
     try {
-      rawHtml = await readFile(INDEX_HTML_PATH, "utf-8");
+      rawHtml = await readFile(options.indexHtmlPath, "utf-8");
     } catch (err) {
       log.warn("index.html não encontrado no dist — fallback para next()", {
-        path: INDEX_HTML_PATH,
+        path: options.indexHtmlPath,
         error: err instanceof Error ? err.message : String(err),
       });
       next();
@@ -170,7 +170,7 @@ export function createOgMiddleware(routes: OgRoute[]) {
 
     let injected: string;
     try {
-      injected = injectMeta(rawHtml, meta);
+      injected = injectMeta(rawHtml, meta, options.publicUrl, req.path);
     } catch (err) {
       log.error("Falha ao injetar OG tags — servindo HTML original", {
         error: err instanceof Error ? err.message : String(err),
@@ -223,7 +223,7 @@ async function buildMetaForJogador(playerId: number): Promise<MetaSet> {
   };
 }
 
-export function createDynamicOgMiddleware() {
+export function createDynamicOgMiddleware(options: OgOptions) {
   return async function dynamicOgMiddleware(
     req: Request,
     res: Response,
@@ -240,17 +240,17 @@ export function createDynamicOgMiddleware() {
     const cached = dynOgCache.get(cacheKey);
     if (cached && Date.now() < cached.expiry) {
       let rawHtml: string;
-      try { rawHtml = await readFile(INDEX_HTML_PATH, "utf-8"); } catch { next(); return; }
+      try { rawHtml = await readFile(options.indexHtmlPath, "utf-8"); } catch { next(); return; }
       res
         .set("Content-Type", "text/html; charset=utf-8")
         .set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
-        .send(injectMeta(rawHtml, cached.meta));
+        .send(injectMeta(rawHtml, cached.meta, options.publicUrl, req.path));
       return;
     }
 
     let rawHtml: string;
     try {
-      rawHtml = await readFile(INDEX_HTML_PATH, "utf-8");
+      rawHtml = await readFile(options.indexHtmlPath, "utf-8");
     } catch (err) {
       log.warn("index.html não encontrado — dynamic OG fallback", { error: String(err) });
       next();
@@ -277,6 +277,6 @@ export function createDynamicOgMiddleware() {
     res
       .set("Content-Type", "text/html; charset=utf-8")
       .set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
-      .send(injectMeta(rawHtml, meta));
+      .send(injectMeta(rawHtml, meta, options.publicUrl, req.path));
   };
 }

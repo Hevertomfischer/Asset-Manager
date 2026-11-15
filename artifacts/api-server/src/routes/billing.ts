@@ -2,10 +2,12 @@ import { Router } from "express";
 import MercadoPagoConfig, { Payment } from "mercadopago";
 import { db } from "@workspace/db";
 import { subscriptionsTable } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { createCheckout, type BillingPlan } from "../services/billing/mercadopagoProvider";
+import { eq, desc, sql } from "drizzle-orm";
+import { createCheckout } from "../services/billing/mercadopagoProvider";
 import { validateMpSignature } from "../services/billing/webhookValidator";
 import { createLogger } from "../lib/logger";
+import { getPlanConfig, planConfigSchema, publicPlanConfig } from "../services/billing/planConfig";
+import { computePeriodEnd, computeBillingPeriod, ExpiredSeasonError } from "../services/billing/periodEnd";
 
 const log = createLogger("billing");
 const router = Router();
@@ -16,14 +18,15 @@ function getMpClient(): MercadoPagoConfig {
   return new MercadoPagoConfig({ accessToken });
 }
 
-/** Calcula currentPeriodEnd conforme o plano. */
-function computePeriodEnd(plan: BillingPlan): Date {
-  if (plan === "pro_monthly") {
-    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+router.get("/billing/config", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    res.json(publicPlanConfig(await getPlanConfig()));
+  } catch (err) {
+    log.error("Erro ao carregar preços", { error: err instanceof Error ? err.message : String(err) });
+    res.status(500).json({ error: "Não foi possível carregar os preços." });
   }
-  const year = new Date().getFullYear();
-  return new Date(year, 11, 7);
-}
+});
 
 /**
  * POST /api/billing/checkout
@@ -43,9 +46,16 @@ router.post("/billing/checkout", async (req, res) => {
   }
 
   try {
-    const checkoutUrl = await createCheckout(req.user.id, plan as BillingPlan);
+    const config = await getPlanConfig();
+    await computePeriodEnd(plan, req.user.id, config);
+    const checkoutUrl = await createCheckout(req.user.id, plan, config);
     res.json({ checkoutUrl });
   } catch (err) {
+    if (err instanceof ExpiredSeasonError) {
+      log.warn("Checkout de temporada encerrada recusado", { userId: req.user.id, plan });
+      res.status(409).json({ error: err.message });
+      return;
+    }
     log.error("Erro ao criar checkout", { userId: req.user.id, error: err instanceof Error ? err.message : String(err) });
     res.status(500).json({ error: "Não foi possível criar o checkout. Tente novamente." });
   }
@@ -56,7 +66,7 @@ router.post("/billing/checkout", async (req, res) => {
  * Recebe notificações do Mercado Pago.
  * - Valida assinatura HMAC-SHA256
  * - Processa apenas eventos payment com status approved
- * - Faz upsert idempotente na subscriptionsTable
+ * - Registra um lançamento por pagamento, com aplicação idempotente
  */
 router.post("/billing/webhook", async (req, res) => {
   let body: { type?: string; action?: string; data?: { id?: string | number } };
@@ -104,56 +114,39 @@ router.post("/billing/webhook", async (req, res) => {
     const [userIdStr, plan] = externalRef.split(":");
     const userId = parseInt(userIdStr ?? "", 10);
 
-    if (isNaN(userId) || !plan) {
+    if (!Number.isSafeInteger(userId) || userId <= 0 || (plan !== "pro_monthly" && plan !== "season_pass")) {
       log.error("external_reference inválido no pagamento", { paymentId, externalRef });
       res.sendStatus(200);
       return;
     }
 
-    const existingByPayment = await db
-      .select({ id: subscriptionsTable.id })
-      .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.externalId, String(paymentId)))
-      .limit(1);
-
-    if (existingByPayment.length > 0) {
-      log.info("Pagamento já processado — idempotente", { paymentId, userId });
-      res.sendStatus(200);
-      return;
-    }
-
-    const periodEnd = computePeriodEnd(plan as BillingPlan);
-
-    const [existingSub] = await db
-      .select({ id: subscriptionsTable.id })
-      .from(subscriptionsTable)
-      .where(eq(subscriptionsTable.userId, userId))
-      .limit(1);
-
-    if (existingSub) {
-      await db
-        .update(subscriptionsTable)
-        .set({
-          plan: "pro",
-          status: "active",
-          provider: "mercadopago",
-          externalId: String(paymentId),
-          currentPeriodEnd: periodEnd,
-          updatedAt: new Date(),
-        })
-        .where(and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.id, existingSub.id)));
-      log.info("Assinatura atualizada", { userId, plan, periodEnd, paymentId });
-    } else {
-      await db.insert(subscriptionsTable).values({
+    // Preferências novas preservam a configuração vendida; pagamentos antigos
+    // (sem metadata) continuam compatíveis com a configuração vigente.
+    const snapshot = payment.metadata?.["billing_config"];
+    const config = snapshot ? planConfigSchema.parse(snapshot) : await getPlanConfig();
+    await db.transaction(async (tx) => {
+      // Serializa renovações simultâneas e reentregas do webhook por comprador.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(7261, ${userId})`);
+      const existingByPayment = await tx.select({ id: subscriptionsTable.id })
+        .from(subscriptionsTable).where(eq(subscriptionsTable.externalId, paymentId)).limit(1);
+      if (existingByPayment.length > 0) {
+        log.info("Pagamento já processado — idempotente", { paymentId, userId });
+        return;
+      }
+      const { start: periodStart, end: periodEnd } = await computeBillingPeriod(plan, userId, config, tx);
+      // Uma linha por pagamento conserva os IDs antigos para idempotência.
+      await tx.insert(subscriptionsTable).values({
         userId,
         plan: "pro",
+        billingPlan: plan,
         status: "active",
         provider: "mercadopago",
-        externalId: String(paymentId),
+        externalId: paymentId,
         currentPeriodEnd: periodEnd,
+        currentPeriodStart: periodStart,
       });
-      log.info("Assinatura criada", { userId, plan, periodEnd, paymentId });
-    }
+      log.info("Pagamento aplicado à assinatura", { userId, plan, periodEnd, paymentId });
+    });
 
     res.sendStatus(200);
   } catch (err) {
@@ -177,21 +170,27 @@ router.get("/billing/subscription", async (req, res) => {
       .select({
         plan: subscriptionsTable.plan,
         status: subscriptionsTable.status,
+        currentPeriodStart: subscriptionsTable.currentPeriodStart,
         currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
       })
       .from(subscriptionsTable)
       .where(eq(subscriptionsTable.userId, req.user.id))
-      .orderBy(desc(subscriptionsTable.updatedAt))
+      .orderBy(
+        desc(sql`${subscriptionsTable.status} = 'active' AND ${subscriptionsTable.currentPeriodEnd} > now()`),
+        desc(subscriptionsTable.currentPeriodEnd),
+        desc(subscriptionsTable.updatedAt),
+      )
       .limit(1);
 
     if (!sub) {
-      res.json({ plan: "free", status: "inactive", currentPeriodEnd: null });
+      res.json({ plan: "free", status: "inactive", currentPeriodEnd: null, currentPeriodStart: null });
       return;
     }
 
     res.json({
       plan: sub.plan ?? "free",
       status: sub.status ?? "inactive",
+      currentPeriodStart: sub.currentPeriodStart ?? null,
       currentPeriodEnd: sub.currentPeriodEnd ?? null,
     });
   } catch (err) {

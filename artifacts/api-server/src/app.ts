@@ -6,7 +6,6 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import passport from "passport";
-import cors from "cors";
 import { eq, sql as drizzleSql } from "drizzle-orm";
 import router from "./routes";
 import mcpOauthRouter from "./routes/mcpOauth";
@@ -22,6 +21,8 @@ import { usersTable } from "@workspace/db/schema";
 import { applyMpvToDatabase } from "./services/mpvService";
 import { runProjectionEngine } from "./engines/projectionEngine";
 import { getLatestProjectionRound } from "./repositories/projectionRepository";
+import { mapCartolaScoutToColumns } from "./lib/mapCartolaScoutToColumns";
+import { createBrowserCors, sessionCookieOptions } from "./lib/browserSecurity";
 
 const log = rootLogger;
 
@@ -42,9 +43,7 @@ const app: Express = express();
 app.set("trust proxy", 1);
 
 app.use(cookieParser());
-// CORS global: permite todas as origens e expõe WWW-Authenticate para que
-// clientes OAuth (Claude, browsers) possam ler o cabeçalho de discovery.
-app.use(cors({ exposedHeaders: ["WWW-Authenticate"] }));
+app.use(createBrowserCors());
 app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -61,7 +60,7 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "lax", secure: false },
+    cookie: sessionCookieOptions(),
   })
 );
 
@@ -129,16 +128,32 @@ const _currentDir =
     ? __dirname // bundle CJS — artifacts/api-server/dist
     : path.dirname(fileURLToPath(import.meta.url)); // dev tsx — artifacts/api-server/src
 const FRONTEND_DIST =
-  process.env["FRONTEND_DIST_PATH"] ??
-  path.resolve(_currentDir, "../../cartola-intel/dist/public");
+  process.env["FRONTEND_DIST_PATH"]
+    ? path.resolve(process.env["FRONTEND_DIST_PATH"])
+    : path.resolve(_currentDir, "../../cartola-intel/dist/public");
 
 const INDEX_HTML = path.join(FRONTEND_DIST, "index.html");
 const hasFrontendBuild = existsSync(INDEX_HTML);
+
+if (!hasFrontendBuild && process.env["NODE_ENV"] === "production") {
+  log.error("Build do frontend ausente; rotas públicas e OG não podem ser publicadas", {
+    expectedDist: FRONTEND_DIST,
+  });
+  throw new Error(`Build do frontend não encontrado em ${INDEX_HTML}. Publique o frontend junto com a API.`);
+}
 
 if (hasFrontendBuild) {
   log.info("Frontend build encontrado — ativando servir estático + OG injection", {
     dist: FRONTEND_DIST,
   });
+
+  // Public HTML served by Express references Vite's hashed /assets files.
+  // Route these to the same build in both preview and production; the Vite
+  // dev server would otherwise return its SPA HTML for a built JS filename.
+  app.use("/assets",
+    express.static(path.join(FRONTEND_DIST, "assets"), { immutable: true, maxAge: "1y", index: false }),
+    (_req: Request, res: Response) => { res.status(404).end(); },
+  );
 
   // Serve assets (JS/CSS/imagens) sem tocar no index.html
   app.use(express.static(FRONTEND_DIST, { index: false }));
@@ -212,9 +227,10 @@ ${allUrls.map((u) => `  <url>
   });
 
   // ── OG injection para rotas públicas ────────────────────────────────────────
-  const ogMiddleware = createOgMiddleware(["/", "/desempenho"]);
+  const ogOptions = { indexHtmlPath: INDEX_HTML, publicUrl: buildAppUrl() };
+  const ogMiddleware = createOgMiddleware(["/", "/desempenho"], ogOptions);
   app.use(ogMiddleware);
-  app.use(createDynamicOgMiddleware());
+  app.use(createDynamicOgMiddleware(ogOptions));
 
   // ── SPA fallback — todas as demais rotas servem index.html ──────────────────
   // Express 5 + path-to-regexp@8 não aceita "*" puro; usar "/{*path}"
@@ -261,11 +277,11 @@ void (async () => {
     }
 
     const countResult = await db.execute<{ cnt: string }>(
-      drizzleSql`SELECT COUNT(*) AS cnt FROM player_scout_round WHERE source = 'csv_2026'`
+      drizzleSql`SELECT COUNT(*) AS cnt FROM player_scout_round WHERE source IN ('csv_2026', 'historical_cartola')`
     );
     const existing = parseInt(countResult.rows[0]?.cnt ?? "0", 10);
     if (existing > 0) {
-      log.info("[csv-bootstrap] csv_2026 already present — skipping import", { rows: existing });
+      log.info("[csv-bootstrap] Histórico existente; importação legada não executada", { rows: existing });
       return;
     }
 
@@ -285,11 +301,6 @@ void (async () => {
       trim: true,
     });
 
-    const toInt = (v: string): number | null => {
-      if (!v || v.trim() === "") return null;
-      const n = parseInt(v, 10);
-      return isNaN(n) ? null : n;
-    };
     const toFloat = (v: string): number | null => {
       if (!v || v.trim() === "") return null;
       const n = parseFloat(v);
@@ -308,17 +319,7 @@ void (async () => {
         yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
         ff, v, pc, ps, collected_at
       ) VALUES %ROWS%
-      ON CONFLICT (player_id, round, source) DO UPDATE SET
-        points=EXCLUDED.points, goals=EXCLUDED.goals, assists=EXCLUDED.assists,
-        shots=EXCLUDED.shots, shots_on_target=EXCLUDED.shots_on_target,
-        tackles=EXCLUDED.tackles, interceptions=EXCLUDED.interceptions,
-        fouls_suffered=EXCLUDED.fouls_suffered, fouls_committed=EXCLUDED.fouls_committed,
-        saves=EXCLUDED.saves, goals_conceded=EXCLUDED.goals_conceded,
-        clean_sheet=EXCLUDED.clean_sheet, yellow_cards=EXCLUDED.yellow_cards,
-        red_cards=EXCLUDED.red_cards, penalty_missed=EXCLUDED.penalty_missed,
-        penalty_saved=EXCLUDED.penalty_saved, own_goals=EXCLUDED.own_goals,
-        ff=EXCLUDED.ff, v=EXCLUDED.v, pc=EXCLUDED.pc, ps=EXCLUDED.ps,
-        collected_at=now()
+      ON CONFLICT DO NOTHING
     `;
 
     const BATCH = 200;
@@ -338,13 +339,14 @@ void (async () => {
     for (const r of records) {
       const playerId = idMap.get(r.atleta_id);
       if (!playerId) { skipped++; continue; }
+      const scout = mapCartolaScoutToColumns(r);
       const vals: unknown[] = [
         playerId, parseInt(r.rodada, 10), "csv_2026", toFloat(r.pontuacao),
-        toInt(r.G), toInt(r.A), toInt(r.FT), toInt(r.FD),
-        toInt(r.DS), toInt(r.I), toInt(r.FS), toInt(r.FC),
-        toInt(r.DE), toInt(r.GS), toInt(r.SG),
-        toInt(r.CA), toInt(r.CV), toInt(r.PP), toInt(r.DP), toInt(r.GC),
-        toInt(r.FF), toInt(r.V), toInt(r.PC), toInt(r.PS),
+        scout.goals, scout.assists, scout.shots, scout.shotsOnTarget,
+        scout.tackles, scout.interceptions, scout.foulsSuffered, scout.foulsCommitted,
+        scout.saves, scout.goalsConceded, scout.cleanSheet,
+        scout.yellowCards, scout.redCards, scout.penaltyMissed, scout.penaltySaved, scout.ownGoals,
+        scout.ff, scout.v, scout.pc, scout.ps,
         new Date(),
       ];
       const placeholders = vals.map(() => `$${pi++}`).join(", ");

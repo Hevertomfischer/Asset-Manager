@@ -26,3 +26,13 @@ mutations on session `role === "admin"` instead of a token.
 
 **How to apply:** After a prod plan/role change, the frontend caches the value
 from `/api/auth/me` per session — the user must re-login or hard-refresh to see it.
+
+# Preserve the session table during development schema changes
+
+Use pure SQL migrations, never `drizzle-kit push`, in this project.
+
+**Why:** The user reported that schema push tries to delete the externally managed
+`session` table. Losing it would invalidate sessions and disrupt authentication.
+
+**How to apply:** Apply reviewed SQL only in development, rebuild DB declarations,
+and let the managed Publish flow apply production schema differences.

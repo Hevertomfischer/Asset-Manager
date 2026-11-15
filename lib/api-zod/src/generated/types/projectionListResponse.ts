@@ -6,8 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectionItem } from "./projectionItem";
+import type { ProjectionProTeaser } from "./projectionProTeaser";
 
 export interface ProjectionListResponse {
+  /** True for Free and anonymous viewers; basic projections remain available. */
+  limited: boolean;
+  proTeaser: ProjectionProTeaser;
   projections: ProjectionItem[];
   round: number;
 }

@@ -1,6 +1,6 @@
 import type { LineupPlayer, Player } from "@workspace/api-client-react";
 
-const UNAVAILABLE_STATUS = /suspens|lesion|contus|indispon|afastad|fora|n[aã]o joga|\bnulo\b/i;
+const UNAVAILABLE_STATUS = /suspens|lesion|contus|contund|indispon|afastad|fora|n[aã]o joga|\bnulo\b/i;
 const MIN_PLAY_PROBABILITY = 0.25;
 
 function hasBlockedAvailability(player: Player): boolean {

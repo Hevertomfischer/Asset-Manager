@@ -5,6 +5,7 @@ import { insertLineupSuggestion, insertLineupReserves } from "../repositories/li
 import { getMatchesByRound } from "../repositories/matchRepository";
 import { selectReserves, type ReservePlayer } from "../services/reserveService";
 import { LINEUP_CONFIG, PROJECTION_WEIGHTS } from "../config/projectionWeights";
+import { isTrap as classifyTrap, knownPopularity, readPopularitySignals } from "../lib/popularityRules";
 import { createLogger } from "../lib/logger";
 import type { PlayerProjection, Player } from "@workspace/db/schema";
 import { solveLineupILP, type IlpCandidate, CAPTAIN_MIN_GAMES } from "./ilpSolver";
@@ -62,11 +63,11 @@ interface LineupResult {
 }
 
 function normalizePopularity(players: PlayerWithProjection[]): Map<number, number> {
-  const popularities = players
-    .map((pw) => pw.player.popularity ?? 0)
-    .filter((p) => p > 0);
-  const maxPop = Math.max(...popularities, 1);
-  return new Map(players.map((pw) => [pw.player.id, (pw.player.popularity ?? 0) / maxPop]));
+  // Desconhecido não ganha bônus nem penalidade por um percentual inventado.
+  return new Map(players.flatMap((pw) => {
+    const popularity = knownPopularity(pw.player.popularity);
+    return popularity == null ? [] : [[pw.player.id, popularity] as const];
+  }));
 }
 
 // Penalises players with too few games played (small sample = unreliable average)
@@ -106,14 +107,14 @@ function getScoringFn(
         samplePenalty(pw);
     case "antimassa": {
       return (pw) => {
-        const popNorm = popularityMap.get(pw.player.id) ?? 0.5;
+        const popNorm = popularityMap.get(pw.player.id);
         const expected = pw.projection.expectedPoints ?? 0;
         const value = pw.projection.valueScore ?? 0;
         const explanation = pw.projection.explanationJson as Record<string, unknown> | null;
         const differentialScore = (explanation?.differentialScore as number | undefined) ?? 0;
-        const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
+        const isTrap = classifyTrap(readPopularitySignals(explanation));
         const trapPenalty = isTrap ? 5 : 0;
-        return expected * (1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty - samplePenalty(pw);
+        return expected * (popNorm == null ? 1 : 1 - popNorm * 0.7) + value * 2 + differentialScore * 0.3 - trapPenalty - samplePenalty(pw);
       };
     }
     case "valorizacao": {
@@ -131,7 +132,7 @@ function getScoringFn(
         const shortAvg = (explanation?.shortAvg as number | undefined) ?? 0;
         const mediumAvg = (explanation?.mediumAvg as number | undefined) ?? 0;
         const expected = pw.projection.expectedPoints ?? 0;
-        const isTrap = (explanation?.isTrap as boolean | undefined) ?? false;
+        const isTrap = classifyTrap(readPopularitySignals(explanation));
         const minimoParaValorizar = pw.player.minimoParaValorizar ?? null;
 
         // ── PRIMARY: continuous valorization margin ────────────────────────
@@ -211,8 +212,8 @@ function computeCaptainScore(
     case "aggressive":
       return (pw.projection.ceilingPoints ?? 0) * mult;
     case "antimassa": {
-      const popNorm = popularityMap.get(pw.player.id) ?? 0.5;
-      return (pw.projection.expectedPoints ?? 0) * (1 - popNorm * 0.5) * mult;
+      const popNorm = popularityMap.get(pw.player.id);
+      return (pw.projection.expectedPoints ?? 0) * (popNorm == null ? 1 : 1 - popNorm * 0.5) * mult;
     }
     default:
       return (pw.projection.expectedPoints ?? 0) * mult;
@@ -562,6 +563,7 @@ export function calculateLineup(
       floorPoints: pw.projection.floorPoints ?? 0,
       ceilingPoints: pw.projection.ceilingPoints ?? 0,
       price: pw.player.price ?? 0,
+      averagePoints: pw.player.averagePoints ?? null,
       playProbability: pw.projection.playProbability ?? 0,
     }));
 

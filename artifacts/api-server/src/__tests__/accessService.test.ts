@@ -5,8 +5,7 @@
  *   2. isPro() consulta o plano real DEPOIS do cutoff (campanha encerrada).
  *   3. getUserPlan() não é afetado pela campanha — retorna sempre o plano real.
  *
- * Data de corte do fallback: 2026-09-30T23:59:59Z
- * (espelho da constante em accessService.ts — se mudar lá, atualizar aqui)
+ * Datas de teste derivadas da constante exportada pelo módulo.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -52,10 +51,8 @@ import { isPro, getUserPlan, FOUNDER_ACCESS_CUTOFF } from "../services/accessSer
 
 // ── Datas de referência ───────────────────────────────────────────────────────
 
-// Dois meses ANTES do cutoff (2026-09-30) → campanha ativa
-const BEFORE_CUTOFF = new Date("2026-07-15T12:00:00Z");
-// Um dia APÓS o cutoff → campanha encerrada
-const AFTER_CUTOFF = new Date("2026-10-01T00:00:00Z");
+const BEFORE_CUTOFF = new Date(FOUNDER_ACCESS_CUTOFF.getTime() - 24 * 60 * 60 * 1000);
+const AFTER_CUTOFF = new Date(FOUNDER_ACCESS_CUTOFF.getTime() + 24 * 60 * 60 * 1000);
 
 // ── Setup / teardown de tempo ─────────────────────────────────────────────────
 

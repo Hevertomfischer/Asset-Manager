@@ -11,12 +11,13 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 import { db } from "@workspace/db";
 import { mcpAuthCodesTable, mcpAccessTokensTable, mcpClientsTable } from "@workspace/db/schema";
 import { eq, and, gt, lt, sql } from "drizzle-orm";
 import { isPro } from "../services/accessService";
 import { createLogger } from "../lib/logger";
+import { hashMcpAccessToken, isS256Challenge, verifyS256Pkce } from "../lib/mcpTokenSecurity";
 
 // ── Allowlist de redirect_uri / clients ───────────────────────────────────────
 // Claude Desktop usa sempre https://claude.ai/api/mcp/auth_callback.
@@ -53,21 +54,6 @@ function buildIssuer(req: Request): string {
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
   const host = req.get("x-forwarded-host") ?? req.get("host") ?? "localhost";
   return `${proto}://${host}`;
-}
-
-/** base64url sem padding — padrão exigido pelo PKCE (RFC 7636). */
-function base64url(buf: Buffer): string {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-/** Verifica code_verifier contra code_challenge armazenado. */
-function verifyPkce(codeVerifier: string, codeChallenge: string, method: string): boolean {
-  if (method === "S256") {
-    const digest = base64url(createHash("sha256").update(codeVerifier).digest());
-    return digest === codeChallenge;
-  }
-  // plain (não recomendado, mas parte do spec)
-  return codeVerifier === codeChallenge;
 }
 
 // ── Limpeza periódica de registros expirados ──────────────────────────────────
@@ -307,7 +293,7 @@ mcpOauthRouter.post("/register", async (req: Request, res: Response) => {
   }
 
   const clientName = typeof body.client_name === "string" ? body.client_name.slice(0, 200) : null;
-  const clientId = `mcp_${base64url(randomBytes(24))}`;
+  const clientId = `mcp_${randomBytes(24).toString("base64url")}`;
 
   try {
     await db.insert(mcpClientsTable).values({
@@ -393,7 +379,7 @@ mcpOauthRouter.get("/authorize", async (req: Request, res: Response) => {
     responseType = q["response_type"] ?? "";
     redirectUri = q["redirect_uri"] ?? "";
     codeChallenge = q["code_challenge"] ?? "";
-    codeChallengeMethod = q["code_challenge_method"] ?? "S256";
+    codeChallengeMethod = q["code_challenge_method"] ?? "";
     clientId = q["client_id"] ?? "claude";
     state = q["state"];
 
@@ -410,8 +396,8 @@ mcpOauthRouter.get("/authorize", async (req: Request, res: Response) => {
       res.status(400).send("code_challenge é obrigatório (PKCE)");
       return;
     }
-    if (codeChallengeMethod !== "S256" && codeChallengeMethod !== "plain") {
-      res.status(400).send("code_challenge_method não suportado");
+    if (!isS256Challenge(codeChallenge, codeChallengeMethod)) {
+      res.status(400).send("PKCE exige code_challenge_method S256 e um code_challenge SHA-256 válido.");
       return;
     }
 
@@ -447,6 +433,12 @@ mcpOauthRouter.get("/authorize", async (req: Request, res: Response) => {
     state = pending.state;
   }
 
+  if (!isS256Challenge(codeChallenge, codeChallengeMethod)) {
+    delete req.session.mcpOauthPending;
+    res.status(400).send("Reinicie a autorização com PKCE S256.");
+    return;
+  }
+
   // Se não autenticado → redireciona para o Google login (preserva params na sessão)
   if (!req.isAuthenticated() || !req.user) {
     log.info("MCP OAuth: usuário não autenticado — redirecionando para Google login");
@@ -477,8 +469,14 @@ mcpOauthRouter.post("/authorize", async (req: Request, res: Response) => {
     return;
   }
 
-  const { decision } = req.body as { decision?: string };
+  const { decision } = (req.body ?? {}) as { decision?: string };
   const { redirectUri, state, codeChallenge, codeChallengeMethod, clientId } = pending;
+
+  if (!isS256Challenge(codeChallenge, codeChallengeMethod)) {
+    delete req.session.mcpOauthPending;
+    res.status(400).send("Reinicie a autorização com PKCE S256.");
+    return;
+  }
 
   // Constrói a URL de redirect base
   const redirectBase = redirectUri.includes("?") ? redirectUri : redirectUri;
@@ -592,7 +590,7 @@ mcpOauthRouter.post("/token", async (req: Request, res: Response) => {
     }
 
     // Verifica PKCE
-    if (!verifyPkce(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)) {
+    if (!verifyS256Pkce(code_verifier, authCode.codeChallenge, authCode.codeChallengeMethod)) {
       log.warn("MCP OAuth /token: verificação PKCE falhou", { userId: authCode.userId });
       res.status(400).json({ error: "invalid_grant", error_description: "code_verifier inválido" });
       return;
@@ -616,7 +614,7 @@ mcpOauthRouter.post("/token", async (req: Request, res: Response) => {
     const tokenExpiresAt = new Date(Date.now() + TOKEN_TTL_MS);
 
     await db.insert(mcpAccessTokensTable).values({
-      token,
+      tokenHash: hashMcpAccessToken(token),
       userId: authCode.userId,
       expiresAt: tokenExpiresAt,
     });
@@ -648,7 +646,7 @@ export async function validateMcpBearerToken(token: string): Promise<number | nu
       .from(mcpAccessTokensTable)
       .where(
         and(
-          eq(mcpAccessTokensTable.token, token),
+          eq(mcpAccessTokensTable.tokenHash, hashMcpAccessToken(token)),
           gt(mcpAccessTokensTable.expiresAt, now),
         )
       )

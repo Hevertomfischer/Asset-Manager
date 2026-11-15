@@ -12,6 +12,13 @@ import { getLatestProjectionRound } from "../repositories/projectionRepository";
 import { syncXgFromFootystats, XG_CLUBS_EXPECTED, XG_CLUBS_DEGRADED_THRESHOLD } from "../helpers/geXgHelper";
 import { createLogger } from "../lib/logger";
 import axios from "axios";
+import { z } from "zod";
+import { defaultSeasonEnd, getPlanConfig, planConfigPatchSchema, planConfigSchema } from "../services/billing/planConfig";
+import { getLineupAccessConfig, lineupAccessPatchSchema } from "../services/lineupAccessConfig";
+import { getHistoricalRepairProgress, isHistoricalRepairRunning, startHistoricalRepair } from "../services/historicalRepairService";
+import { calibrateProjectionWeights } from "../services/projectionCalibrationService";
+import { getIsSyncing, checkMarketStatus } from "../jobs/syncJob";
+import { SyncBusyError } from "../services/syncLease";
 
 const log = createLogger("admin");
 const router = Router();
@@ -32,12 +39,9 @@ async function getConfigValue(key: string, defaultValue: number): Promise<number
   }
 }
 
-async function setConfigValue(key: string, value: string): Promise<void> {
-  await db
-    .insert(adminConfigTable)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: adminConfigTable.key, set: { value, updatedAt: new Date() } });
-}
+const adminConfigPatchSchema = planConfigPatchSchema.merge(lineupAccessPatchSchema).extend({
+  xgStaleDays: z.number().int().min(1).max(30).optional(),
+}).strict().refine((patch) => Object.keys(patch).length > 0, "Informe ao menos uma configuração");
 
 async function logAdminAction(source: string, status: string, message: string) {
   try {
@@ -80,6 +84,7 @@ router.post("/admin/sync/full", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (error instanceof SyncBusyError) { res.status(409).json({ error: msg }); return; }
     log.error("Full sync failed", { error: msg });
     await logAdminAction("admin_full_sync", "error", `Full sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
@@ -96,11 +101,11 @@ router.post("/admin/sync/market", async (_req, res) => {
 
   syncInProgress = true;
   try {
-    const r = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 10000 });
-    const status = r.data as { rodada_atual?: number; status_mercado?: number };
-    const round = status.rodada_atual ?? 1;
+    const outcome = await checkMarketStatus();
+    if (!outcome.executed) { res.status(409).json({ error: "Checagem do mercado já em andamento." }); return; }
+    const { round, marketStatusCode } = outcome.result;
     await logAdminAction("admin_market_sync", "success", `Market sync completed for round ${round}`);
-    res.json({ success: true, round, marketStatus: status.status_mercado });
+    res.json({ success: true, round, marketStatus: marketStatusCode });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Market sync failed", { error: msg });
@@ -141,6 +146,7 @@ router.post("/admin/sync/current-round", async (_req, res) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (error instanceof SyncBusyError) { res.status(409).json({ error: msg }); return; }
     log.error("Current round sync failed", { error: msg });
     await logAdminAction("admin_current_round_sync", "error", `Current round sync failed: ${msg}`);
     res.status(500).json({ error: "Sync failed", details: msg });
@@ -328,20 +334,39 @@ router.post("/admin/sync/xg", async (req, res) => {
   }
 });
 
-router.post("/admin/sync/historical-round", async (req, res) => {
-  const body = req.body as { round?: number };
-  const roundNum = typeof body.round === "number" ? body.round : null;
+router.get("/admin/sync/closed-rounds", async (_req, res) => {
+  res.json({ progress: await getHistoricalRepairProgress() });
+});
 
-  if (!roundNum) {
-    res.status(400).json({ error: "Missing 'round' in request body" });
+router.post("/admin/sync/closed-rounds", async (_req, res) => {
+  if (getIsSyncing() || syncInProgress || isHistoricalRepairRunning()) {
+    res.status(409).json({ error: "Já existe uma sincronização em andamento. Aguarde e tente novamente." });
     return;
   }
+  try {
+    const progress = await startHistoricalRepair();
+    res.status(202).json({ progress });
+  } catch (e) {
+    res.status(502).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+router.post("/admin/sync/historical-round", async (req, res) => {
+  const parsed = z.object({ round: z.number().int().min(1).max(38), force: z.boolean().optional() }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Informe uma rodada inteira de 1 a 38 e force booleano." }); return; }
+  if (isHistoricalRepairRunning()) { res.status(409).json({ error: "Reparo de histórico em andamento." }); return; }
+  const roundNum = parsed.data.round;
 
   try {
     await logAdminAction("admin_historical_sync", "info", `Starting historical sync for round ${roundNum}`);
-    await syncHistoricalRound(roundNum);
+    const { data: market } = await axios.get("https://api.cartola.globo.com/mercado/status", { timeout: 10000 });
+    if (!Number.isInteger(market?.rodada_atual) || roundNum >= market.rodada_atual) {
+      res.status(409).json({ error: "Aguarde a rodada encerrar e o mercado avançar para sincronizar pontuações finais." });
+      return;
+    }
+    const result = await syncHistoricalRound(roundNum, { force: parsed.data.force });
     await logAdminAction("admin_historical_sync", "success", `Historical sync completed for round ${roundNum}`);
-    res.json({ success: true, round: roundNum, message: `Pontos reais da rodada ${roundNum} sincronizados com sucesso.` });
+    res.json({ success: true, round: roundNum, ...result, message: `Pontos reais da rodada ${roundNum} sincronizados com sucesso.` });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Historical sync failed", { round: roundNum, error: msg });
@@ -353,7 +378,7 @@ router.post("/admin/sync/historical-round", async (req, res) => {
 router.get("/admin/config", async (_req, res) => {
   try {
     const xgStaleDays = await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT);
-    res.json({ xgStaleDays });
+    res.json({ xgStaleDays, ...await getPlanConfig(), ...await getLineupAccessConfig() });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to fetch config", { error: msg });
@@ -363,16 +388,31 @@ router.get("/admin/config", async (_req, res) => {
 
 router.post("/admin/config", async (req, res) => {
   try {
-    const body = req.body as { xgStaleDays?: unknown };
-    const raw = body.xgStaleDays;
-    const parsed = typeof raw === "number" ? Math.round(raw) : typeof raw === "string" ? parseInt(raw, 10) : NaN;
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30) {
-      res.status(400).json({ error: "xgStaleDays must be an integer between 1 and 30" });
+    const result = adminConfigPatchSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Configuração inválida", details: result.error.issues });
       return;
     }
-    await setConfigValue("xgStaleDays", String(parsed));
-    await logAdminAction("admin_config", "success", `Updated xgStaleDays to ${parsed}`);
-    res.json({ xgStaleDays: parsed });
+    const { xgStaleDays, freeLineupsPerRound, anonymousLineupMode, ...patch } = result.data;
+    const accessPatch = {
+      ...(freeLineupsPerRound === undefined ? {} : { freeLineupsPerRound }),
+      ...(anonymousLineupMode === undefined ? {} : { anonymousLineupMode }),
+    };
+    // Mudar somente o ano também atualiza o vencimento, sem conservar um ano anterior.
+    if (patch.seasonPassYear !== undefined && patch.seasonPassEndsAt === undefined) {
+      patch.seasonPassEndsAt = defaultSeasonEnd(patch.seasonPassYear);
+    }
+    const effective = planConfigSchema.parse({ ...await getPlanConfig(), ...patch });
+    const entries = Object.entries({ ...patch, ...accessPatch, ...(xgStaleDays === undefined ? {} : { xgStaleDays }) });
+    await db.transaction(async (tx) => {
+      for (const [key, raw] of entries) {
+        const value = String(raw);
+        await tx.insert(adminConfigTable).values({ key, value })
+          .onConflictDoUpdate({ target: adminConfigTable.key, set: { value, updatedAt: new Date() } });
+      }
+    });
+    await logAdminAction("admin_config", "success", `Configurações atualizadas: ${entries.map(([key]) => key).join(", ")}`);
+    res.json({ ...effective, ...await getLineupAccessConfig(), xgStaleDays: xgStaleDays ?? await getConfigValue("xgStaleDays", XG_STALE_DAYS_DEFAULT) });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.error("Failed to update config", { error: msg });
@@ -431,74 +471,15 @@ router.get("/admin/logs", async (req, res) => {
  */
 router.post("/admin/calibrate-projection-weights", async (_req, res) => {
   try {
-    type Row = { position: string; projected: number; actual: number };
-    const rows = await db.execute<Row>(sql`
-      SELECT
-        p.position,
-        pp.expected_points  AS projected,
-        psr.points          AS actual
-      FROM player_projection pp
-      JOIN player_scout_round psr
-        ON psr.player_id = pp.player_id AND psr.round = pp.round
-      JOIN players p ON p.id = pp.player_id
-      WHERE psr.source IN ('cartola_api','historical_cartola')
-        AND pp.expected_points > 0.5
-        AND psr.points        > 0
-        AND p.position        != 'TEC'
-    `);
-
-    const byPosition = new Map<string, { projected: number[]; actual: number[] }>();
-    for (const row of rows.rows) {
-      const pos = row.position as string;
-      if (!byPosition.has(pos)) byPosition.set(pos, { projected: [], actual: [] });
-      byPosition.get(pos)!.projected.push(Number(row.projected));
-      byPosition.get(pos)!.actual.push(Number(row.actual));
+    if (isHistoricalRepairRunning()) {
+      res.status(409).json({ error: "Aguarde o reparo; os pesos serão calibrados automaticamente ao final." });
+      return;
     }
-
-    function median(arr: number[]): number {
-      if (arr.length === 0) return 1;
-      const sorted = [...arr].sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      return sorted.length % 2 === 0
-        ? (sorted[mid - 1] + sorted[mid]) / 2
-        : sorted[mid];
-    }
-
-    const positionMultipliers: Record<string, number> = {};
-    const report: Record<string, { n: number; medianProjected: number; medianActual: number; multiplier: number }> = {};
-
-    for (const [pos, data] of byPosition.entries()) {
-      const medProj = median(data.projected);
-      const medActual = median(data.actual);
-      // Clamp multiplier to [0.50, 2.00] to avoid extreme adjustments
-      const mult = medProj > 0 ? Math.max(0.50, Math.min(2.00, medActual / medProj)) : 1.0;
-      positionMultipliers[pos] = Number(mult.toFixed(4));
-      report[pos] = {
-        n: data.projected.length,
-        medianProjected: Number(medProj.toFixed(2)),
-        medianActual: Number(medActual.toFixed(2)),
-        multiplier: Number(mult.toFixed(4)),
-      };
-    }
-
-    const calibration = {
-      positionMultipliers,
-      calibratedAt: new Date().toISOString(),
-      totalPairs: rows.rows.length,
-    };
-
-    await db
-      .insert(adminConfigTable)
-      .values({ key: "projection_calibration", value: JSON.stringify(calibration) })
-      .onConflictDoUpdate({
-        target: adminConfigTable.key,
-        set: { value: JSON.stringify(calibration), updatedAt: new Date() },
-      });
-
+    const { calibration, report } = await calibrateProjectionWeights();
     await logAdminAction(
       "calibrate_projection_weights",
       "success",
-      `Calibrated ${Object.keys(positionMultipliers).length} positions from ${rows.rows.length} pairs`
+      `Calibrated ${Object.keys(calibration.positionMultipliers).length} positions from ${calibration.totalPairs} pairs`
     );
 
     res.json({ success: true, calibration, report });
@@ -615,13 +596,12 @@ router.post("/admin/users/grant-pro", async (req, res) => {
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
-  await db.delete(subscriptionsTable).where(eq(subscriptionsTable.userId, user.id));
-
   const [sub] = await db.insert(subscriptionsTable).values({
     userId: user.id,
     plan: "pro",
     status: "active",
     provider: "admin",
+    billingPlan: "grant",
     externalId: `admin-${user.id}`,
     currentPeriodEnd: oneYearFromNow,
   }).returning();

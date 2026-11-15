@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { getBadgeUrl, getBadgeScale } from "@/lib/clubColors";
 import { Button } from "@/components/ui/button";
 import { getPositionColor } from "@/lib/positionColors";
+import { label as popularityLabel } from "@/lib/popularityRules";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
+import { PopularityCalibrationCard } from "@/components/PopularityCalibrationCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,7 +20,8 @@ interface RoundPlayer {
   nickname: string | null;
   position: string;
   price: number | null;
-  popularity: number;
+  popularity: number | null;
+  popularityListed?: boolean | null;
   expectedPoints: number;
   floorPoints: number | null;
   ceilingPoints: number | null;
@@ -59,12 +63,13 @@ function statNum(n: number | null | undefined, decimals = 1) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function RodadaPage() {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const { numero } = useParams<{ numero: string }>();
   const roundNum = parseInt(numero ?? "", 10);
   const [showAll, setShowAll] = useState(false);
 
   const { data, isLoading, isError } = useQuery<RoundData>({
-    queryKey: ["stats-rodada", roundNum],
+    queryKey: ["stats-rodada", roundNum, popularityFeaturesEnabled],
     queryFn: async () => {
       const res = await fetch(`/api/stats/rodada/${roundNum}`);
       if (!res.ok) throw new Error("Erro ao carregar dados da rodada");
@@ -72,6 +77,10 @@ export default function RodadaPage() {
     },
     enabled: !isNaN(roundNum),
     staleTime: 10 * 60 * 1000,
+    select: (response) => popularityFeaturesEnabled ? response : {
+      ...response, topDiferencial: null, topArmadilha: null,
+      players: response.players.map((player) => ({ ...player, isDifferencial: false, isTrap: false, popularityFeaturesEnabled: false })),
+    },
   });
 
   // JSON-LD
@@ -112,6 +121,7 @@ export default function RodadaPage() {
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
+      {!popularityFeaturesEnabled && <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6"><PopularityCalibrationCard /></div>}
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <div className="border-b border-border/40 bg-card/30">
@@ -213,7 +223,7 @@ export default function RodadaPage() {
                           {data.topDiferencial.position} · {data.topDiferencial.club.abbreviation} · C$ {(data.topDiferencial.price ?? 0).toFixed(1)}
                         </p>
                         <p className="text-xs text-positive/70 mt-1">
-                          {(data.topDiferencial.popularity * 100).toFixed(0)}% escalação · baixa exposição
+                          {popularityLabel(data.topDiferencial)}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -250,11 +260,11 @@ export default function RodadaPage() {
                           {data.topArmadilha.position} · {data.topArmadilha.club.abbreviation} · C$ {(data.topArmadilha.price ?? 0).toFixed(1)}
                         </p>
                         <p className="text-xs text-danger/70 mt-1">
-                          {(data.topArmadilha.popularity * 100).toFixed(0)}% escalação · risco elevado
+                          {popularityLabel(data.topArmadilha)} · risco elevado
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                         <p className="text-xl font-bold text-danger font-mono tabular-nums">{(data.topArmadilha.popularity * 100).toFixed(0)}%</p>
+                         <p className="text-xl font-bold text-danger font-mono tabular-nums">{popularityLabel(data.topArmadilha)}</p>
                         <p className="text-xs text-muted-foreground">escalação</p>
                         {data.isClosed && data.topArmadilha.actualPoints != null && (
                            <p className={`text-sm font-bold font-mono tabular-nums ${data.topArmadilha.actualPoints >= data.topArmadilha.expectedPoints * 0.9 ? "text-positive" : "text-danger"}`}>
@@ -330,9 +340,9 @@ export default function RodadaPage() {
                           </td>
                           <td className="px-4 py-3 text-right hidden md:table-cell">
                                <span className={`text-xs font-mono tabular-nums ${
-                              player.popularity < 0.15 ? "text-positive" : player.popularity >= 0.4 ? "text-attention" : "text-muted-foreground"
+                              player.isDifferencial ? "text-positive" : player.isTrap ? "text-attention" : "text-muted-foreground"
                             }`}>
-                              {(player.popularity * 100).toFixed(0)}%
+                              {popularityLabel(player)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">

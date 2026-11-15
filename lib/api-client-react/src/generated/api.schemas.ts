@@ -5,6 +5,286 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * @nullable
+ */
+export type HistoricalRepairStatusProgress = {
+  status?: "running" | "completed" | "failed";
+  startedAt?: string;
+  finishedAt?: string;
+  lastClosedRound?: number;
+  completedRounds?: number;
+  upserted?: number;
+  missingPlayers?: number;
+  error?: string;
+  calibration?: { [key: string]: unknown };
+} | null;
+
+export interface HistoricalRepairStatus {
+  /** @nullable */
+  progress: HistoricalRepairStatusProgress;
+}
+
+export interface PerformanceRound {
+  round: number;
+  mae: number;
+  count: number;
+}
+
+export type PerformanceAggregateSeason = {
+  totalRounds: number;
+  totalDataPoints: number;
+  /** @nullable */
+  mae: number | null;
+  /** @nullable */
+  overestimatedPct: number | null;
+};
+
+export interface PerformancePosition {
+  mae: number;
+  count: number;
+  overestimatedPct: number;
+}
+
+export type PerformanceAggregateByPosition = {
+  [key: string]: PerformancePosition;
+};
+
+export type PerformanceAggregateDifferentials = {
+  total: number;
+  hits: number;
+  hitRate: number;
+};
+
+export type PerformanceAggregateTraps = {
+  total: number;
+  count: number;
+  rate: number;
+};
+
+export type PerformanceAggregateMeta = {
+  generatedAt: string;
+  disclaimer: string;
+};
+
+export interface PerformanceCalibrationBucket {
+  label: string;
+  bucket: string;
+  avgProjected: number;
+  avgActual: number;
+  count: number;
+}
+
+export interface PerformanceAggregate {
+  empty: boolean;
+  message?: string;
+  season: PerformanceAggregateSeason;
+  byRound: PerformanceRound[];
+  calibration: PerformanceCalibrationBucket[];
+  byPosition: PerformanceAggregateByPosition;
+  differentials?: PerformanceAggregateDifferentials;
+  traps?: PerformanceAggregateTraps;
+  meta: PerformanceAggregateMeta;
+}
+
+export type PerformanceStatsLegacy = PerformanceAggregate & {
+  disclaimer: string;
+};
+
+export type PerformanceStats = PerformanceAggregate & {
+  popularityFeaturesEnabled: boolean;
+  legacy: PerformanceStatsLegacy;
+};
+
+export interface BillingSubscription {
+  plan: string;
+  status: string;
+  /** @nullable */
+  currentPeriodEnd: string | null;
+  /**
+   * Recorded paid period start; null for unknown historical periods
+   * @nullable
+   */
+  currentPeriodStart: string | null;
+}
+
+export interface PlanSettings {
+  /**
+   * @minimum 2020
+   * @maximum 2100
+   */
+  seasonPassYear: number;
+  seasonPassEndsAt: string;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  proMonthlyPrice: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  seasonPassPrice: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   * @nullable
+   */
+  founderSeasonPassPrice?: number | null;
+}
+
+export type BillingConfiguration = PlanSettings & {
+  regularSeasonPassPrice: number;
+  founderCutoff: string;
+};
+
+export type AdminConfigurationAnonymousLineupMode =
+  (typeof AdminConfigurationAnonymousLineupMode)[keyof typeof AdminConfigurationAnonymousLineupMode];
+
+export const AdminConfigurationAnonymousLineupMode = {
+  login_required: "login_required",
+  allowed: "allowed",
+} as const;
+
+export type AdminConfiguration = PlanSettings & {
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  freeLineupsPerRound: number;
+  anonymousLineupMode: AdminConfigurationAnonymousLineupMode;
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  xgStaleDays: number;
+};
+
+export type AdminConfigurationPatchAnonymousLineupMode =
+  (typeof AdminConfigurationPatchAnonymousLineupMode)[keyof typeof AdminConfigurationPatchAnonymousLineupMode];
+
+export const AdminConfigurationPatchAnonymousLineupMode = {
+  login_required: "login_required",
+  allowed: "allowed",
+} as const;
+
+export interface AdminConfigurationPatch {
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  freeLineupsPerRound?: number;
+  anonymousLineupMode?: AdminConfigurationPatchAnonymousLineupMode;
+  /**
+   * @minimum 1
+   * @maximum 30
+   */
+  xgStaleDays?: number;
+  /**
+   * @minimum 2020
+   * @maximum 2100
+   */
+  seasonPassYear?: number;
+  seasonPassEndsAt?: string;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  proMonthlyPrice?: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   */
+  seasonPassPrice?: number;
+  /**
+   * @maximum 100000
+   * @exclusiveMinimum 0
+   * @nullable
+   */
+  founderSeasonPassPrice?: number | null;
+}
+
+export type CronDispatchStatusJob =
+  (typeof CronDispatchStatusJob)[keyof typeof CronDispatchStatusJob];
+
+export const CronDispatchStatusJob = {
+  "full-sync": "full-sync",
+  "market-check": "market-check",
+} as const;
+
+export type CronDispatchStatusStatus =
+  (typeof CronDispatchStatusStatus)[keyof typeof CronDispatchStatusStatus];
+
+export const CronDispatchStatusStatus = {
+  completed: "completed",
+  failed: "failed",
+  skipped: "skipped",
+  running: "running",
+} as const;
+
+export interface CronDispatchStatus {
+  job: CronDispatchStatusJob;
+  status: CronDispatchStatusStatus;
+  reason?: string;
+  success?: boolean;
+  round?: number;
+  durationMs?: number;
+  durable?: boolean;
+  statusUrl?: string;
+}
+
+export type SyncStatusPopularityReason =
+  (typeof SyncStatusPopularityReason)[keyof typeof SyncStatusPopularityReason];
+
+export const SyncStatusPopularityReason = {
+  ready: "ready",
+  no_data: "no_data",
+  source_error: "source_error",
+  stale: "stale",
+  insufficient_coverage: "insufficient_coverage",
+  forced_failure: "forced_failure",
+  unavailable: "unavailable",
+} as const;
+
+export type SyncStatusPopularity = {
+  /** @nullable */
+  lastCollectionAt: string | null;
+  /** @nullable */
+  lastSuccessfulCollectionAt: string | null;
+  coverage: number;
+  minimumCoverage: number;
+  maxAgeHours: number;
+  reason: SyncStatusPopularityReason;
+};
+
+export interface SyncStatus {
+  /** @nullable */
+  lastSyncAt: string | null;
+  /**
+   * Last successfully completed full ETL; alias of lastSyncAt
+   * @nullable
+   */
+  lastFullSyncAt: string | null;
+  /**
+   * Measured duration of the last full ETL attempt in milliseconds
+   * @nullable
+   */
+  lastFullSyncDurationMs: number | null;
+  /** True before the first successful full ETL or when it is older than two hours */
+  degraded: boolean;
+  isRunning: boolean;
+  /** @nullable */
+  marketStatus: string | null;
+  providersDegraded: boolean;
+  /**
+   * Last successful market check; null before the first observation
+   * @nullable
+   */
+  lastMarketCheckAt: string | null;
+  popularityFeaturesEnabled: boolean;
+  popularity: SyncStatusPopularity;
+}
+
 export interface FormationEvaluation {
   formation: string;
   feasible: boolean;
@@ -50,6 +330,9 @@ export interface Club {
   badgeUrl?: string | null;
 }
 
+/**
+ * Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.
+ */
 export type PlayerProjectionSummaryExplanationJson = {
   [key: string]: unknown;
 } | null;
@@ -61,6 +344,7 @@ export interface PlayerProjectionSummary {
   riskScore?: number | null;
   recommendationScore?: number | null;
   valueScore?: number | null;
+  /** Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers. */
   explanationJson?: PlayerProjectionSummaryExplanationJson;
 }
 
@@ -74,6 +358,24 @@ export interface PlayerAvailabilitySummary {
 }
 
 export interface Player {
+  /**
+   * Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.
+   * @minimum 0
+   * @maximum 1
+   * @nullable
+   */
+  popularity?: number | null;
+  /**
+   * Pro only; omitted for Free and anonymous viewers.
+   * @minimum 0
+   * @nullable
+   */
+  popularityCount?: number | null;
+  /**
+   * Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.
+   * @nullable
+   */
+  popularityListed?: boolean | null;
   id: number;
   name: string;
   nickname?: string | null;
@@ -107,9 +409,20 @@ export type PlayerDetail = Player & {
   projections?: PlayerDetailProjectionsItem[];
 };
 
+/**
+ * Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
+ * @nullable
+ */
+export type ProjectionItemExplanationJson = { [key: string]: unknown } | null;
+
 export type ProjectionItemPlayer = { [key: string]: unknown } | null;
 
 export interface ProjectionItem {
+  /**
+   * Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
+   * @nullable
+   */
+  explanationJson?: ProjectionItemExplanationJson;
   id?: number;
   playerId?: number;
   round?: number;
@@ -122,9 +435,36 @@ export interface ProjectionItem {
   player?: ProjectionItemPlayer;
 }
 
+export interface ProjectionProTeaser {
+  /** @minimum 0 */
+  differentials: number;
+  /** @minimum 0 */
+  traps: number;
+}
+
 export interface ProjectionListResponse {
+  /** True for Free and anonymous viewers; basic projections remain available. */
+  limited: boolean;
+  proTeaser: ProjectionProTeaser;
   projections: ProjectionItem[];
   round: number;
+}
+
+export type LineupAccessErrorReason =
+  (typeof LineupAccessErrorReason)[keyof typeof LineupAccessErrorReason];
+
+export const LineupAccessErrorReason = {
+  login_required: "login_required",
+  pro_strategy: "pro_strategy",
+  locked_limit: "locked_limit",
+  excluded_limit: "excluded_limit",
+  round_quota: "round_quota",
+} as const;
+
+export interface LineupAccessError {
+  error: string;
+  reason: LineupAccessErrorReason;
+  upgradeRequired?: boolean;
 }
 
 export interface Match {
@@ -232,6 +572,8 @@ export interface LineupReservePlayer {
   floorPoints?: number | null;
   ceilingPoints?: number | null;
   price?: number | null;
+  /** Official player average, when available. */
+  averagePoints?: number | null;
   orderIndex?: number;
   name?: string;
   nickname?: string | null;
@@ -259,7 +601,14 @@ export interface LineupGenerateResponse {
   lineup: LineupSuggestion;
 }
 
+export interface PopularityUnavailableError {
+  error: string;
+  popularityFeaturesEnabled: boolean;
+}
+
 export interface UpgradeRequiredError {
+  /** Reason for the blocked action, when provided by the endpoint. */
+  reason?: string;
   error: string;
   upgradeRequired: boolean;
 }

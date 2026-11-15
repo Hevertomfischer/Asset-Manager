@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,25 +8,37 @@ import { LineupConstraintsProvider } from "@/context/LineupConstraintsContext";
 import { OnboardingDialog } from "@/components/OnboardingDialog";
 import { useAuth } from "@/hooks";
 import { useTrack } from "@/hooks/useTrack";
-import NotFound from "@/pages/not-found";
-
-import { AppLayout } from "@/components/layout/AppLayout";
-import Dashboard from "@/pages/dashboard";
 import Landing from "@/pages/landing";
-import Players from "@/pages/players";
-import Lineup from "@/pages/lineup";
-import Admin from "@/pages/admin";
-import Confrontos from "@/pages/confrontos";
-import Historico from "@/pages/historico";
-import Conta from "@/pages/conta";
-import Planos from "@/pages/planos";
-import Fronteira from "@/pages/fronteira";
-import Desempenho from "@/pages/desempenho";
-import Comparar from "@/pages/comparar";
-import RodadaPage from "@/pages/rodada";
-import JogadorPage from "@/pages/jogador";
-import MeusTimes from "@/pages/meus-times";
-import MeusTimesDetalhe from "@/pages/meus-times-detalhe";
+import { RequireAdmin } from "@/components/RequireAdmin";
+
+// Visitors only load the landing; each other page gets its own route chunk.
+const NotFound = lazy(() => import("@/pages/not-found"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Players = lazy(() => import("@/pages/players"));
+const Lineup = lazy(() => import("@/pages/lineup"));
+const Admin = lazy(() => import("@/pages/admin"));
+const Confrontos = lazy(() => import("@/pages/confrontos"));
+const Historico = lazy(() => import("@/pages/historico"));
+const Conta = lazy(() => import("@/pages/conta"));
+const Planos = lazy(() => import("@/pages/planos"));
+const Fronteira = lazy(() => import("@/pages/fronteira"));
+const Desempenho = lazy(() => import("@/pages/desempenho"));
+const Comparar = lazy(() => import("@/pages/comparar"));
+const RodadaPage = lazy(() => import("@/pages/rodada"));
+const JogadorPage = lazy(() => import("@/pages/jogador"));
+const MeusTimes = lazy(() => import("@/pages/meus-times"));
+const MeusTimesDetalhe = lazy(() => import("@/pages/meus-times-detalhe"));
+const AppLayout = lazy(() => import("@/components/layout/AppLayout").then((module) => ({
+  default: module.AppLayout,
+})));
+
+function RouteLoading() {
+  return (
+    <div role="status" aria-live="polite" className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
+      Carregando página…
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,6 +160,7 @@ function App() {
               <SessionTracker />
               <ReferralTracker />
               <OnboardingGate />
+              <Suspense fallback={<RouteLoading />}>
               <Routes>
               {/* Public standalone pages — rendered without AppLayout */}
               <Route path="/desempenho" element={<Desempenho />} />
@@ -165,7 +178,7 @@ function App() {
                     <Routes>
                       <Route path="/jogadores" element={<Players />} />
                       <Route path="/escalacao" element={<Lineup />} />
-                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
                       <Route path="/confrontos" element={<Confrontos />} />
                       <Route path="/historico" element={<Historico />} />
                       <Route path="/conta" element={<Conta />} />
@@ -180,6 +193,7 @@ function App() {
                 }
               />
               </Routes>
+              </Suspense>
             </LineupConstraintsProvider>
           </PaywallProvider>
         </BrowserRouter>

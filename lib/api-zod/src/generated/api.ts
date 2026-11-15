@@ -8,6 +8,437 @@
 import * as zod from "zod";
 
 /**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+export const GetPerformanceStatsResponse = zod
+  .object({
+    empty: zod.boolean(),
+    message: zod.string().optional(),
+    season: zod.object({
+      totalRounds: zod.number(),
+      totalDataPoints: zod.number(),
+      mae: zod.number().nullable(),
+      overestimatedPct: zod.number().nullable(),
+    }),
+    byRound: zod.array(
+      zod.object({
+        round: zod.number(),
+        mae: zod.number(),
+        count: zod.number(),
+      }),
+    ),
+    calibration: zod.array(
+      zod.object({
+        label: zod.string(),
+        bucket: zod.string(),
+        avgProjected: zod.number(),
+        avgActual: zod.number(),
+        count: zod.number(),
+      }),
+    ),
+    byPosition: zod.record(
+      zod.string(),
+      zod.object({
+        mae: zod.number(),
+        count: zod.number(),
+        overestimatedPct: zod.number(),
+      }),
+    ),
+    differentials: zod
+      .object({
+        total: zod.number(),
+        hits: zod.number(),
+        hitRate: zod.number(),
+      })
+      .optional(),
+    traps: zod
+      .object({
+        total: zod.number(),
+        count: zod.number(),
+        rate: zod.number(),
+      })
+      .optional(),
+    meta: zod.object({
+      generatedAt: zod.string(),
+      disclaimer: zod.string(),
+    }),
+  })
+  .and(
+    zod.object({
+      popularityFeaturesEnabled: zod.boolean(),
+      legacy: zod
+        .object({
+          empty: zod.boolean(),
+          message: zod.string().optional(),
+          season: zod.object({
+            totalRounds: zod.number(),
+            totalDataPoints: zod.number(),
+            mae: zod.number().nullable(),
+            overestimatedPct: zod.number().nullable(),
+          }),
+          byRound: zod.array(
+            zod.object({
+              round: zod.number(),
+              mae: zod.number(),
+              count: zod.number(),
+            }),
+          ),
+          calibration: zod.array(
+            zod.object({
+              label: zod.string(),
+              bucket: zod.string(),
+              avgProjected: zod.number(),
+              avgActual: zod.number(),
+              count: zod.number(),
+            }),
+          ),
+          byPosition: zod.record(
+            zod.string(),
+            zod.object({
+              mae: zod.number(),
+              count: zod.number(),
+              overestimatedPct: zod.number(),
+            }),
+          ),
+          differentials: zod
+            .object({
+              total: zod.number(),
+              hits: zod.number(),
+              hitRate: zod.number(),
+            })
+            .optional(),
+          traps: zod
+            .object({
+              total: zod.number(),
+              count: zod.number(),
+              rate: zod.number(),
+            })
+            .optional(),
+          meta: zod.object({
+            generatedAt: zod.string(),
+            disclaimer: zod.string(),
+          }),
+        })
+        .and(
+          zod.object({
+            disclaimer: zod.string(),
+          }),
+        ),
+    }),
+  );
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+export const GetHistoricalRepairProgressResponse = zod.object({
+  progress: zod
+    .object({
+      status: zod.enum(["running", "completed", "failed"]).optional(),
+      startedAt: zod.string().optional(),
+      finishedAt: zod.string().optional(),
+      lastClosedRound: zod.number().optional(),
+      completedRounds: zod.number().optional(),
+      upserted: zod.number().optional(),
+      missingPlayers: zod.number().optional(),
+      error: zod.string().optional(),
+      calibration: zod.record(zod.string(), zod.unknown()).optional(),
+    })
+    .nullable(),
+});
+
+/**
+ * @summary Current real subscription and its recorded period
+ */
+export const GetBillingSubscriptionResponse = zod.object({
+  plan: zod.string(),
+  status: zod.string(),
+  currentPeriodEnd: zod.date().nullable(),
+  currentPeriodStart: zod
+    .date()
+    .nullable()
+    .describe(
+      "Recorded paid period start; null for unknown historical periods",
+    ),
+});
+
+/**
+ * @summary Current public prices and season validity
+ */
+export const getBillingConfigResponseOneSeasonPassYearMin = 2020;
+export const getBillingConfigResponseOneSeasonPassYearMax = 2100;
+
+export const getBillingConfigResponseOneProMonthlyPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneProMonthlyPriceMax = 100000;
+
+export const getBillingConfigResponseOneSeasonPassPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneSeasonPassPriceMax = 100000;
+
+export const getBillingConfigResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const getBillingConfigResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const GetBillingConfigResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(getBillingConfigResponseOneSeasonPassYearMin)
+      .max(getBillingConfigResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneProMonthlyPriceExclusiveMin)
+      .max(getBillingConfigResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneSeasonPassPriceExclusiveMin)
+      .max(getBillingConfigResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(getBillingConfigResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(getBillingConfigResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      regularSeasonPassPrice: zod.number(),
+      founderCutoff: zod.date(),
+    }),
+  );
+
+export const getAdminConfigurationResponseOneSeasonPassYearMin = 2020;
+export const getAdminConfigurationResponseOneSeasonPassYearMax = 2100;
+
+export const getAdminConfigurationResponseOneProMonthlyPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneProMonthlyPriceMax = 100000;
+
+export const getAdminConfigurationResponseOneSeasonPassPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
+
+export const getAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const getAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundDefault = 1;
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundMin = 0;
+export const getAdminConfigurationResponseTwoFreeLineupsPerRoundMax = 1000;
+
+export const getAdminConfigurationResponseTwoAnonymousLineupModeDefault = `login_required`;
+export const getAdminConfigurationResponseTwoXgStaleDaysMax = 30;
+
+export const GetAdminConfigurationResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(getAdminConfigurationResponseOneSeasonPassYearMin)
+      .max(getAdminConfigurationResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneProMonthlyPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneSeasonPassPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(getAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(getAdminConfigurationResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      freeLineupsPerRound: zod
+        .number()
+        .min(getAdminConfigurationResponseTwoFreeLineupsPerRoundMin)
+        .max(getAdminConfigurationResponseTwoFreeLineupsPerRoundMax)
+        .default(getAdminConfigurationResponseTwoFreeLineupsPerRoundDefault),
+      anonymousLineupMode: zod
+        .enum(["login_required", "allowed"])
+        .default(getAdminConfigurationResponseTwoAnonymousLineupModeDefault),
+      xgStaleDays: zod
+        .number()
+        .min(1)
+        .max(getAdminConfigurationResponseTwoXgStaleDaysMax),
+    }),
+  );
+
+export const updateAdminConfigurationBodyFreeLineupsPerRoundMin = 0;
+export const updateAdminConfigurationBodyFreeLineupsPerRoundMax = 1000;
+
+export const updateAdminConfigurationBodyXgStaleDaysMax = 30;
+
+export const updateAdminConfigurationBodySeasonPassYearMin = 2020;
+export const updateAdminConfigurationBodySeasonPassYearMax = 2100;
+
+export const updateAdminConfigurationBodyProMonthlyPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodyProMonthlyPriceMax = 100000;
+
+export const updateAdminConfigurationBodySeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodySeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationBodyFounderSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationBodyFounderSeasonPassPriceMax = 100000;
+
+export const UpdateAdminConfigurationBody = zod.object({
+  freeLineupsPerRound: zod
+    .number()
+    .min(updateAdminConfigurationBodyFreeLineupsPerRoundMin)
+    .max(updateAdminConfigurationBodyFreeLineupsPerRoundMax)
+    .optional(),
+  anonymousLineupMode: zod.enum(["login_required", "allowed"]).optional(),
+  xgStaleDays: zod
+    .number()
+    .min(1)
+    .max(updateAdminConfigurationBodyXgStaleDaysMax)
+    .optional(),
+  seasonPassYear: zod
+    .number()
+    .min(updateAdminConfigurationBodySeasonPassYearMin)
+    .max(updateAdminConfigurationBodySeasonPassYearMax)
+    .optional(),
+  seasonPassEndsAt: zod.date().optional(),
+  proMonthlyPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodyProMonthlyPriceExclusiveMin)
+    .max(updateAdminConfigurationBodyProMonthlyPriceMax)
+    .optional(),
+  seasonPassPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodySeasonPassPriceExclusiveMin)
+    .max(updateAdminConfigurationBodySeasonPassPriceMax)
+    .optional(),
+  founderSeasonPassPrice: zod
+    .number()
+    .gt(updateAdminConfigurationBodyFounderSeasonPassPriceExclusiveMin)
+    .max(updateAdminConfigurationBodyFounderSeasonPassPriceMax)
+    .nullish(),
+});
+
+export const updateAdminConfigurationResponseOneSeasonPassYearMin = 2020;
+export const updateAdminConfigurationResponseOneSeasonPassYearMax = 2100;
+
+export const updateAdminConfigurationResponseOneProMonthlyPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneProMonthlyPriceMax = 100000;
+
+export const updateAdminConfigurationResponseOneSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneSeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin = 0;
+export const updateAdminConfigurationResponseOneFounderSeasonPassPriceMax = 100000;
+
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundDefault = 1;
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundMin = 0;
+export const updateAdminConfigurationResponseTwoFreeLineupsPerRoundMax = 1000;
+
+export const updateAdminConfigurationResponseTwoAnonymousLineupModeDefault = `login_required`;
+export const updateAdminConfigurationResponseTwoXgStaleDaysMax = 30;
+
+export const UpdateAdminConfigurationResponse = zod
+  .object({
+    seasonPassYear: zod
+      .number()
+      .min(updateAdminConfigurationResponseOneSeasonPassYearMin)
+      .max(updateAdminConfigurationResponseOneSeasonPassYearMax),
+    seasonPassEndsAt: zod.date(),
+    proMonthlyPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneProMonthlyPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneProMonthlyPriceMax),
+    seasonPassPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneSeasonPassPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneSeasonPassPriceMax),
+    founderSeasonPassPrice: zod
+      .number()
+      .gt(updateAdminConfigurationResponseOneFounderSeasonPassPriceExclusiveMin)
+      .max(updateAdminConfigurationResponseOneFounderSeasonPassPriceMax)
+      .nullish(),
+  })
+  .and(
+    zod.object({
+      freeLineupsPerRound: zod
+        .number()
+        .min(updateAdminConfigurationResponseTwoFreeLineupsPerRoundMin)
+        .max(updateAdminConfigurationResponseTwoFreeLineupsPerRoundMax)
+        .default(updateAdminConfigurationResponseTwoFreeLineupsPerRoundDefault),
+      anonymousLineupMode: zod
+        .enum(["login_required", "allowed"])
+        .default(updateAdminConfigurationResponseTwoAnonymousLineupModeDefault),
+      xgStaleDays: zod
+        .number()
+        .min(1)
+        .max(updateAdminConfigurationResponseTwoXgStaleDaysMax),
+    }),
+  );
+
+/**
+ * @summary Dispatch a protected synchronization job
+ */
+export const DispatchInternalCronParams = zod.object({
+  job: zod.enum(["full-sync", "market-check"]),
+});
+
+export const DispatchInternalCronHeader = zod.object({
+  "x-cron-secret": zod.string(),
+});
+
+export const DispatchInternalCronResponse = zod.object({
+  job: zod.enum(["full-sync", "market-check"]),
+  status: zod.enum(["completed", "failed", "skipped", "running"]),
+  reason: zod.string().optional(),
+  success: zod.boolean().optional(),
+  round: zod.number().optional(),
+  durationMs: zod.number().optional(),
+  durable: zod.boolean().optional(),
+  statusUrl: zod.string().optional(),
+});
+
+/**
+ * @summary Public synchronization health without private provider logs
+ */
+export const GetSyncStatusResponse = zod.object({
+  lastSyncAt: zod.string().nullable(),
+  lastFullSyncAt: zod
+    .string()
+    .nullable()
+    .describe("Last successfully completed full ETL; alias of lastSyncAt"),
+  lastFullSyncDurationMs: zod
+    .number()
+    .nullable()
+    .describe("Measured duration of the last full ETL attempt in milliseconds"),
+  degraded: zod
+    .boolean()
+    .describe(
+      "True before the first successful full ETL or when it is older than two hours",
+    ),
+  isRunning: zod.boolean(),
+  marketStatus: zod.string().nullable(),
+  providersDegraded: zod.boolean(),
+  lastMarketCheckAt: zod
+    .string()
+    .nullable()
+    .describe(
+      "Last successful market check; null before the first observation",
+    ),
+  popularityFeaturesEnabled: zod.boolean(),
+  popularity: zod.object({
+    lastCollectionAt: zod.string().nullable(),
+    lastSuccessfulCollectionAt: zod.string().nullable(),
+    coverage: zod.number(),
+    minimumCoverage: zod.number(),
+    maxAgeHours: zod.number(),
+    reason: zod.enum([
+      "ready",
+      "no_data",
+      "source_error",
+      "stale",
+      "insufficient_coverage",
+      "forced_failure",
+      "unavailable",
+    ]),
+  }),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -49,9 +480,33 @@ export const GetPlayersQueryParams = zod.object({
   round: zod.coerce.number().optional(),
 });
 
+export const getPlayersResponsePlayersItemPopularityMin = 0;
+export const getPlayersResponsePlayersItemPopularityMax = 1;
+
+export const getPlayersResponsePlayersItemPopularityCountMin = 0;
+
 export const GetPlayersResponse = zod.object({
   players: zod.array(
     zod.object({
+      popularity: zod
+        .number()
+        .min(getPlayersResponsePlayersItemPopularityMin)
+        .max(getPlayersResponsePlayersItemPopularityMax)
+        .nullish()
+        .describe(
+          "Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.",
+        ),
+      popularityCount: zod
+        .number()
+        .min(getPlayersResponsePlayersItemPopularityCountMin)
+        .nullish()
+        .describe("Pro only; omitted for Free and anonymous viewers."),
+      popularityListed: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.",
+        ),
       id: zod.number(),
       name: zod.string(),
       nickname: zod.string().nullish(),
@@ -105,7 +560,13 @@ export const GetPlayersResponse = zod.object({
           riskScore: zod.number().nullish(),
           recommendationScore: zod.number().nullish(),
           valueScore: zod.number().nullish(),
-          explanationJson: zod.object({}).passthrough().nullish(),
+          explanationJson: zod
+            .object({})
+            .passthrough()
+            .nullish()
+            .describe(
+              "Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.",
+            ),
         })
         .optional(),
       availability: zod
@@ -130,9 +591,30 @@ export const GetCurrentProjectionsQueryParams = zod.object({
   round: zod.coerce.number().optional(),
 });
 
+export const getCurrentProjectionsResponseProTeaserDifferentialsMin = 0;
+
+export const getCurrentProjectionsResponseProTeaserTrapsMin = 0;
+
 export const GetCurrentProjectionsResponse = zod.object({
+  limited: zod
+    .boolean()
+    .describe(
+      "True for Free and anonymous viewers; basic projections remain available.",
+    ),
+  proTeaser: zod.object({
+    differentials: zod
+      .number()
+      .min(getCurrentProjectionsResponseProTeaserDifferentialsMin),
+    traps: zod.number().min(getCurrentProjectionsResponseProTeaserTrapsMin),
+  }),
   projections: zod.array(
     zod.object({
+      explanationJson: zod
+        .record(zod.string(), zod.unknown())
+        .nullish()
+        .describe(
+          "Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.",
+        ),
       id: zod.number().optional(),
       playerId: zod.number().optional(),
       round: zod.number().optional(),
@@ -155,8 +637,32 @@ export const GetPlayerByIdParams = zod.object({
   id: zod.coerce.number(),
 });
 
+export const getPlayerByIdResponseOnePopularityMin = 0;
+export const getPlayerByIdResponseOnePopularityMax = 1;
+
+export const getPlayerByIdResponseOnePopularityCountMin = 0;
+
 export const GetPlayerByIdResponse = zod
   .object({
+    popularity: zod
+      .number()
+      .min(getPlayerByIdResponseOnePopularityMin)
+      .max(getPlayerByIdResponseOnePopularityMax)
+      .nullish()
+      .describe(
+        "Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.",
+      ),
+    popularityCount: zod
+      .number()
+      .min(getPlayerByIdResponseOnePopularityCountMin)
+      .nullish()
+      .describe("Pro only; omitted for Free and anonymous viewers."),
+    popularityListed: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.",
+      ),
     id: zod.number(),
     name: zod.string(),
     nickname: zod.string().nullish(),
@@ -210,7 +716,13 @@ export const GetPlayerByIdResponse = zod
         riskScore: zod.number().nullish(),
         recommendationScore: zod.number().nullish(),
         valueScore: zod.number().nullish(),
-        explanationJson: zod.object({}).passthrough().nullish(),
+        explanationJson: zod
+          .object({})
+          .passthrough()
+          .nullish()
+          .describe(
+            "Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.",
+          ),
       })
       .optional(),
     availability: zod
@@ -369,6 +881,10 @@ export const GenerateLineupResponse = zod.object({
           floorPoints: zod.number().nullish(),
           ceilingPoints: zod.number().nullish(),
           price: zod.number().nullish(),
+          averagePoints: zod
+            .number()
+            .nullish()
+            .describe("Official player average, when available."),
           orderIndex: zod.number().optional(),
           name: zod.string().optional(),
           nickname: zod.string().nullish(),

@@ -8,8 +8,13 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, gte, lte, SQL, desc } from "drizzle-orm";
 import { getPlayerById } from "../repositories/playerRepository";
-import { requirePro } from "../middlewares/requirePro";
+import { isPro as hasProAccess } from "../services/accessService";
+import { sanitizeExplanationForPlan, sanitizePlayerForPlan } from "../lib/sanitizeProjection";
+import { isDifferentialHighlight, isTrap } from "../lib/popularityRules";
+import { createLogger } from "../lib/logger";
 import axios from "axios";
+import { cleanPopularityExplanation, knownPopularity } from "../lib/popularityRules";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 
 async function resolveCurrentRound(override?: string): Promise<number> {
   if (override) return Number(override);
@@ -23,9 +28,17 @@ async function resolveCurrentRound(override?: string): Promise<number> {
 }
 
 const router = Router();
+const log = createLogger("players");
+
+async function viewerIsPro(req: import("express").Request): Promise<boolean> {
+  return req.isAuthenticated?.() && req.user ? hasProAccess(req.user.id) : false;
+}
 
 router.get("/players", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const isPro = await viewerIsPro(req);
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const {
       position,
       clubId,
@@ -85,7 +98,7 @@ router.get("/players", async (req, res) => {
       }
 
       return {
-        ...player,
+        ...sanitizePlayerForPlan({ ...player, popularity: knownPopularity(player.popularity) }, isPro),
         minimoParaValorizar: player.minimoParaValorizar ?? null,
         baseAverage,
         club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
@@ -97,7 +110,7 @@ router.get("/players", async (req, res) => {
               riskScore: proj.riskScore,
               recommendationScore: proj.recommendationScore,
               valueScore: proj.valueScore,
-              explanationJson: proj.explanationJson,
+              explanationJson: sanitizeExplanationForPlan(cleanPopularityExplanation(proj.explanationJson, popularityFeaturesEnabled), isPro),
             }
           : null,
         availability: avail
@@ -130,13 +143,16 @@ router.get("/players", async (req, res) => {
 
     res.json({ players: enriched, total: enriched.length });
   } catch (error) {
-    console.error("[players route]", error);
+    log.error("Failed to fetch players", { error: String(error) });
     res.status(500).json({ error: "Failed to fetch players" });
   }
 });
 
-router.get("/players/projections/current", requirePro, async (req, res) => {
+router.get("/players/projections/current", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const isPro = await viewerIsPro(req);
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const { round } = req.query as Record<string, string>;
     const currentRound = await resolveCurrentRound(round);
 
@@ -151,11 +167,16 @@ router.get("/players/projections/current", requirePro, async (req, res) => {
     const clubMap = new Map(clubs.map((c) => [c.id, c]));
     const playerMap = new Map(players.map((p) => [p.id, p]));
 
+    const proTeaser = { differentials: 0, traps: 0 };
     const enriched = projections.map((proj) => {
       const player = playerMap.get(proj.playerId);
       const club = player?.clubId ? clubMap.get(player.clubId) : null;
+      const explanation = cleanPopularityExplanation(proj.explanationJson, popularityFeaturesEnabled);
+      if (isDifferentialHighlight({ ...explanation, expectedPoints: proj.expectedPoints })) proTeaser.differentials++;
+      if (isTrap(explanation ?? {})) proTeaser.traps++;
       return {
         ...proj,
+        explanationJson: sanitizeExplanationForPlan(explanation, isPro),
         player: player
           ? {
               id: player.id,
@@ -170,15 +191,18 @@ router.get("/players/projections/current", requirePro, async (req, res) => {
       };
     });
 
-    res.json({ projections: enriched, round: currentRound });
+    res.json({ projections: enriched, round: currentRound, limited: !isPro, proTeaser });
   } catch (error) {
-    console.error("[projections route]", error);
+    log.error("Failed to fetch projections", { error: String(error) });
     res.status(500).json({ error: "Failed to fetch projections" });
   }
 });
 
 router.get("/players/:id", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const isPro = await viewerIsPro(req);
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const id = Number(req.params["id"]);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid player ID" });
@@ -202,12 +226,12 @@ router.get("/players/:id", async (req, res) => {
       .limit(5);
 
     res.json({
-      ...player,
+      ...sanitizePlayerForPlan({ ...player, popularity: knownPopularity(player.popularity) }, isPro),
       club: club ? { id: club.id, name: club.name, abbreviation: club.abbreviation, badgeUrl: club.badgeUrl } : null,
-      projections,
+      projections: projections.map((p) => ({ ...p, explanationJson: sanitizeExplanationForPlan(cleanPopularityExplanation(p.explanationJson, popularityFeaturesEnabled), isPro) })),
     });
   } catch (error) {
-    console.error("[player/:id route]", error);
+    log.error("Failed to fetch player", { error: String(error) });
     res.status(500).json({ error: "Failed to fetch player" });
   }
 });

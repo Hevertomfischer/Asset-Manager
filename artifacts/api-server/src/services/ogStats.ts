@@ -55,7 +55,7 @@ export async function getOgStats(): Promise<OgStatsResult> {
             player_id, round, points
           FROM player_scout_round
           WHERE points IS NOT NULL
-            AND source IN ('cartola_api', 'historical_cartola')
+            AND source = 'historical_cartola'
           ORDER BY player_id, round,
             CASE source WHEN 'historical_cartola' THEN 0 ELSE 1 END
         ),
@@ -67,7 +67,7 @@ export async function getOgStats(): Promise<OgStatsResult> {
           JOIN scores s
             ON  s.player_id = pp.player_id
             AND s.round     = pp.round
-          WHERE pp.expected_points IS NOT NULL
+          WHERE pp.expected_points IS NOT NULL AND pp.locked_at IS NOT NULL
         ),
         last_r AS (SELECT MAX(round) AS round FROM paired)
       SELECT

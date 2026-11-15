@@ -14,11 +14,11 @@ export type Plan = "free" | "pro";
  * qualquer usuário autenticado — sem consultar assinaturas.
  *
  * Para ajustar via variável de ambiente:
- *   FOUNDER_ACCESS_CUTOFF_DATE=2026-09-30T23:59:59Z
+ *   FOUNDER_ACCESS_CUTOFF_DATE=2026-12-31T23:59:59Z
  *
  * REGRA: antes de alterar a data de fallback abaixo, registre aqui:
  *   Histórico de mudanças:
- *   (nenhuma alteração registrada — valor original de produção)
+ *   Corte prorrogado de 30/09/2026 para 31/12/2026 (fallback em UTC).
  */
 export const FOUNDER_ACCESS_CUTOFF: Date = process.env["FOUNDER_ACCESS_CUTOFF_DATE"]
   ? new Date(process.env["FOUNDER_ACCESS_CUTOFF_DATE"])

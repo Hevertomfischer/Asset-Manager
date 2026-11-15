@@ -23,6 +23,174 @@ tags:
   - name: admin
     description: Admin operations
 paths:
+  /stats/performance:
+    get:
+      operationId: getPerformanceStats
+      tags: [stats]
+      summary: Frozen-projection performance, with explicitly separated legacy data
+      responses:
+        "200":
+          description: Trusted metrics and legacy metrics never aggregated together
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceStats"
+        "500":
+          description: Performance unavailable
+  /admin/sync/closed-rounds:
+    get:
+      operationId: getHistoricalRepairProgress
+      tags: [admin]
+      summary: Admin-only progress of the official historical repair
+      responses:
+        "200":
+          description: Current or most recent repair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalRepairStatus"
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+    post:
+      operationId: startHistoricalRepair
+      tags: [admin]
+      summary: Force all closed rounds, consolidate scouts and calibrate after success
+      responses:
+        "202":
+          description: Repair started in background
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalRepairStatus"
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+        "409":
+          description: Synchronization already running
+        "502":
+          description: Official market status unavailable
+  /billing/subscription:
+    get:
+      operationId: getBillingSubscription
+      tags: [billing]
+      summary: Current real subscription and its recorded period
+      responses:
+        "200":
+          description: Subscription, excluding promotional access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSubscription"
+        "401":
+          description: Authentication required
+        "500":
+          description: Subscription unavailable
+  /billing/config:
+    get:
+      operationId: getBillingConfig
+      tags: [billing]
+      summary: Current public prices and season validity
+      responses:
+        "200":
+          description: Effective checkout prices, including any active founder discount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingConfiguration"
+        "500":
+          description: Configuration unavailable
+  /admin/config:
+    get:
+      operationId: getAdminConfiguration
+      tags: [admin]
+      responses:
+        "200":
+          description: Administrative configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminConfiguration"
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+    post:
+      operationId: updateAdminConfiguration
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminConfigurationPatch"
+      responses:
+        "200":
+          description: Updated administrative configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminConfiguration"
+        "400":
+          description: Invalid configuration
+        "401":
+          description: Authentication required
+        "403":
+          description: Administrator required
+  /internal/cron/{job}:
+    post:
+      operationId: dispatchInternalCron
+      tags: [internal]
+      summary: Dispatch a protected synchronization job
+      parameters:
+        - name: job
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [full-sync, market-check]
+        - name: x-cron-secret
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job finished or skipped because its resource is locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CronDispatchStatus"
+        "202":
+          description: Still running after the response budget; best-effort background execution, not a durable queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CronDispatchStatus"
+        "401":
+          description: Invalid scheduler secret
+        "404":
+          description: Unknown job
+        "502":
+          description: Job failed
+        "503":
+          description: Scheduler secret not configured
+  /sync/status:
+    get:
+      operationId: getSyncStatus
+      tags: [health]
+      summary: Public synchronization health without private provider logs
+      responses:
+        "200":
+          description: Public status summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatus"
+        "500":
+          description: Status unavailable
   /healthz:
     get:
       operationId: healthCheck
@@ -184,6 +352,12 @@ paths:
             schema:
               $ref: "#/components/schemas/LineupGenerateRequest"
       responses:
+        "401":
+          description: Google login is required by the anonymous lineup policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LineupAccessError"
         "200":
           description: Generated lineup
           content:
@@ -196,6 +370,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UpgradeRequiredError"
+        "409":
+          description: Antimassa is in calibration because popularity data is unavailable or insufficient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularityUnavailableError"
         "422":
           description: Locked/excluded lineup is not feasible
           content:
@@ -237,6 +417,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LineupValidationError"
+        "409":
+          description: Antimassa is in calibration because popularity data is unavailable or insufficient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopularityUnavailableError"
         "500":
           description: Operational failure
 
@@ -383,6 +569,284 @@ paths:
 
 components:
   schemas:
+    HistoricalRepairStatus:
+      type: object
+      required: [progress]
+      properties:
+        progress:
+          type: [object, "null"]
+          properties:
+            status:
+              type: string
+              enum: [running, completed, failed]
+            startedAt:
+              type: string
+            finishedAt:
+              type: string
+            lastClosedRound:
+              type: integer
+            completedRounds:
+              type: integer
+            upserted:
+              type: integer
+            missingPlayers:
+              type: integer
+            error:
+              type: string
+            calibration:
+              type: object
+              additionalProperties: true
+    PerformanceRound:
+      type: object
+      required: [round, mae, count]
+      properties:
+        round: { type: integer }
+        mae: { type: number }
+        count: { type: integer }
+    PerformanceAggregate:
+      type: object
+      required: [empty, season, byRound, calibration, byPosition, meta]
+      properties:
+        empty: { type: boolean }
+        message: { type: string }
+        season:
+          type: object
+          required: [totalRounds, totalDataPoints, mae, overestimatedPct]
+          properties:
+            totalRounds: { type: integer }
+            totalDataPoints: { type: integer }
+            mae: { type: [number, "null"] }
+            overestimatedPct: { type: [number, "null"] }
+        byRound:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceRound"
+        calibration:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceCalibrationBucket"
+        byPosition:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PerformancePosition"
+        differentials:
+          type: object
+          required: [total, hits, hitRate]
+          properties:
+            total: { type: integer }
+            hits: { type: integer }
+            hitRate: { type: number }
+        traps:
+          type: object
+          required: [total, count, rate]
+          properties:
+            total: { type: integer }
+            count: { type: integer }
+            rate: { type: number }
+        meta:
+          type: object
+          required: [generatedAt, disclaimer]
+          properties:
+            generatedAt: { type: string }
+            disclaimer: { type: string }
+    PerformancePosition:
+      type: object
+      required: [mae, count, overestimatedPct]
+      properties:
+        mae: { type: number }
+        count: { type: integer }
+        overestimatedPct: { type: number }
+    PerformanceCalibrationBucket:
+      type: object
+      required: [label, bucket, avgProjected, avgActual, count]
+      properties:
+        label: { type: string }
+        bucket: { type: string }
+        avgProjected: { type: number }
+        avgActual: { type: number }
+        count: { type: integer }
+    PerformanceStats:
+      allOf:
+        - $ref: "#/components/schemas/PerformanceAggregate"
+        - type: object
+          required: [popularityFeaturesEnabled, legacy]
+          properties:
+            popularityFeaturesEnabled: { type: boolean }
+            legacy:
+              allOf:
+                - $ref: "#/components/schemas/PerformanceAggregate"
+                - type: object
+                  required: [disclaimer]
+                  properties:
+                    disclaimer: { type: string }
+    BillingSubscription:
+      type: object
+      required: [plan, status, currentPeriodEnd, currentPeriodStart]
+      properties:
+        plan:
+          type: string
+        status:
+          type: string
+        currentPeriodEnd:
+          type: [string, "null"]
+          format: date-time
+        currentPeriodStart:
+          type: [string, "null"]
+          format: date-time
+          description: Recorded paid period start; null for unknown historical periods
+    PlanSettings:
+      type: object
+      required: [seasonPassYear, seasonPassEndsAt, proMonthlyPrice, seasonPassPrice]
+      properties:
+        seasonPassYear:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+        seasonPassEndsAt:
+          type: string
+          format: date-time
+        proMonthlyPrice:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        seasonPassPrice:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        founderSeasonPassPrice:
+          type: [number, "null"]
+          exclusiveMinimum: 0
+          maximum: 100000
+    BillingConfiguration:
+      allOf:
+        - $ref: "#/components/schemas/PlanSettings"
+        - type: object
+          required: [regularSeasonPassPrice, founderCutoff]
+          properties:
+            regularSeasonPassPrice:
+              type: number
+            founderCutoff:
+              type: string
+              format: date-time
+    AdminConfiguration:
+      allOf:
+        - $ref: "#/components/schemas/PlanSettings"
+        - type: object
+          required: [xgStaleDays, freeLineupsPerRound, anonymousLineupMode]
+          properties:
+            freeLineupsPerRound:
+              type: integer
+              minimum: 0
+              maximum: 1000
+              default: 1
+            anonymousLineupMode:
+              type: string
+              enum: [login_required, allowed]
+              default: login_required
+            xgStaleDays:
+              type: integer
+              minimum: 1
+              maximum: 30
+    AdminConfigurationPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        freeLineupsPerRound:
+          type: integer
+          minimum: 0
+          maximum: 1000
+        anonymousLineupMode:
+          type: string
+          enum: [login_required, allowed]
+        xgStaleDays:
+          type: integer
+          minimum: 1
+          maximum: 30
+        seasonPassYear:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+        seasonPassEndsAt:
+          type: string
+          format: date-time
+        proMonthlyPrice:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        seasonPassPrice:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        founderSeasonPassPrice:
+          type: [number, "null"]
+          exclusiveMinimum: 0
+          maximum: 100000
+    CronDispatchStatus:
+      type: object
+      required: [job, status]
+      properties:
+        job:
+          type: string
+          enum: [full-sync, market-check]
+        status:
+          type: string
+          enum: [completed, failed, skipped, running]
+        reason:
+          type: string
+        success:
+          type: boolean
+        round:
+          type: integer
+        durationMs:
+          type: number
+        durable:
+          type: boolean
+        statusUrl:
+          type: string
+    SyncStatus:
+      type: object
+      required: [lastSyncAt, lastFullSyncAt, lastFullSyncDurationMs, degraded, isRunning, marketStatus, providersDegraded, lastMarketCheckAt, popularityFeaturesEnabled, popularity]
+      properties:
+        lastSyncAt:
+          type: [string, "null"]
+        lastFullSyncAt:
+          type: [string, "null"]
+          description: Last successfully completed full ETL; alias of lastSyncAt
+        lastFullSyncDurationMs:
+          type: [number, "null"]
+          description: Measured duration of the last full ETL attempt in milliseconds
+        degraded:
+          type: boolean
+          description: True before the first successful full ETL or when it is older than two hours
+        isRunning:
+          type: boolean
+        marketStatus:
+          type: [string, "null"]
+        providersDegraded:
+          type: boolean
+        lastMarketCheckAt:
+          type: [string, "null"]
+          description: Last successful market check; null before the first observation
+        popularityFeaturesEnabled:
+          type: boolean
+        popularity:
+          type: object
+          required: [lastCollectionAt, lastSuccessfulCollectionAt, coverage, minimumCoverage, maxAgeHours, reason]
+          properties:
+            lastCollectionAt:
+              type: [string, "null"]
+            lastSuccessfulCollectionAt:
+              type: [string, "null"]
+            coverage:
+              type: integer
+            minimumCoverage:
+              type: integer
+            maxAgeHours:
+              type: integer
+            reason:
+              type: string
+              enum: [ready, no_data, source_error, stale, insufficient_coverage, forced_failure, unavailable]
     FormationEvaluation:
       type: object
       required: [formation, feasible, expectedPoints, totalCost, balance, differenceFromBest, reason]
@@ -487,6 +951,7 @@ components:
         explanationJson:
           type: object
           nullable: true
+          description: Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.
 
     PlayerAvailabilitySummary:
       type: object
@@ -513,6 +978,18 @@ components:
     Player:
       type: object
       properties:
+        popularity:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+          description: Pro only. Known fraction of selected teams in the same round; omitted for Free and anonymous viewers.
+        popularityCount:
+          type: [integer, "null"]
+          minimum: 0
+          description: Pro only; omitted for Free and anonymous viewers.
+        popularityListed:
+          type: [boolean, "null"]
+          description: Pro only; omitted for Free and anonymous viewers. False only when absent from a list covering this player's position.
         id:
           type: integer
         name:
@@ -589,6 +1066,10 @@ components:
     ProjectionItem:
       type: object
       properties:
+        explanationJson:
+          type: [object, "null"]
+          additionalProperties: true
+          description: Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
         id:
           type: integer
         playerId:
@@ -620,6 +1101,11 @@ components:
     ProjectionListResponse:
       type: object
       properties:
+        limited:
+          type: boolean
+          description: True for Free and anonymous viewers; basic projections remain available.
+        proTeaser:
+          $ref: "#/components/schemas/ProjectionProTeaser"
         projections:
           type: array
           items:
@@ -629,6 +1115,31 @@ components:
       required:
         - projections
         - round
+        - limited
+        - proTeaser
+
+    LineupAccessError:
+      type: object
+      required: [error, reason]
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [login_required, pro_strategy, locked_limit, excluded_limit, round_quota]
+        upgradeRequired:
+          type: boolean
+
+    ProjectionProTeaser:
+      type: object
+      required: [differentials, traps]
+      properties:
+        differentials:
+          type: integer
+          minimum: 0
+        traps:
+          type: integer
+          minimum: 0
 
     Match:
       type: object
@@ -817,6 +1328,10 @@ components:
         price:
           type: number
           nullable: true
+        averagePoints:
+          type: number
+          nullable: true
+          description: Official player average, when available.
         orderIndex:
           type: integer
         name:
@@ -876,9 +1391,21 @@ components:
       required:
         - lineup
 
+    PopularityUnavailableError:
+      type: object
+      required: [error, popularityFeaturesEnabled]
+      properties:
+        error:
+          type: string
+        popularityFeaturesEnabled:
+          type: boolean
+          enum: [false]
     UpgradeRequiredError:
       type: object
       properties:
+        reason:
+          type: string
+          description: Reason for the blocked action, when provided by the endpoint.
         error:
           type: string
         upgradeRequired:

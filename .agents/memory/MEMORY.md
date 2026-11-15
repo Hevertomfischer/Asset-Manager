@@ -8,6 +8,14 @@
 - [Club badge assets](club-badge-assets.md) — stylized jersey images ONLY in FieldView (public/jerseys + allowlist); cards use official API badgeUrl; AI uploads need floodfill + alpha-threshold bbox crop.
 - [Public pages pattern](public-pages-seo.md) — /rodada/:n and /jogador/:slug are standalone (no AppLayout); slug format is "name-id" (playerSlug fn in stats.ts); ogInjector has createDynamicOgMiddleware for prefix patterns; sitemap is async via getSitemapData().
 - [Prod path routing](prod-path-routing.md) — só prefixos listados em `paths` do artifact.toml chegam ao Express em prod; rotas fora de /api caem no SPA estático.
-- [MCP OAuth 2.0 AS](mcp-oauth-server.md) — OAuth AS para MCP montado fora de /api; session.mcpOauthPending preserva params OAuth através do Google login; 401 com resource_metadata faz Claude descobrir o AS automaticamente; DCR (/register) implementado — clientes mcp_* validam redirect_uris próprios, demais caem na allowlist estática.
+- [MCP OAuth](mcp-oauth-server.md) — autenticação individual com S256; preservar a autorização pendente quando o login Google regenera a sessão.
+- [Jobs em Autoscale](autoscale-job-boundary.md) — usuário manteve Autoscale por enquanto; HTTP 202 e polling não garantem execução durável de jobs longos.
 - [Integração com o Cartola](cartola-integration-boundary.md) — exportações orientam o uso do app oficial; nunca solicitar ou armazenar credenciais Globo.
 - [Formation comparison](formation-comparison-semantics.md) — rank strategy-specific suggestions, captain included; evaluation never saves teams or consumes generation quota.
+- [Administrative access](admin-access-policy.md) — all admin methods require admin or script header; public dashboard health must not depend on admin reads or Pro projections.
+- [Billing product rules](billing-product-rules.md) — pagamentos avulsos, sem recorrência; preservar campanha e dias adquiridos, sem presumir o tipo de compras antigas.
+- [Regras de popularidade](popularity-product-rules.md) — 15%/60% aprovados; cobertura parcial não implica 0%; sem fallbacks autenticados do Gato Mestre.
+- [Geração gratuita](free-lineup-access.md) — após Fundador, iniciar em estratégia acessível; login anônimo exigido por padrão e cota Free configurável.
+- [Semântica dos scouts](cartola-scout-semantics.md) — históricos devem ser buscados novamente, não remapeados via UPDATE; pontuação de V não deve ser inventada.
+- [Legado e desempenho confiável](projection-legacy-policy.md) — usuário escolheu manter legado separado; corrigir resultados não torna projeções antigas uma validação prospectiva.
+- [Permissões do GitHub](github-workflow-permissions.md) — acesso administrativo ao repositório não substitui o escopo OAuth workflow para enviar o CI.

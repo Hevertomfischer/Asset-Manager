@@ -1,3 +1,5 @@
+import { POPULARITY_RULES } from "../lib/popularityRules";
+
 // Official Cartola FC scout values — https://www.cartolafcbrasil.com.br/scouts
 export const SCOUT_SCORING: Record<string, number> = {
   G:  8.0,   // Gol
@@ -22,9 +24,9 @@ export const SCOUT_SCORING: Record<string, number> = {
 };
 
 export const POSITION_SCOUT_WEIGHTS: Record<string, Record<string, number>> = {
-  GOL: { SG: 2.0, PS: 1.8, GC: 1.5, DE: 0.8, DS: 0.8 },
-  ZAG: { SG: 1.6, DE: 1.4, DS: 1.3, G: 1.2, CA: 1.2, CV: 1.2 },
-  LAT: { A: 1.3, DS: 1.2, DE: 1.2, FS: 1.1, SG: 1.3 },
+  GOL: { SG: 2.0, DP: 1.8, GS: 1.5, DE: 0.8, DS: 0.8 },
+  ZAG: { SG: 1.6, DS: 1.3, G: 1.2, CA: 1.2, CV: 1.2 },
+  LAT: { A: 1.3, DS: 1.2, FS: 1.1, SG: 1.3 },
   MEI: { A: 1.4, G: 1.2, FT: 1.2, FS: 1.1, FC: 1.1 },
   ATA: { G: 1.5, FT: 1.3, FD: 1.2, A: 1.1, PP: 1.2 },
   TEC: {},
@@ -73,11 +75,11 @@ export const PROJECTION_WEIGHTS = {
     minExpectedMinutes: 30,
   },
   differential: {
-    lowPopularityThreshold: 0.2,
-    highProjectionThreshold: 5.0,
-    trapPopularityThreshold: 0.6,
-    trapRiskThreshold: 0.4,
-    trapFormDeclineThreshold: 0.7,
+    lowPopularityThreshold: POPULARITY_RULES.differential,
+    highProjectionThreshold: POPULARITY_RULES.highlightMinPoints,
+    trapPopularityThreshold: POPULARITY_RULES.trap,
+    trapRiskThreshold: POPULARITY_RULES.trapRisk,
+    trapFormDeclineThreshold: POPULARITY_RULES.trapFormRatio,
   },
   valorizacao: {
     /**

@@ -18,6 +18,9 @@ import {
 } from "@workspace/db/schema";
 import { and, inArray, isNotNull, eq, desc } from "drizzle-orm";
 import { createLogger } from "../lib/logger";
+import { isDifferential, isDifferentialHighlight, isTrap, label, readPopularitySignals } from "../lib/popularityRules";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
+import { invalidateOgStatsCache } from "../services/ogStats";
 
 const log = createLogger("stats");
 const router = Router();
@@ -34,8 +37,9 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 router.get("/stats/performance", async (_req, res) => {
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   // Serve from cache if fresh
-  if (cache && Date.now() < cache.expiry) {
+  if (cache && Date.now() < cache.expiry && (cache.data as { popularityFeaturesEnabled?: boolean }).popularityFeaturesEnabled === popularityFeaturesEnabled) {
     res.json(cache.data);
     return;
   }
@@ -49,19 +53,13 @@ router.get("/stats/performance", async (_req, res) => {
         playerId: playerProjectionTable.playerId,
         round: playerProjectionTable.round,
         expectedPoints: playerProjectionTable.expectedPoints,
+        lockedAt: playerProjectionTable.lockedAt,
+        explanationJson: playerProjectionTable.explanationJson,
         position: playersTable.position,
       })
       .from(playerProjectionTable)
       .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
       .where(isNotNull(playerProjectionTable.expectedPoints));
-
-    if (projections.length === 0) {
-      res.json({
-        empty: true,
-        message: "Ainda não há dados históricos suficientes. Sincronize projeções e aguarde o fim de uma rodada.",
-      });
-      return;
-    }
 
     const rounds = [...new Set(projections.map((p) => p.round))];
 
@@ -78,7 +76,7 @@ router.get("/stats/performance", async (_req, res) => {
         and(
           inArray(playerScoutRoundTable.round, rounds),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -102,6 +100,8 @@ router.get("/stats/performance", async (_req, res) => {
       actual: number;
       absError: number;
       overestimated: boolean;
+      lockedAt: Date | null;
+      explanationJson: unknown;
     }
 
     const compared: DataPoint[] = [];
@@ -116,15 +116,20 @@ router.get("/stats/performance", async (_req, res) => {
         actual,
         absError: Math.abs(projected - actual),
         overestimated: projected > actual,
+        lockedAt: proj.lockedAt,
+        explanationJson: proj.explanationJson,
       });
     }
 
+    function summarize(compared: DataPoint[]) {
     if (compared.length === 0) {
-      res.json({
+      return {
         empty: true,
-        message: "Rodadas com projeções ainda não têm pontuações reais. Aguarde o fim de uma rodada.",
-      });
-      return;
+        message: "A série confiável começa com as próximas projeções congeladas. Aguarde o encerramento de uma rodada.",
+        season: { totalRounds: 0, totalDataPoints: 0, mae: null, overestimatedPct: null },
+        byRound: [], calibration: [], byPosition: {},
+        meta: { generatedAt: new Date().toISOString(), disclaimer: "Somente projeções congeladas e pontuações finais oficiais." },
+      };
     }
 
     // ── 4. Season-level summary ────────────────────────────────────────────────
@@ -163,7 +168,7 @@ router.get("/stats/performance", async (_req, res) => {
       { label: "Menos projetados", bucket: "q4", slice: sortedByProjected.slice(0, qSize) },
     ];
 
-    const calibration = quartileConfig.map(({ label, bucket, slice }) => ({
+    const calibration = quartileConfig.filter(({ slice }) => slice.length > 0).map(({ label, bucket, slice }) => ({
       label,
       bucket,
       avgProjected: Number(
@@ -175,15 +180,12 @@ router.get("/stats/performance", async (_req, res) => {
       count: slice.length,
     }));
 
-    // ── 7. Differentials: top-quartile players who beat global actual median ──
-    const sortedActuals2 = compared.map((c) => c.actual).sort((a, b) => a - b);
-    const globalMedianActual = sortedActuals2[Math.floor(sortedActuals2.length / 2)] ?? 0;
-
-    const topQuartile = sortedByProjected.slice(n - qSize);
-    const differentialHits = topQuartile.filter((c) => c.actual >= globalMedianActual);
-
-    // ── 8. Traps: top-quartile players who scored < 50 % of their projection ─
-    const traps = topQuartile.filter((c) => c.actual < c.projected * 0.5);
+    // Classify using the signals frozen WITH the projection, never today's
+    // player popularity. Missing historical coverage does not mean 0%.
+    const differentials = compared.filter((c) => isDifferential(readPopularitySignals(c.explanationJson, popularityFeaturesEnabled)));
+    const differentialHits = differentials.filter((c) => c.actual >= c.projected);
+    const trapCandidates = compared.filter((c) => isTrap(readPopularitySignals(c.explanationJson, popularityFeaturesEnabled)));
+    const traps = trapCandidates.filter((c) => c.actual < c.projected * 0.5);
 
     // ── 9. By-position MAE ─────────────────────────────────────────────────────
     const posMap = new Map<string, DataPoint[]>();
@@ -207,7 +209,8 @@ router.get("/stats/performance", async (_req, res) => {
     );
 
     // ── Build response ─────────────────────────────────────────────────────────
-    const responseData = {
+    return {
+      empty: false,
       season: {
         totalRounds: uniqueRounds.length,
         totalDataPoints: compared.length,
@@ -217,25 +220,35 @@ router.get("/stats/performance", async (_req, res) => {
       byRound,
       calibration,
       byPosition,
-      differentials: {
-        total: topQuartile.length,
+      ...(popularityFeaturesEnabled ? { differentials: {
+        total: differentials.length,
         hits: differentialHits.length,
         hitRate: Number(
-          ((differentialHits.length / Math.max(1, topQuartile.length)) * 100).toFixed(1)
+          ((differentialHits.length / Math.max(1, differentials.length)) * 100).toFixed(1)
         ),
       },
       traps: {
-        total: topQuartile.length,
+        total: trapCandidates.length,
         count: traps.length,
         rate: Number(
-          ((traps.length / Math.max(1, topQuartile.length)) * 100).toFixed(1)
+          ((traps.length / Math.max(1, trapCandidates.length)) * 100).toFixed(1)
         ),
-      },
+      } } : {}),
       meta: {
         generatedAt: new Date().toISOString(),
         disclaimer:
           "Dados históricos baseados em projeções do modelo e pontuações reais do Cartola FC. " +
-          "MAE = Erro Médio Absoluto em pontos. Quartis calculados sobre todos os pares projeção-real disponíveis.",
+          "MAE = Erro Médio Absoluto em pontos. A série confiável usa somente projeções congeladas. " +
+          "Diferenciais e armadilhas usam as regras de popularidade e sinais históricos da própria projeção.",
+      },
+    };
+    }
+    const responseData = {
+      ...summarize(compared.filter((c) => c.lockedAt !== null)),
+      popularityFeaturesEnabled,
+      legacy: {
+        ...summarize(compared.filter((c) => c.lockedAt === null)),
+        disclaimer: "Legado: projeções sem garantia de congelamento antes dos jogos. Não integra a série confiável; resultados podem mudar após correções da fonte.",
       },
     };
 
@@ -243,8 +256,8 @@ router.get("/stats/performance", async (_req, res) => {
     cache = { data: responseData, expiry: Date.now() + CACHE_TTL_MS };
 
     log.info("Performance stats computed", {
-      rounds: uniqueRounds.length,
-      dataPoints: compared.length,
+      rounds: responseData.season.totalRounds,
+      dataPoints: responseData.season.totalDataPoints,
       mae: responseData.season.mae,
     });
 
@@ -264,6 +277,7 @@ let topProjectionsCache: CacheEntry | null = null;
 const TOP_PROJ_CACHE_TTL_MS = 10 * 60 * 1000;
 
 router.get("/stats/top-projections", async (_req, res) => {
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   if (topProjectionsCache && Date.now() < topProjectionsCache.expiry) {
     res.json(topProjectionsCache.data);
     return;
@@ -295,6 +309,7 @@ router.get("/stats/top-projections", async (_req, res) => {
         position: playersTable.position,
         price: playersTable.price,
         popularity: playersTable.popularity,
+        explanationJson: playerProjectionTable.explanationJson,
         clubAbbreviation: clubsTable.abbreviation,
         clubBadgeUrl: clubsTable.badgeUrl,
         clubName: clubsTable.name,
@@ -317,10 +332,11 @@ router.get("/stats/top-projections", async (_req, res) => {
       nickname: r.nickname,
       position: r.position,
       price: r.price,
-      popularity: r.popularity,
+      popularity: readPopularitySignals(r.explanationJson, popularityFeaturesEnabled).popularity ?? null,
+      popularityLabel: label(readPopularitySignals(r.explanationJson, popularityFeaturesEnabled)),
       expectedPoints: r.expectedPoints,
       playProbability: r.playProbability,
-      isDifferencial: (r.popularity ?? 1) < 0.15,
+      isDifferencial: isDifferential(readPopularitySignals(r.explanationJson, popularityFeaturesEnabled)),
       club: {
         abbreviation: r.clubAbbreviation,
         badgeUrl: r.clubBadgeUrl,
@@ -357,7 +373,7 @@ export function playerSlug(name: string, nickname: string | null, id: number): s
 // ── Round public stats ─────────────────────────────────────────────────────────
 // GET /stats/rodada/:numero — projections + (if closed) actuals. Cache 15 min.
 
-const roundCaches = new Map<number, CacheEntry>();
+const roundCaches = new Map<string, CacheEntry>();
 const ROUND_CACHE_TTL_MS = 15 * 60 * 1000;
 
 router.get("/stats/rodada/:numero", async (req, res) => {
@@ -367,7 +383,9 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     return;
   }
 
-  const cached = roundCaches.get(roundNum);
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
+  const cacheKey = `${roundNum}:${popularityFeaturesEnabled}`;
+  const cached = roundCaches.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
     res.json(cached.data);
     return;
@@ -389,6 +407,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         position: playersTable.position,
         price: playersTable.price,
         popularity: playersTable.popularity,
+        explanationJson: playerProjectionTable.explanationJson,
         clubAbbreviation: clubsTable.abbreviation,
         clubBadgeUrl: clubsTable.badgeUrl,
         clubName: clubsTable.name,
@@ -397,7 +416,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
       .innerJoin(playersTable, eq(playerProjectionTable.playerId, playersTable.id))
       .leftJoin(clubsTable, eq(playersTable.clubId, clubsTable.id))
       .where(
-        and(eq(playerProjectionTable.round, roundNum), isNotNull(playerProjectionTable.expectedPoints))
+        and(eq(playerProjectionTable.round, roundNum), isNotNull(playerProjectionTable.expectedPoints), isNotNull(playerProjectionTable.lockedAt))
       )
       .orderBy(desc(playerProjectionTable.expectedPoints));
 
@@ -417,7 +436,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         and(
           eq(playerScoutRoundTable.round, roundNum),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -436,7 +455,8 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     const players = projections.map((p) => {
       const actual = actualMap.get(p.playerId);
       const expectedPoints = p.expectedPoints ?? 0;
-      const popularity = p.popularity ?? 0.5;
+      const signals = readPopularitySignals(p.explanationJson, popularityFeaturesEnabled);
+      const popularity = signals.popularity ?? null;
       const riskScore = p.riskScore ?? 0;
       return {
         playerId: p.playerId,
@@ -446,14 +466,17 @@ router.get("/stats/rodada/:numero", async (req, res) => {
         position: p.position,
         price: p.price,
         popularity,
+        popularityListed: signals.popularityListed ?? null,
+        popularityLabel: label(signals),
         expectedPoints,
         floorPoints: p.floorPoints,
         ceilingPoints: p.ceilingPoints,
         riskScore,
         recommendationScore: p.recommendationScore,
         playProbability: p.playProbability,
-        isDifferencial: popularity < 0.15 && expectedPoints > 0,
-        isTrap: popularity >= 0.35 && riskScore >= 0.55,
+        isDifferencial: isDifferential(signals),
+        isDifferentialHighlight: isDifferentialHighlight(signals),
+        isTrap: isTrap(signals),
         ...(isClosed && {
           actualPoints: actual ?? null,
           beatProjection: actual != null ? actual >= expectedPoints * 0.9 : null,
@@ -463,12 +486,12 @@ router.get("/stats/rodada/:numero", async (req, res) => {
     });
 
     const topDiferencial = players
-      .filter((p) => p.isDifferencial)
+      .filter((p) => p.isDifferentialHighlight)
       .sort((a, b) => b.expectedPoints - a.expectedPoints)[0] ?? null;
 
     const topArmadilha = players
       .filter((p) => p.isTrap)
-      .sort((a, b) => b.popularity - a.popularity)[0] ?? null;
+      .sort((a, b) => (b.popularity ?? -1) - (a.popularity ?? -1))[0] ?? null;
 
     let summary = null;
     if (isClosed) {
@@ -476,18 +499,18 @@ router.get("/stats/rodada/:numero", async (req, res) => {
       const mae = paired.length > 0
         ? paired.reduce((s, p) => s + Math.abs(p.expectedPoints - ((p as { actualPoints: number }).actualPoints ?? 0)), 0) / paired.length
         : null;
-      const trapCount = paired.filter((p) => ((p as { actualPoints: number }).actualPoints ?? 0) < p.expectedPoints * 0.5 && p.popularity >= 0.35).length;
-      const differentialHits = paired.filter((p) => p.popularity < 0.15 && ((p as { actualPoints: number }).actualPoints ?? 0) > 0).length;
+      const trapCount = paired.filter((p) => p.isTrap && ((p as { actualPoints: number }).actualPoints ?? 0) < p.expectedPoints * 0.5).length;
+      const differentialHits = paired.filter((p) => p.isDifferencial && ((p as { actualPoints: number }).actualPoints ?? 0) > 0).length;
       summary = { mae: mae != null ? Number(mae.toFixed(2)) : null, trapCount, differentialHits, pairedCount: paired.length };
     }
 
     const responseData = {
-      round: roundNum, isClosed, players, topDiferencial, topArmadilha, summary,
+      round: roundNum, isClosed, players, topDiferencial, topArmadilha, summary, popularityFeaturesEnabled,
       generatedAt: new Date().toISOString(),
     };
 
     const ttl = isClosed ? ROUND_CACHE_TTL_MS : 5 * 60 * 1000;
-    roundCaches.set(roundNum, { data: responseData, expiry: Date.now() + ttl });
+    roundCaches.set(cacheKey, { data: responseData, expiry: Date.now() + ttl });
     log.info("Round stats served", { round: roundNum, isClosed, playerCount: players.length });
     res.json(responseData);
   } catch (err) {
@@ -499,7 +522,7 @@ router.get("/stats/rodada/:numero", async (req, res) => {
 // ── Player public stats ────────────────────────────────────────────────────────
 // GET /stats/jogador/:slug — projection history per player. Cache 20 min.
 
-const playerStatsCaches = new Map<number, CacheEntry>();
+const playerStatsCaches = new Map<string, CacheEntry>();
 const PLAYER_CACHE_TTL_MS = 20 * 60 * 1000;
 
 router.get("/stats/jogador/:slug", async (req, res) => {
@@ -511,7 +534,9 @@ router.get("/stats/jogador/:slug", async (req, res) => {
   }
   const playerId = parseInt(match[1]!, 10);
 
-  const cached = playerStatsCaches.get(playerId);
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
+  const cacheKey = `${playerId}:${popularityFeaturesEnabled}`;
+  const cached = playerStatsCaches.get(cacheKey);
   if (cached && Date.now() < cached.expiry) {
     res.json(cached.data);
     return;
@@ -573,7 +598,7 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         and(
           eq(playerScoutRoundTable.playerId, playerId),
           isNotNull(playerScoutRoundTable.points),
-          inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+          inArray(playerScoutRoundTable.source, ["historical_cartola"])
         )
       );
 
@@ -590,8 +615,7 @@ router.get("/stats/jogador/:slug", async (req, res) => {
     const history = projections.map((proj) => {
       const actual = actualMap.get(proj.round);
       const exp = proj.expectedPoints ?? 0;
-      const expJson = proj.explanationJson as { popularity?: number } | null;
-      const pop = expJson?.popularity ?? null;
+      const signals = readPopularitySignals(proj.explanationJson, popularityFeaturesEnabled);
       const riskScore = proj.riskScore ?? 0;
       return {
         round: proj.round,
@@ -601,8 +625,11 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         riskScore,
         playProbability: proj.playProbability,
         formScore: proj.formScore,
-        isDifferencial: (pop ?? 1) < 0.15,
-        isTrap: (pop ?? 0) >= 0.35 && riskScore >= 0.55,
+        popularity: signals.popularity ?? null,
+        popularityListed: signals.popularityListed ?? null,
+        popularityLabel: label(signals),
+        isDifferencial: isDifferential(signals),
+        isTrap: isTrap(signals),
         actual: actual?.points ?? null,
         actualGoals: actual?.goals ?? null,
         actualAssists: actual?.assists ?? null,
@@ -620,10 +647,11 @@ router.get("/stats/jogador/:slug", async (req, res) => {
         club: { abbreviation: p.clubAbbreviation, badgeUrl: p.clubBadgeUrl, name: p.clubName },
       },
       history,
+      popularityFeaturesEnabled,
       generatedAt: new Date().toISOString(),
     };
 
-    playerStatsCaches.set(playerId, { data: responseData, expiry: Date.now() + PLAYER_CACHE_TTL_MS });
+    playerStatsCaches.set(cacheKey, { data: responseData, expiry: Date.now() + PLAYER_CACHE_TTL_MS });
     log.info("Player stats served", { playerId, rounds: history.length });
     res.json(responseData);
   } catch (err) {
@@ -647,7 +675,7 @@ export async function getSitemapData(): Promise<{ closedRounds: number[]; player
     db
       .selectDistinct({ round: playerScoutRoundTable.round })
       .from(playerScoutRoundTable)
-      .where(inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])),
+      .where(inArray(playerScoutRoundTable.source, ["historical_cartola"])),
     db
       .selectDistinct({
         id: playersTable.id,
@@ -670,6 +698,15 @@ export async function getSitemapData(): Promise<{ closedRounds: number[]; player
   const data = { closedRounds, players };
   sitemapDataCache = { data, expiry: Date.now() + SITEMAP_CACHE_TTL_MS };
   return data;
+}
+
+export function invalidateStatsCaches() {
+  invalidateOgStatsCache();
+  cache = null;
+  topProjectionsCache = null;
+  roundCaches.clear();
+  playerStatsCaches.clear();
+  sitemapDataCache = null;
 }
 
 export default router;

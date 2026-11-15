@@ -12,7 +12,7 @@
  * ║  Isso evita re-divergência silenciosa entre telas.                          ║
  * ║                                                                              ║
  * ║  Histórico de mudanças de limiar:                                            ║
- * ║  (nenhuma alteração registrada — valores originais de produção)              ║
+ * ║  13/11/2026: regras compartilhadas aprovadas; popularidade 0–1 ou null.        ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
  * Limiares ativos (thresholds) — não altere sem registrar acima:
@@ -23,14 +23,16 @@
  *  - Joga em casa:    isHome = true  (só se confronto for neutro)
  *  - Saldo possível:  cleanSheetProbability > 0.50 para GOL/ZAG/LAT
  *  - Custo-benefício: valueScore > 0.70 (pts esperados / preço)
- *  - Diferencial:     popularity < 0.15 (menos de 15% de escalação) E !isTrap — PRO-ONLY
- *  - Armadilha:       isTrap = true (popular + queda de forma)                  — PRO-ONLY
+ *  - Diferencial:     <15% conhecidos OU ausência comprovada na lista consultada — PRO-ONLY
+ *  - Armadilha:       >=60% conhecidos, risco >0.4, média curta <70% da média     — PRO-ONLY
  *  - Valorizando:     priceVariation > 1.50 C$
  *  - Desvalorizando:  priceVariation < -1.00 C$
  *  - Boa forma:       formScore > 3.0 (fallback quando sem outros insights)
  */
 
-export interface ExplanationJson {
+import { isDifferential, isTrap, label, type PopularitySignals } from "./popularityRules";
+
+export interface ExplanationJson extends PopularitySignals {
   averagePoints?: number;
   formScore?: number;
   shortAvg?: number;
@@ -46,7 +48,8 @@ export interface ExplanationJson {
   recentRoundsAnalyzed?: number;
   position?: string;
   price?: number;
-  popularity?: number;
+  popularity?: number | null;
+  popularityVersion?: number;
   valueScore?: number;
   differentialScore?: number;
   isTrap?: boolean;
@@ -78,14 +81,14 @@ export interface Options {
  * documentado (< 15%) e não é classificado como armadilha.
  */
 export function isDifferentialPlayer(exp: ExplanationJson): boolean {
-  return (exp.popularity ?? 1) < 0.15 && !exp.isTrap;
+  return isDifferential(exp);
 }
 
 /**
  * True se o jogador qualifica como armadilha (popular + queda de forma).
  */
 export function isTrapPlayer(exp: ExplanationJson): boolean {
-  return exp.isTrap === true;
+  return isTrap(exp);
 }
 
 export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Options = {}): Insight[] {
@@ -117,7 +120,7 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   // --- Forma recente (shortAvg vs mediumAvg) --------------------
   const shortAvg = exp.shortAvg ?? 0;
   const mediumAvg = exp.mediumAvg ?? 0;
-  if (shortAvg > 0 && mediumAvg > 0 && !exp.isTrap) {
+  if (shortAvg > 0 && mediumAvg > 0 && !isTrapPlayer(exp)) {
     if (shortAvg >= mediumAvg * 1.2 && shortAvg > 2) {
       // Threshold: ≥ 20% acima da média e mínimo de 2 pts para relevância
       insights.push({
@@ -186,9 +189,9 @@ export function explainPlayer(exp: ExplanationJson, { isCaptain = false }: Optio
   if (isDifferentialPlayer(exp)) {
     // Threshold: < 15% de escalação geral — jogador diferencial
     insights.push({
-      text: `Diferencial: ${Math.round((exp.popularity ?? 0) * 100)}% de escalação`,
+      text: label(exp),
       kind: "differential",
-      badgeLabel: "Diferencial",
+      badgeLabel: exp.popularity == null ? "Fora dos mais escalados" : "Diferencial",
       requiresPro: true,
     });
   }

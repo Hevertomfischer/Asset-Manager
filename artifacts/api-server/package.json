@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_ENV=development tsx ./src/index.ts",
-    "build": "tsx ./build.ts",
+    "build": "pnpm run typecheck && tsx ./build.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -15,6 +15,7 @@
     "@types/connect-pg-simple": "^7.0.3",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/popularity-rules": "workspace:*",
     "axios": "^1.13.6",
     "bottleneck": "^2.19.5",
     "cheerio": "^1.2.0",

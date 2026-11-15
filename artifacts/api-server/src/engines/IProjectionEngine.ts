@@ -4,7 +4,7 @@ export interface PlayerFeatures {
   position: string;
   clubId: number | null;
   price: number;
-  popularity: number;
+  popularity: number | null;
   avgPoints3: number;
   avgPoints5: number;
   avgPoints8: number;

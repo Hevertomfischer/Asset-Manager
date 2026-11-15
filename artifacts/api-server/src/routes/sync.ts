@@ -1,31 +1,50 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { adminConfigTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
-import { getIsSyncing } from "../jobs/syncJob";
+import { adminConfigTable, dataCollectionLogTable } from "@workspace/db/schema";
+import { eq, desc, inArray } from "drizzle-orm";
+import { isSyncingGlobally } from "../services/syncLease";
+import { isFullSyncDegraded } from "../services/syncMetrics";
+import { createLogger } from "../lib/logger";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 
 const router = Router();
+const log = createLogger("sync-status");
+const PROVIDER_SOURCES = ["cartola_api", "cartola_status", "ge_probables", "footystats_xg", "historical_cartola"];
 
 router.get("/sync/status", async (_req, res) => {
   try {
-    const rows = await db
+    const [rows, providerStates] = await Promise.all([
+      db
       .select()
       .from(adminConfigTable)
-      .where(eq(adminConfigTable.key, "lastFullSyncAt"))
-      .limit(1);
+      .where(inArray(adminConfigTable.key, ["lastFullSyncAt", "lastFullSyncDurationMs", "marketStatus"])),
+      Promise.all(PROVIDER_SOURCES.map(async (source) => {
+        const logs = await db.select({ status: dataCollectionLogTable.status })
+          .from(dataCollectionLogTable)
+          .where(eq(dataCollectionLogTable.source, source))
+          .orderBy(desc(dataCollectionLogTable.collectedAt))
+          .limit(5);
+        // Same recent-health rule as the private provider details endpoint.
+        return logs[0]?.status === "error" || logs.some((entry) => entry.status === "degraded");
+      })),
+    ]);
+    const syncRow = rows.find((row) => row.key === "lastFullSyncAt");
+    const marketRow = rows.find((row) => row.key === "marketStatus");
+    const lastSyncAt = syncRow?.value ?? null;
+    const marketStatus = marketRow?.value ?? null;
+    // The scheduler updates this row after every successful market observation.
+    const lastMarketCheckAt = marketRow?.updatedAt?.toISOString() ?? null;
+    const isRunning = await isSyncingGlobally();
+    const durationValue = Number(rows.find((row) => row.key === "lastFullSyncDurationMs")?.value);
+    const lastFullSyncDurationMs = Number.isFinite(durationValue) && durationValue >= 0 ? durationValue : null;
+    const degraded = isFullSyncDegraded(lastSyncAt);
+    const { popularityFeaturesEnabled, ...popularity } = await getPopularityFeatureStatus();
 
-    const marketRows = await db
-      .select()
-      .from(adminConfigTable)
-      .where(eq(adminConfigTable.key, "marketStatus"))
-      .limit(1);
-
-    const lastSyncAt = rows[0]?.value ?? null;
-    const marketStatus = marketRows[0]?.value ?? null;
-    const isRunning = getIsSyncing();
-
-    res.json({ lastSyncAt, isRunning, marketStatus });
-  } catch {
+    res.set("Cache-Control", "no-store");
+    res.json({ lastSyncAt, lastFullSyncAt: lastSyncAt, lastFullSyncDurationMs, degraded, isRunning, marketStatus,
+      providersDegraded: providerStates.some(Boolean), lastMarketCheckAt, popularityFeaturesEnabled, popularity });
+  } catch (error) {
+    log.error("Failed to read public sync status", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: "Falha ao buscar status de sincronização" });
   }
 });

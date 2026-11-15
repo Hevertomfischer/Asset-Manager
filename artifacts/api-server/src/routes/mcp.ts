@@ -4,16 +4,11 @@
  * Expõe as mesmas 4 ferramentas do servidor stdio em um endpoint HTTP
  * acessível de qualquer cliente MCP sem instalação local.
  *
- * Montado em /mcp (fora do prefixo /api para o protocolo MCP tomar conta).
+ * Montado em /api/mcp.
  *
  * Proteção:
  *   - Rate limit: 30 req/min por IP (configurable via MCP_RATE_LIMIT env)
- *   - Token opcional: MCP_ACCESS_TOKEN env (se definido, exige Authorization: Bearer <token>)
- *
- * Sessão Pro:
- *   - Se MCP_ACCESS_TOKEN não estiver definido, Authorization: Bearer <connect.sid>
- *     é encaminhado para os endpoints internos, habilitando estratégias Pro.
- *   - Se MCP_ACCESS_TOKEN estiver definido, use MCP_PRO_SESSION para sessão Pro.
+ *   - OAuth obrigatório com PKCE S256; cada cliente usa a identidade autorizada.
  */
 
 import { Router, type Request, type Response } from "express";
@@ -50,11 +45,6 @@ setInterval(() => {
   for (const [k, v] of rateMap) if (v.resetAt < now) rateMap.delete(k);
 }, 5 * 60_000);
 
-// ── Auth config ───────────────────────────────────────────────────────────────
-
-const MCP_TOKEN = process.env["MCP_ACCESS_TOKEN"];
-const MCP_PRO_SESSION = process.env["MCP_PRO_SESSION"];
-
 // ── Helpers para chamar a API interna ─────────────────────────────────────────
 
 function internalApiBase(): string {
@@ -64,20 +54,14 @@ function internalApiBase(): string {
 
 async function callApi<T>(
   path: string,
-  sessionCookie: string | undefined,
-  mcpUserId?: number,
+  mcpUserId: number,
   init?: RequestInit,
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
-  if (sessionCookie) {
-    headers["Cookie"] = `connect.sid=${sessionCookie}`;
-  } else if (mcpUserId) {
-    // Propagação interna de identidade para requests sem cookie de sessão
-    headers["X-Mcp-Internal-User"] = signInternalUserId(mcpUserId);
-  }
+  headers["X-Mcp-Internal-User"] = signInternalUserId(mcpUserId);
 
   const url = `${internalApiBase()}${path}`;
   const res = await fetch(url, { ...init, headers });
@@ -109,13 +93,13 @@ function fail(err: unknown) {
 
 const POSITIONS = ["GOL", "ZAG", "LAT", "MEI", "ATA", "TEC"] as const;
 
-function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): McpServer {
+function buildMcpServer(mcpUserId: number): McpServer {
   const server = new McpServer({ name: "mitometro", version: "0.1.0" });
 
-  // Closure que injeta automaticamente identidade (sessionCookie OU mcpUserId) em
+  // Closure que injeta automaticamente a identidade OAuth em
   // todas as chamadas internas à API — garante que Pro checks funcionam via OAuth.
   const api = <T>(path: string, init?: RequestInit): Promise<T> =>
-    callApi<T>(path, sessionCookie, mcpUserId, init);
+    callApi<T>(path, mcpUserId, init);
 
   // ── get_round_projections ───────────────────────────────────────────────────
   server.registerTool(
@@ -147,7 +131,7 @@ function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): 
           isClosed: boolean;
           players: Array<{
             name: string; nickname: string | null; position: string; price: number | null;
-            expectedPoints: number; playProbability: number | null; popularity: number;
+            expectedPoints: number; playProbability: number | null; popularity: number | null;
             isDifferencial: boolean; isTrap: boolean; slug: string;
             club: { abbreviation: string | null; name: string | null };
             actualPoints?: number | null;
@@ -170,7 +154,7 @@ function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): 
             price: p.price,
             expectedPoints: p.expectedPoints,
             playProbability: p.playProbability,
-            popularityPct: Math.round((p.popularity ?? 0) * 100),
+            popularityPct: p.popularity == null ? null : Math.round(p.popularity * 100),
             isDifferencial: p.isDifferencial,
             isTrap: p.isTrap,
             ...(p.actualPoints !== undefined && { actualPoints: p.actualPoints }),
@@ -331,7 +315,7 @@ function buildMcpServer(sessionCookie: string | undefined, mcpUserId?: number): 
 
 const mcpRouter = Router();
 
-// Middleware: rate limit + auth (suporta OAuth Bearer tokens do AS + token estático legado)
+// Middleware: rate limit + autenticação OAuth individual.
 mcpRouter.use("/mcp", async (req: Request, res: Response, next) => {
   const ip = (req.ip ?? req.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
 
@@ -354,34 +338,7 @@ mcpRouter.use("/mcp", async (req: Request, res: Response, next) => {
   // O Claude usa este endpoint para descobrir o AS — deve ser o RFC 9728 document.
   const wwwAuthenticate401 = `Bearer realm="mitometro-mcp", resource_metadata="${oauthIssuer}/.well-known/oauth-protected-resource"`;
 
-  // Prioridade 1: token estático legado (MCP_ACCESS_TOKEN)
-  if (MCP_TOKEN) {
-    if (bearerToken === MCP_TOKEN) {
-      (req as Request & { mcpUserId?: number }).mcpUserId = undefined;
-      next();
-      return;
-    }
-    // Token não coincide com o estático — tenta como OAuth token emitido pelo AS
-    if (bearerToken) {
-      const userId = await validateMcpBearerToken(bearerToken);
-      if (userId) {
-        (req as Request & { mcpUserId?: number }).mcpUserId = userId;
-        next();
-        return;
-      }
-      // Token inválido — inclui discovery header para o Claude saber re-autenticar
-      res.set("WWW-Authenticate", `${wwwAuthenticate401}, error="invalid_token"`);
-      res.status(401).json({ error: "Token MCP inválido ou ausente." });
-      return;
-    }
-    // Sem token — discovery header garante bootstrap OAuth mesmo em modo legado
-    log.warn("MCP auth: sem token", { ip });
-    res.set("WWW-Authenticate", wwwAuthenticate401);
-    res.status(401).json({ error: "Token MCP ausente." });
-    return;
-  }
-
-  // Prioridade 2: OAuth Bearer token emitido pelo AS
+  // Somente tokens OAuth emitidos pelo AS, consultados pelo SHA-256.
   if (bearerToken) {
     const userId = await validateMcpBearerToken(bearerToken);
     if (userId) {
@@ -405,22 +362,15 @@ mcpRouter.use("/mcp", async (req: Request, res: Response, next) => {
 mcpRouter.all("/mcp", async (req: Request, res: Response) => {
   const mcpUserId = (req as Request & { mcpUserId?: number }).mcpUserId;
 
-  // Resolve sessão Pro para chamadas internas à API
-  // Prioridade: env MCP_PRO_SESSION > userId autenticado via OAuth > sem sessão
-  let sessionCookie: string | undefined = MCP_PRO_SESSION;
-  if (!sessionCookie && mcpUserId) {
-    // Verifica Pro pelo userId do token OAuth — injeta via cookie de sessão ativo se houver,
-    // senão usa isPro() direto no buildMcpServer (passado como flag)
-    // Para manter compatibilidade com callApi(), precisamos de uma sessão válida.
-    // Como não temos o cookie, passamos undefined e deixamos as rotas internas sem auth
-    // para endpoints públicos; para generate_lineup (Pro), o isPro() é consultado por dentro.
-    sessionCookie = undefined;
+  if (!mcpUserId) {
+    res.status(401).json({ error: "Autenticação OAuth necessária." });
+    return;
   }
 
-  log.debug("MCP request", { method: req.method, mcpUserId: mcpUserId ?? "anon" });
+  log.debug("MCP request", { method: req.method, mcpUserId });
 
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  const server = buildMcpServer(sessionCookie, mcpUserId);
+  const server = buildMcpServer(mcpUserId);
 
   try {
     await server.connect(transport);

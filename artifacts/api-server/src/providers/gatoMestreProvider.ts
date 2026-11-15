@@ -7,9 +7,7 @@
  * `escalacoes` counts. Grows as the round progresses; returns all positions for
  * completed rounds.
  *
- * Fallback sources (require GLOBO_GLLIB cookie):
- *   - Gato Mestre API (v2 authenticated)
- *   - Cartola /mercado/selecao
+ * Somente fonte pública e cache: fallbacks autenticados removidos por aprovação do produto.
  *
  * Results are cached in the round_snapshot table for 2 hours.
  */
@@ -19,13 +17,17 @@ import crypto from "crypto";
 import { db } from "@workspace/db";
 import { roundSnapshotTable, dataCollectionLogTable } from "@workspace/db/schema";
 import { desc, eq, and, gt } from "drizzle-orm";
+import { createLogger } from "../lib/logger";
+import { isPopularityFailureForced } from "../services/popularityFeatureService";
+const logger = createLogger("gato-mestre");
 
 const GATO_MESTRE_BASE = "https://api.gatomestre.globo.com";
-const CARTOLA_BASE = "https://api.cartola.globo.com";
 const SNAPSHOT_SOURCE = "gato_mestre_popularity";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 async function log(status: string, message: string) {
+  if (status === "error" || status === "degraded") logger.warn(message);
+  else logger.info(message);
   try {
     await db.insert(dataCollectionLogTable).values({
       source: "gato_mestre",
@@ -36,17 +38,6 @@ async function log(status: string, message: string) {
   } catch {
     // non-critical
   }
-}
-
-function buildAuthHeaders(): Record<string, string> {
-  const glbId = process.env.GLOBO_GLLIB ?? "";
-  return {
-    "User-Agent": "Mozilla/5.0",
-    "Accept": "application/json",
-    "Origin": "https://gatomestre.ge.globo.com",
-    "Referer": "https://gatomestre.ge.globo.com/",
-    ...(glbId ? { "Cookie": `GLBID=${glbId}` } : {}),
-  };
 }
 
 type GatoMestrePlayer = {
@@ -89,109 +80,18 @@ async function fetchFromPublicPage(round: number): Promise<Record<string, number
   }
 
   const data = res.data;
+  // Votos de capitão e presença no banco não são contagens de titularidade.
+  // Não misturar esses universos nem sobrescrever a seleção principal.
   const allPlayers: GatoMestrePlayer[] = [
     ...(data.selecao ?? []),
-    ...(data.reservas ?? []),
-    ...(data.capitaes ?? []),
-    ...(data.banco_de_reservas ?? []),
   ];
 
   const popularity: Record<string, number> = {};
   for (const player of allPlayers) {
     const id = player.Atleta?.atleta_id;
     const count = player.escalacoes;
-    if (id != null && count != null) {
+    if (id != null && count != null && Number.isSafeInteger(count) && count >= 0) {
       popularity[String(id)] = count;
-    }
-  }
-
-  return popularity;
-}
-
-/**
- * FALLBACK — requires GLOBO_GLLIB cookie.
- * Tries the Gato Mestre authenticated API endpoint.
- */
-async function fetchFromGatoMestre(round: number): Promise<Record<string, number>> {
-  const year = new Date().getFullYear();
-  const res = await axios.get(
-    `${GATO_MESTRE_BASE}/api/v2/mais-escalados/temporada/${year}`,
-    {
-      headers: buildAuthHeaders(),
-      timeout: 12000,
-      validateStatus: (s) => s < 500,
-    }
-  );
-
-  if (res.status === 401 || res.status === 403) {
-    throw new Error(`GLBID cookie rejected (HTTP ${res.status}) — please renew GLOBO_GLLIB`);
-  }
-  if (res.status !== 200) {
-    throw new Error(`Gato Mestre auth API returned HTTP ${res.status}`);
-  }
-
-  await log("info", `GM auth raw keys=${JSON.stringify(Object.keys(res.data ?? {})).slice(0, 120)}`);
-  return parsePopularityResponse(res.data);
-}
-
-/**
- * FALLBACK — requires GLOBO_GLLIB cookie.
- * Tries the Cartola /mercado/selecao endpoint.
- */
-async function fetchFromCartolaSelecao(): Promise<Record<string, number>> {
-  const res = await axios.get(`${CARTOLA_BASE}/mercado/selecao`, {
-    headers: { ...buildAuthHeaders(), "User-Agent": "application/postscript" },
-    timeout: 12000,
-    validateStatus: (s) => s < 500,
-  });
-
-  if (res.status !== 200) {
-    throw new Error(`Cartola /mercado/selecao returned HTTP ${res.status}`);
-  }
-
-  await log("info", `Cartola selecao raw: ${JSON.stringify(res.data).slice(0, 200)}`);
-  return parsePopularityResponse(res.data);
-}
-
-/**
- * Generic parser for various API response shapes → atleta_id → times_escalados map.
- */
-function parsePopularityResponse(data: unknown): Record<string, number> {
-  const popularity: Record<string, number> = {};
-  if (!data || typeof data !== "object") return popularity;
-
-  const obj = data as Record<string, unknown>;
-
-  // Shape A: array of atleta objects
-  const candidates: Array<Record<string, unknown>> = Array.isArray(data)
-    ? (data as Array<Record<string, unknown>>)
-    : Array.isArray(obj.atletas)
-      ? (obj.atletas as Array<Record<string, unknown>>)
-      : Array.isArray(obj.jogadores)
-        ? (obj.jogadores as Array<Record<string, unknown>>)
-        : Array.isArray(obj.players)
-          ? (obj.players as Array<Record<string, unknown>>)
-          : [];
-
-  for (const a of candidates) {
-    const id = a.atleta_id ?? a.id ?? a.atletaId;
-    const count = a.times_escalados ?? a.escalacoes ?? a.count ?? a.total ?? a.timesEscalados;
-    if (id != null && count != null) {
-      popularity[String(id)] = Number(count);
-    }
-  }
-
-  // Shape B: keyed object { "atleta_id": N }
-  if (Object.keys(popularity).length === 0) {
-    for (const [key, value] of Object.entries(obj)) {
-      if (!/^\d+$/.test(key)) continue;
-      if (typeof value === "number") {
-        popularity[key] = value;
-      } else if (typeof value === "object" && value !== null) {
-        const v = value as Record<string, unknown>;
-        const count = v.times_escalados ?? v.escalacoes ?? v.count ?? v.total;
-        if (count != null) popularity[key] = Number(count);
-      }
     }
   }
 
@@ -241,11 +141,13 @@ async function saveToCache(round: number, popularity: Record<string, number>) {
  * Source priority:
  *   1. DB cache (2-hour TTL)
  *   2. Public mais-escalados API (no auth needed) — primary
- *   3. Gato Mestre auth API (requires GLOBO_GLLIB) — fallback
- *   4. Cartola /mercado/selecao (requires GLOBO_GLLIB) — fallback
- *   5. Stale DB cache
+ *   3. Stale DB cache (mesma rodada)
  */
 export async function fetchPopularityMap(round: number): Promise<Map<string, number>> {
+  if (isPopularityFailureForced()) {
+    await log("degraded", "Popularity source failure simulated with POPULARITY_FORCE_FAILURE");
+    return new Map();
+  }
   // 1. Try fresh cache
   const cached = await loadFromCache(round);
   if (cached && Object.keys(cached).length > 0) {
@@ -254,16 +156,8 @@ export async function fetchPopularityMap(round: number): Promise<Map<string, num
   }
 
   // 2. Try sources in priority order
-  const glbId = process.env.GLOBO_GLLIB;
-
   const sources: Array<[string, () => Promise<Record<string, number>>]> = [
     ["public_api", () => fetchFromPublicPage(round)],
-    ...(glbId
-      ? [
-          ["gato_mestre_auth", () => fetchFromGatoMestre(round)] as [string, () => Promise<Record<string, number>>],
-          ["cartola_selecao", () => fetchFromCartolaSelecao()] as [string, () => Promise<Record<string, number>>],
-        ]
-      : []),
   ];
 
   for (const [name, fetchFn] of sources) {

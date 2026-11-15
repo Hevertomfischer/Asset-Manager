@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
+import { PopularityCalibrationCard } from "@/components/PopularityCalibrationCard";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
@@ -71,10 +73,11 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function JogadorPage() {
+  const { enabled: popularityFeaturesEnabled } = usePopularityFeatures();
   const { slug } = useParams<{ slug: string }>();
 
   const { data, isLoading, isError } = useQuery<PlayerData>({
-    queryKey: ["stats-jogador", slug],
+    queryKey: ["stats-jogador", slug, popularityFeaturesEnabled],
     queryFn: async () => {
       const res = await fetch(`/api/stats/jogador/${slug}`);
       if (!res.ok) {
@@ -85,6 +88,9 @@ export default function JogadorPage() {
     },
     enabled: !!slug,
     staleTime: 15 * 60 * 1000,
+    select: (response) => popularityFeaturesEnabled ? response : {
+      ...response, history: response.history.map((row) => ({ ...row, isDifferencial: false, isTrap: false })),
+    },
   });
 
   // JSON-LD
@@ -147,6 +153,7 @@ export default function JogadorPage() {
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
+      {!popularityFeaturesEnabled && <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6"><PopularityCalibrationCard /></div>}
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       {data && (

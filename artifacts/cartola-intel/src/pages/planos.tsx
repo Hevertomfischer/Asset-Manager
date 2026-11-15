@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks";
 import { useTrack } from "@/hooks/useTrack";
 import {
@@ -22,18 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProBadge } from "@/components/ProBadge";
-
-interface SubscriptionData {
-  plan: string;
-  status: string;
-  currentPeriodEnd: string | null;
-}
-
-async function fetchSubscription(): Promise<SubscriptionData> {
-  const res = await fetch("/api/billing/subscription", { credentials: "include" });
-  if (!res.ok) return { plan: "free", status: "inactive", currentPeriodEnd: null };
-  return res.json() as Promise<SubscriptionData>;
-}
+import { getGetBillingConfigQueryKey, useGetBillingConfig, useGetBillingSubscription } from "@workspace/api-client-react";
+import { formatBillingDate } from "@/lib/billingAccess";
 
 async function startCheckout(plan: string): Promise<string> {
   const res = await fetch("/api/billing/checkout", {
@@ -62,17 +52,15 @@ const PLANS = [
   {
     id: "pro_monthly" as const,
     name: "Pro Mensal",
-    price: "R$ 19,90",
-    period: "/mês",
-    description: "Acesso completo, renovado todo mês. Cancele quando quiser.",
+    period: "/30 dias",
+    description: "Pagamento avulso por 30 dias de acesso. Sem renovação automática.",
     best: false,
   },
   {
     id: "season_pass" as const,
-    name: "Passe de Temporada",
-    price: "R$ 99,90",
+    name: "Season Pass",
     period: "/temporada",
-    description: "Acesso completo durante toda a temporada. Melhor custo-benefício.",
+    description: "Pagamento único, sem renovação automática.",
     best: true,
   },
 ];
@@ -120,18 +108,27 @@ export default function Planos() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const paywallTrackedRef = useRef(false);
+  const { data: billingConfig, isError: configError } = useGetBillingConfig({
+    query: { queryKey: getGetBillingConfigQueryKey(), staleTime: 30_000, refetchOnWindowFocus: true },
+  });
+  const formatPrice = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const founderCutoff = user?.founderCutoff ?? null;
+  const founderCutoff = billingConfig?.founderCutoff ?? user?.founderCutoff ?? null;
+  const campaignActive = !!founderCutoff && new Date(founderCutoff) > new Date();
+  const founderPriceActive = campaignActive && billingConfig?.founderSeasonPassPrice != null;
+  const seasonPassPrice = campaignActive ? billingConfig?.seasonPassPrice : billingConfig?.regularSeasonPassPrice;
 
-  const { data: subscription } = useQuery({
-    queryKey: ["billing", "subscription"],
-    queryFn: fetchSubscription,
-    enabled: isAuthenticated,
-    staleTime: 30_000,
+  const { data: subscription } = useGetBillingSubscription({
+    query: {
+      queryKey: ["billing", "subscription", user?.id],
+      enabled: isAuthenticated,
+      staleTime: 30_000,
+    },
   });
 
   // isRealPro: tem assinatura ativa — não conta acesso de campanha
-  const isRealPro = plan === "pro" || subscription?.status === "active";
+  const isRealPro = plan === "pro" || (subscription?.status === "active"
+    && !!subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > new Date());
   // isFounderAccess: campanha ativa, recebendo Pro gratuitamente
   const isFounderAccess = isPro && plan === "free" && founderCutoff !== null;
 
@@ -167,7 +164,7 @@ export default function Planos() {
     <div className="max-w-4xl mx-auto px-2 py-4">
       {billingStatus && <BillingBanner status={billingStatus} />}
 
-      {isFounderAccess && founderCutoff && (
+      {campaignActive && founderCutoff && (
         <div className="mb-8 border border-primary/30 bg-primary/5 rounded-2xl p-5">
           <div className="flex items-start gap-4">
             <div className="w-9 h-9 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 mt-0.5">
@@ -176,7 +173,7 @@ export default function Planos() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <p className="text-sm font-semibold text-foreground">
-                  Você está usando o Founder Access
+                  {isFounderAccess ? "Você está usando o Acesso Fundador" : "Campanha de Fundadores"}
                 </p>
                 <Badge className="bg-primary/20 text-primary border border-primary/30 text-xs font-semibold">
                   Campanha ativa
@@ -186,16 +183,13 @@ export default function Planos() {
                 Todos os recursos Pro — simulador de escalação, probabilidades de jogo, fronteira de eficiência
                 e comparador ilimitado — estão liberados gratuitamente para você até{" "}
                 <span className="font-medium text-foreground">
-                  {new Date(founderCutoff).toLocaleDateString("pt-BR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {formatBillingDate(founderCutoff)} (Brasília)
                 </span>.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed mt-2">
-                Após essa data, esses recursos voltam a ser exclusivos do plano Pro.
-                Assine agora para garantir acesso contínuo sem interrupção.
+                Sua assinatura paga começa a contar após {formatBillingDate(founderCutoff)} (Brasília),
+                sem consumir os dias gratuitos. Se você já tiver um prazo Pro maior, ele será preservado.
+                O mensal acrescenta 30 dias; o Season Pass mantém o vencimento informado abaixo.
               </p>
             </div>
           </div>
@@ -237,11 +231,19 @@ export default function Planos() {
           <AlertDescription>{checkoutError}</AlertDescription>
         </Alert>
       )}
+      {configError && (
+        <Alert variant="destructive" className="mb-5">
+          <AlertDescription>Não foi possível carregar os preços. Atualize a página antes de comprar.</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {PLANS.map((plan) => {
           const isLoading = loadingPlan === plan.id;
-          const isCurrentPlan = isRealPro;
+          const planName = plan.id === "season_pass" && billingConfig
+            ? `Season Pass ${billingConfig.seasonPassYear}` : plan.name;
+          const seasonExpired = plan.id === "season_pass" && !!billingConfig
+            && new Date(billingConfig.seasonPassEndsAt) <= new Date();
 
           return (
             <Card
@@ -261,20 +263,36 @@ export default function Planos() {
               )}
 
               <CardHeader className="pt-7 pb-3 px-6">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-bold">{plan.name}</h2>
+                    <h2 className="text-lg font-bold">{planName}</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">{plan.description}</p>
+                    {plan.id === "season_pass" && billingConfig && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Válido até {formatBillingDate(billingConfig.seasonPassEndsAt)} (Brasília).
+                      </p>
+                    )}
                   </div>
-                  {isCurrentPlan && (
+                  {isRealPro && (
                     <Badge variant="secondary" className="shrink-0 mt-0.5 text-xs">
-                      Plano atual
+                      Acesso Pro ativo
                     </Badge>
                   )}
                 </div>
+                {plan.id === "season_pass" && founderPriceActive && billingConfig && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                    <Badge className="text-xs bg-primary/15 text-primary border-primary/30">Preço de Fundador</Badge>
+                    {billingConfig.regularSeasonPassPrice !== billingConfig.seasonPassPrice && (
+                      <span className="text-muted-foreground">
+                        De <s>{formatPrice(billingConfig.regularSeasonPassPrice)}</s>
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-baseline gap-1 mt-4">
                    <span className="text-3xl font-extrabold tabular-nums tracking-tight text-foreground">
-                    {plan.price}
+                    {billingConfig ? formatPrice(plan.id === "pro_monthly"
+                      ? billingConfig.proMonthlyPrice : seasonPassPrice ?? billingConfig.seasonPassPrice) : "Carregando…"}
                   </span>
                   <span className="text-muted-foreground text-sm">{plan.period}</span>
                 </div>
@@ -304,15 +322,6 @@ export default function Planos() {
                       Entrar para assinar
                     </a>
                   </Button>
-                ) : isCurrentPlan ? (
-                  <Button
-                    disabled
-                    className="w-full font-semibold"
-                    variant="secondary"
-                  >
-                    <Check className="w-4 h-4 mr-1.5" />
-                     <span>Você já é</span> <ProBadge />
-                  </Button>
                 ) : (
                   <Button
                     className={`w-full font-semibold ${
@@ -321,7 +330,7 @@ export default function Planos() {
                         : ""
                     }`}
                     variant={plan.best ? "default" : "outline"}
-                    disabled={isLoading || loadingPlan !== null}
+                    disabled={isLoading || loadingPlan !== null || !billingConfig || configError || seasonExpired}
                     onClick={() => void handleCheckout(plan.id)}
                   >
                     {isLoading ? (
@@ -332,7 +341,7 @@ export default function Planos() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        Assinar {plan.name}
+                        {seasonExpired ? "Temporada encerrada" : `${isRealPro ? "Renovar" : "Assinar"} ${planName}`}
                       </>
                     )}
                   </Button>

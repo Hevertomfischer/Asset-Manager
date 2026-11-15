@@ -23,6 +23,15 @@ import type { PlayerCardVariant } from "../PlayerCard";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
+const popularity = vi.hoisted(() => ({ enabled: true }));
+vi.mock("@/hooks/usePopularityFeatures", () => ({
+  usePopularityFeatures: () => popularity,
+}));
+
+beforeEach(() => {
+  popularity.enabled = true;
+});
+
 vi.mock("@/components/ProGate", () => ({
   ProGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -395,5 +404,19 @@ describe("PlayerBadges", () => {
     );
     expect(screen.getByText("Bom momento")).toBeInTheDocument();
     expect(screen.getByText("Risco")).toBeInTheDocument();
+  });
+
+  it("oculta diferencial e armadilha quando a fonte está desabilitada", () => {
+    popularity.enabled = false;
+    render(
+      <PlayerBadges badges={[
+        { label: "Diferencial", kind: "differential" },
+        { label: "Armadilha", kind: "danger" },
+        { label: "Bom momento", kind: "positive" },
+      ]} />,
+    );
+    expect(screen.queryByText("Diferencial")).not.toBeInTheDocument();
+    expect(screen.queryByText("Armadilha")).not.toBeInTheDocument();
+    expect(screen.getByText("Bom momento")).toBeInTheDocument();
   });
 });

@@ -79,7 +79,7 @@ router.get("/user-teams", async (req, res) => {
               and(
                 inArray(playerScoutRoundTable.round, [...new Set(roundRows.map((r) => r.round))]),
                 isNotNull(playerScoutRoundTable.points),
-                inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+                inArray(playerScoutRoundTable.source, ["historical_cartola"])
               )
             ),
         ])
@@ -200,7 +200,7 @@ router.get("/user-teams/:id/rounds", async (req, res) => {
           and(
             inArray(playerScoutRoundTable.round, uniqueRounds),
             isNotNull(playerScoutRoundTable.points),
-            inArray(playerScoutRoundTable.source, ["cartola_api", "historical_cartola"])
+            inArray(playerScoutRoundTable.source, ["historical_cartola"])
           )
         ),
       db.select().from(clubsTable),

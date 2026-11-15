@@ -6,14 +6,12 @@
  *  - Orçamento: custo total após troca ≤ budget.
  *  - Limite por clube: nenhum clube pode ter > LINEUP_CONFIG.maxPlayersPerClub jogadores.
  *
- * differential = contagem de jogadores com popularity < 0.15
+ * differential = contagem segundo a regra compartilhada: <15% conhecidos ou fora da lista comprovadamente
  * (mesma definição usada em explainPlayer.ts do frontend).
  */
 
 import { LINEUP_CONFIG } from "../config/projectionWeights";
-
-/** Threshold de popularidade para considerar um jogador "diferencial". */
-const DIFFERENTIAL_THRESHOLD = 0.15;
+import { isDifferential } from "../lib/popularityRules";
 
 /** Arredonda para 2 casas decimais. */
 function r2(n: number): number {
@@ -31,6 +29,10 @@ export interface PlayerSnapshot {
   riskScore: number;
   /** Percentual de escalação (0–1). null quando não disponível. */
   popularity: number | null;
+  popularityFeaturesEnabled?: boolean;
+  popularityListed?: boolean | null;
+  shortAvg?: number | null;
+  mediumAvg?: number | null;
 }
 
 export interface LineupMetrics {
@@ -78,7 +80,7 @@ export function computeLineupMetrics(
     const mult = p.playerId === captainId ? 2 : 1;
     expectedPoints += (p.expectedPoints ?? 0) * mult;
     costUsed += p.price;
-    if ((p.popularity ?? 1) < DIFFERENTIAL_THRESHOLD) differential++;
+    if (isDifferential(p)) differential++;
   }
 
   for (const p of fieldPlayers) {

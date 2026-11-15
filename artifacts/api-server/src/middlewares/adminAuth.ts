@@ -6,28 +6,16 @@ const log = createLogger("admin-auth");
 const ADMIN_SECRET = process.env["ADMIN_SECRET"];
 
 /**
- * Protects all /admin routes with tiered access:
- *
- *  Mode A — ADMIN_SECRET configured:
- *    GET requests pass with only session auth (any authenticated user may read).
- *    POST/PUT/PATCH/DELETE requests require the x-admin-secret header.
- *
- *  Mode B — ADMIN_SECRET not configured:
- *    GET requests require only session auth (any authenticated user may read).
- *    POST/PUT/PATCH/DELETE requests require session auth + role "admin".
- *
- * Non-admin paths always pass through.
+ * Every admin method requires either an admin session or a valid script header.
+ * Non-admin paths always pass through. Never log the supplied header.
  */
 export function adminAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (!req.path.startsWith("/admin")) {
+  if (!/^\/admin(?:\/|$)/i.test(req.path)) {
     next();
     return;
   }
 
-  const isReadOnly = req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS";
-
-  // Mutating routes with ADMIN_SECRET: header token alone is sufficient (no session required).
-  if (!isReadOnly && ADMIN_SECRET) {
+  if (ADMIN_SECRET) {
     const token = req.headers["x-admin-secret"];
     if (token === ADMIN_SECRET) {
       next();
@@ -42,27 +30,10 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
     return;
   }
 
-  // Read-only routes: session auth is sufficient.
-  if (isReadOnly) {
-    next();
-    return;
-  }
-
-  // Mutating routes: require admin authorization.
-  if (ADMIN_SECRET) {
-    const token = req.headers["x-admin-secret"];
-    if (token !== ADMIN_SECRET) {
-      log.warn("Unauthorized admin mutation attempt (bad secret)", { ip: req.ip, path: req.path, userId: req.user?.id });
-      res.status(401).json({ error: "Unauthorized — admin secret required" });
-      return;
-    }
-    next();
-    return;
-  }
-
-  // No ADMIN_SECRET — require role "admin" for mutations.
   if (req.user.role !== "admin") {
-    log.warn("Non-admin user attempted admin mutation", { userId: req.user.id, role: req.user.role, path: req.path });
+    log.warn("Non-admin user attempted admin access", {
+      userId: req.user.id, path: req.path, method: req.method,
+    });
     res.status(403).json({ error: "Acesso restrito a administradores." });
     return;
   }

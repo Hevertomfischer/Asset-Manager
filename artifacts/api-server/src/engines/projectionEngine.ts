@@ -1,7 +1,13 @@
 import { db } from "@workspace/db";
+import { createLogger } from "../lib/logger";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
+import { canGenerateProjections } from "../services/projectionLockService";
+const log = createLogger("projection-engine");
+import { isTrap as classifyTrap, knownPopularity, isDifferential, label } from "../lib/popularityRules";
 import { adminConfigTable, playerProjectionTable } from "@workspace/db/schema";
-import { and, eq } from "drizzle-orm";
-import { PROJECTION_WEIGHTS, POSITION_SCOUT_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
+import { and, eq, isNull } from "drizzle-orm";
+import { PROJECTION_WEIGHTS, SCOUT_SCORING } from "../config/projectionWeights";
+import { positionFormScore } from "../lib/positionFormScore";
 import {
   getScoutsByPlayer,
   getAvailabilityByRound,
@@ -77,35 +83,6 @@ function weightedWindowAverage(scouts: PlayerScoutRound[]): {
   return { shortAvg, mediumAvg, longAvg, blendedFormScore, volatility };
 }
 
-function positionFormScore(scouts: PlayerScoutRound[], position: string): number {
-  if (scouts.length === 0) return 0;
-  const posWeights = POSITION_SCOUT_WEIGHTS[position] ?? {};
-  let total = 0;
-  for (const scout of scouts) {
-    let roundPts = scout.points ?? 0;
-    let adjustment = 0;
-    if (scout.goals) adjustment += (posWeights["G"] ?? 1) * scout.goals * 8;
-    if (scout.assists) adjustment += (posWeights["A"] ?? 1) * scout.assists * 5;
-    if (scout.saves) adjustment += (posWeights["PS"] ?? 1) * scout.saves * 3;
-    if (scout.cleanSheet) adjustment += (posWeights["SG"] ?? 1) * scout.cleanSheet * 5;
-    if (scout.tackles) adjustment += (posWeights["DE"] ?? 1) * scout.tackles * 1;
-    if (scout.interceptions) adjustment += (posWeights["DS"] ?? 1) * scout.interceptions * 1.2;
-    if (scout.shotsOnTarget) adjustment += (posWeights["FT"] ?? 1) * scout.shotsOnTarget * 3;
-    if (scout.foulsSuffered) adjustment += (posWeights["FS"] ?? 1) * scout.foulsSuffered * 0.5;
-    if (scout.yellowCards) adjustment -= (posWeights["CA"] ?? 1) * scout.yellowCards * 2;
-    if (scout.redCards) adjustment -= (posWeights["CV"] ?? 1) * scout.redCards * 5;
-    if (scout.penaltyMissed) adjustment -= (posWeights["PP"] ?? 1) * scout.penaltyMissed * 4;
-    if (scout.penaltySaved) adjustment += (posWeights["PS"] ?? 1) * scout.penaltySaved * 3;
-    if (scout.goalsConceded && ["GOL", "ZAG"].includes(position)) {
-      adjustment -= (posWeights["GC"] ?? 1) * scout.goalsConceded * 2;
-    }
-    const base = roundPts > 0 ? roundPts : 0;
-    const multiplier = Object.keys(posWeights).length > 0 ? 0.3 : 0;
-    total += base + multiplier * (adjustment - base);
-  }
-  return total / scouts.length;
-}
-
 function isDefensivePosition(position: string): boolean {
   return ["GOL", "ZAG", "LAT"].includes(position);
 }
@@ -129,6 +106,7 @@ function buildTecProjection(
   playProbability: number,
   isHome: boolean,
   clubForm: string[] | null,
+  popularityFeaturesEnabled: boolean,
 ): ProjectionResult {
   const averagePoints = player.averagePoints ?? 3.5;
   const price = player.price ?? 1;
@@ -153,6 +131,13 @@ function buildTecProjection(
 
   const formScore = winRate * 5 + drawRate * 2;
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
+  const popularitySignals = {
+    popularityFeaturesEnabled,
+    popularity: knownPopularity(player.popularity),
+    popularityListed: player.popularityListed,
+    expectedPoints: Number(expectedPoints.toFixed(2)),
+    riskScore: Number(clamp(1 - playProbability, 0, 1).toFixed(3)),
+  };
 
   return {
     expectedPoints: Number(expectedPoints.toFixed(2)),
@@ -168,6 +153,12 @@ function buildTecProjection(
     attackParticipationProbability: 0,
     recommendationScore: Number(clamp(expectedPoints * 0.6 + playProbability * 5, 0, 100).toFixed(2)),
     explanationJson: {
+      ...popularitySignals,
+      popularityVersion: 2,
+      popularityCount: player.popularityCount,
+      popularityLabel: label(popularitySignals),
+      isDifferential: isDifferential(popularitySignals),
+      isTrap: classifyTrap(popularitySignals),
       tecFormula: true,
       averagePoints,
       winRate: Number(winRate.toFixed(2)),
@@ -283,21 +274,22 @@ async function calculateProjection(
   clubForm: string[] | null,
   opponentStrength: ClubStrength | null,
   attackXg?: number | null,
-  opponentAttackXg?: number | null
+  opponentAttackXg?: number | null,
+  popularityFeaturesEnabled = false,
 ): Promise<ProjectionResult> {
   // TEC (coaches) score based on club match outcomes, not individual scout events.
   // Use club-performance formula instead of the scout-based pipeline.
   if (player.position === 'TEC') {
     const matchupScore = computeMatchupScore(isHome, clubForm, opponentStrength, attackXg);
-    return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm);
+    return buildTecProjection(player, matchupScore, playProbability, isHome, clubForm, popularityFeaturesEnabled);
   }
 
-  const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds);
-  const allScouts = await getScoutsByPlayer(player.id, 20);
+  const longScouts = await getScoutsByPlayer(player.id, PROJECTION_WEIGHTS.multiWindow.long.rounds, round);
+  const allScouts = await getScoutsByPlayer(player.id, 20, round);
 
   const averagePoints = player.averagePoints ?? 0;
   const price = player.price ?? 1;
-  const popularity = (player.popularity ?? 0.5) / 100;
+  const popularity = knownPopularity(player.popularity);
   const priceVariation = player.priceVariation ?? 0;
   const gamesPlayed = player.gamesPlayed ?? null;
 
@@ -440,14 +432,17 @@ async function calculateProjection(
   const valueScore = price > 0 ? clamp(expectedPoints / price, 0, 5) : 0;
 
   const differentialScore = clamp(
-    expectedPoints * (1 - clamp(popularity, 0, 1)) * (1 + valueScore * 0.2),
+    !popularityFeaturesEnabled || (popularity === null && player.popularityListed !== false) ? 0
+      : expectedPoints * (popularity === null ? 1 : 1 - popularity) * (1 + valueScore * 0.2),
     0, 100
   );
 
-  const isTrap =
-    popularity > PROJECTION_WEIGHTS.differential.trapPopularityThreshold &&
-    riskScore > PROJECTION_WEIGHTS.differential.trapRiskThreshold &&
-    shortAvg < mediumAvg * PROJECTION_WEIGHTS.differential.trapFormDeclineThreshold;
+  const popularitySignals = {
+    popularity, popularityListed: player.popularityListed, popularityFeaturesEnabled,
+    expectedPoints: Number(expectedPoints.toFixed(2)), riskScore: Number(riskScore.toFixed(3)),
+    shortAvg: Number(shortAvg.toFixed(2)), mediumAvg: Number(mediumAvg.toFixed(2)),
+  };
+  const isTrap = classifyTrap(popularitySignals);
 
   const recommendationScore = clamp(
     expectedPoints * 0.5 +
@@ -480,7 +475,15 @@ async function calculateProjection(
     recentRoundsAnalyzed: longScouts.length,
     position: player.position,
     price,
-    popularity: Number(popularity.toFixed(3)),
+    popularity,
+    popularityVersion: 2,
+    popularityFeaturesEnabled,
+    popularityListed: player.popularityListed,
+    popularityCount: player.popularityCount,
+    popularityLabel: label(popularitySignals),
+    expectedPoints: popularitySignals.expectedPoints,
+    riskScore: popularitySignals.riskScore,
+    isDifferential: isDifferential(popularitySignals),
     valueScore: Number(valueScore.toFixed(3)),
     differentialScore: Number(differentialScore.toFixed(2)),
     isTrap,
@@ -510,7 +513,11 @@ async function calculateProjection(
   };
 }
 
-export async function runProjectionEngine(round: number): Promise<void> {
+export async function runProjectionEngine(round: number): Promise<boolean> {
+  if (!await canGenerateProjections(round)) {
+    log.info("Mercado fechado ou rodada antiga: projeções preservadas", { round });
+    return false;
+  }
   // Load historical calibration multipliers from admin_config (if available).
   // These are position-specific bias-correction factors computed by POST /admin/calibrate-projection-weights.
   _calibrationMultipliers.clear();
@@ -522,12 +529,13 @@ export async function runProjectionEngine(round: number): Promise<void> {
       for (const [pos, mult] of Object.entries(cal.positionMultipliers ?? {})) {
         _calibrationMultipliers.set(pos, mult);
       }
-      console.log(`[projectionEngine] Loaded calibration for ${_calibrationMultipliers.size} positions`);
+      log.info("Loaded calibration", { positions: _calibrationMultipliers.size });
     }
   } catch (err) {
-    console.warn("[projectionEngine] Could not load calibration weights, using defaults:", err instanceof Error ? err.message : String(err));
+    log.warn("Could not load calibration weights, using defaults", { error: err instanceof Error ? err.message : String(err) });
   }
 
+  const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
   const players = await db.query.playersTable.findMany();
   const availabilities = await getAvailabilityByRound(round);
   const allMatches = await getMatchesByRound(round);
@@ -584,7 +592,7 @@ export async function runProjectionEngine(round: number): Promise<void> {
       skippedNoMatch++;
       const deleted = await db
         .delete(playerProjectionTable)
-        .where(and(eq(playerProjectionTable.playerId, player.id), eq(playerProjectionTable.round, round)))
+        .where(and(eq(playerProjectionTable.playerId, player.id), eq(playerProjectionTable.round, round), isNull(playerProjectionTable.lockedAt)))
         .returning({ id: playerProjectionTable.id });
       if (deleted.length > 0) deletedStale++;
       continue;
@@ -608,7 +616,7 @@ export async function runProjectionEngine(round: number): Promise<void> {
     const attackXg = player.clubId != null ? (clubAttackXgMap.get(player.clubId) ?? null) : null;
     const opponentAttackXg = player.clubId != null ? (clubOpponentAttackXgMap.get(player.clubId) ?? null) : null;
 
-    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength, attackXg, opponentAttackXg);
+    const proj = await calculateProjection(player, round, playProbability, expectedMinutes, isHome, clubForm, opponentStrength, attackXg, opponentAttackXg, popularityFeaturesEnabled);
 
     await upsertProjection({
       playerId: player.id,
@@ -620,5 +628,6 @@ export async function runProjectionEngine(round: number): Promise<void> {
     processed++;
   }
 
-  console.log(`[projectionEngine] Generated projections for ${processed} players in round ${round} (skipped ${skippedNoMatch} players from clubs with no valid match; deleted ${deletedStale} stale projections)`);
+  log.info("Generated projections", { processed, round, skippedNoMatch, deletedStale });
+  return true;
 }

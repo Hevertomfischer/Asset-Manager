@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db/schema";
-import { eq, or, isNull, and, desc } from "drizzle-orm";
+import { eq, or, isNull, and, desc, ne } from "drizzle-orm";
+import { getPopularityFeatureStatus } from "../services/popularityFeatureService";
 import { createLogger } from "../lib/logger";
 
 const router = Router();
@@ -30,14 +31,15 @@ router.get("/notifications", async (req, res) => {
   const offset = Math.max(Number(req.query["offset"]) || 0, 0);
 
   try {
+    const { popularityFeaturesEnabled } = await getPopularityFeatureStatus();
     const rows = await db
       .select()
       .from(notificationsTable)
       .where(
-        or(
+        and(or(
           eq(notificationsTable.userId, userId),
           isNull(notificationsTable.userId)
-        )
+        ), popularityFeaturesEnabled ? undefined : ne(notificationsTable.type, "trap"))
       )
       .orderBy(desc(notificationsTable.createdAt))
       .limit(limit)

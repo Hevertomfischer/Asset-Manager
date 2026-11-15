@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Basic explanation for everyone; Pro-only signals are omitted for Free and anonymous viewers.
+ */
 export type PlayerProjectionSummaryExplanationJson = {
   [key: string]: unknown;
 } | null;

@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { PerformanceStats } from "@workspace/api-client-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ComposedChart,
@@ -51,35 +52,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface CalibrationBucket {
-  label: string;
-  bucket: string;
-  avgProjected: number;
-  avgActual: number;
-  count: number;
-}
-
-interface ByRound {
-  round: number;
-  mae: number;
-  count: number;
-}
-
-interface PerformanceData {
-  empty?: boolean;
-  message?: string;
-  season: {
-    totalRounds: number;
-    totalDataPoints: number;
-    mae: number;
-    overestimatedPct: number;
-  };
-  byRound: ByRound[];
-  calibration: CalibrationBucket[];
-  differentials: { total: number; hits: number; hitRate: number };
-  traps: { total: number; count: number; rate: number };
-  meta: { generatedAt: string; disclaimer: string };
-}
+type PerformanceData = PerformanceStats;
 
 // ── Custom tooltips ───────────────────────────────────────────────────────────
 
@@ -313,15 +286,41 @@ export default function Desempenho() {
         {data?.empty && (
           <EmptyState
             icon={BarChart2}
-            title="Dados históricos insuficientes"
+            title="Série confiável aguardando resultados"
             description={data.message ?? "Após a primeira rodada completa, as métricas aparecerão aqui."}
             actionLabel="Voltar ao início"
             onAction={() => navigate("/")}
           />
         )}
 
+        {data?.legacy && !data.legacy.empty && (
+          <section aria-labelledby="legacy-title" className="rounded-2xl border border-amber-500/30 bg-card p-5 sm:p-6 space-y-4">
+            <div>
+              <h2 id="legacy-title" className="text-xl font-bold">Histórico legado</h2>
+              <p className="text-sm text-muted-foreground mt-2">{data.legacy.disclaimer}</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div><strong className="block text-2xl">{data.legacy.season.totalRounds}</strong>rodadas do legado</div>
+              <div><strong className="block text-2xl">{data.legacy.season.totalDataPoints.toLocaleString("pt-BR")}</strong>comparações históricas</div>
+              <div><strong className="block text-2xl">{data.legacy.season.mae} pts</strong>MAE do legado — não validado</div>
+            </div>
+            <details>
+              <summary className="cursor-pointer text-sm text-primary">Ver rodadas do legado</summary>
+              <div className="overflow-x-auto mt-3">
+                <table className="w-full text-sm text-left">
+                  <thead><tr className="border-b border-border"><th className="py-2">Rodada</th><th>Comparações</th><th>MAE do legado</th></tr></thead>
+                  <tbody>{data.legacy.byRound.map((r) => (
+                    <tr key={r.round} className="border-b border-border/50"><td className="py-2">{r.round}</td><td>{r.count}</td><td>{r.mae} pts</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </details>
+          </section>
+        )}
+
         {data && !data.empty && (
           <>
+            <h2 className="text-xl font-bold">Série confiável — projeções congeladas</h2>
             {/* ── Share button ──────────────────────────────────────────────── */}
             <div className="flex flex-col items-end -mt-6 gap-1">
               <Button
@@ -357,22 +356,22 @@ export default function Desempenho() {
                 label="Erro médio (MAE)"
                 value={`${data.season.mae} pts`}
                 sub="Diferença média entre projeção e pontuação real"
-                variant={data.season.mae <= 3 ? "good" : data.season.mae <= 5 ? "warn" : "default"}
+                variant={(data.season.mae ?? Infinity) <= 3 ? "good" : (data.season.mae ?? Infinity) <= 5 ? "warn" : "default"}
               />
-              <StatCard
+              {data.differentials && data.differentials.total > 0 && <StatCard
                 icon={CheckCircle2}
                 label="Acerto de diferenciais"
                 value={`${data.differentials.hitRate}%`}
-                sub="Top projetados que bateram a mediana da rodada"
+                sub="Diferenciais pelas regras de popularidade que atingiram a projeção"
                 variant={data.differentials.hitRate >= 60 ? "good" : "warn"}
-              />
-              <StatCard
+              />}
+              {data.traps && data.traps.total > 0 && <StatCard
                 icon={XCircle}
                 label="Taxa de armadilha"
                 value={`${data.traps.rate}%`}
-                sub="Top projetados que decepcionaram (<50% do esperado)"
+                sub="Armadilhas pelas regras de popularidade abaixo de 50% do esperado"
                 variant={data.traps.rate <= 15 ? "good" : "warn"}
-              />
+              />}
             </section>
 
             {/* ── MAE por rodada ──────────────────────────────────────────────── */}
@@ -632,7 +631,7 @@ export default function Desempenho() {
                 <div style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))", fontWeight: 600, marginBottom: "8px" }}>
                   Erro Médio da Temporada (MAE)
                 </div>
-                <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: data.season.mae <= 3 ? "hsl(var(--positive))" : data.season.mae <= 5 ? "hsl(var(--attention))" : "hsl(var(--danger))" }}>
+                <div style={{ fontSize: "52px", fontWeight: 900, lineHeight: 1, color: (data.season.mae ?? Infinity) <= 3 ? "hsl(var(--positive))" : (data.season.mae ?? Infinity) <= 5 ? "hsl(var(--attention))" : "hsl(var(--danger))" }}>
                   {data.season.mae}
                   <span style={{ fontSize: "18px", marginLeft: "4px", color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>pts</span>
                 </div>
@@ -645,8 +644,8 @@ export default function Desempenho() {
               <div style={{ padding: "0 20px 16px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                 {[
                   { label: "Rodadas analisadas",   value: String(data.season.totalRounds),       color: "hsl(var(--differential))" },
-                  { label: "Acerto diferencial",    value: `${data.differentials.hitRate}%`,       color: "hsl(var(--positive))" },
-                  { label: "Taxa de armadilha",     value: `${data.traps.rate}%`,                  color: "hsl(var(--danger))" },
+                  ...(data.differentials && data.differentials.total > 0 ? [{ label: "Acerto diferencial", value: `${data.differentials.hitRate}%`, color: "hsl(var(--positive))" }] : []),
+                  ...(data.traps && data.traps.total > 0 ? [{ label: "Taxa de armadilha", value: `${data.traps.rate}%`, color: "hsl(var(--danger))" }] : []),
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: "hsl(var(--card))", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
                     <div style={{ fontSize: "22px", fontWeight: 800, color }}>{value}</div>

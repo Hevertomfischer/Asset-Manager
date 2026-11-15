@@ -5,9 +5,15 @@
  * Cartola Intel API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectionItemExplanationJson } from "./projectionItemExplanationJson";
 import type { ProjectionItemPlayer } from "./projectionItemPlayer";
 
 export interface ProjectionItem {
+  /**
+   * Plan-aware explanation. Pro-only signals are omitted for Free and anonymous viewers.
+   * @nullable
+   */
+  explanationJson?: ProjectionItemExplanationJson;
   id?: number;
   playerId?: number;
   round?: number;

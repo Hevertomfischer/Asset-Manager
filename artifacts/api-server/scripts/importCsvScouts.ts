@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "csv-parse/sync";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import { mapCartolaScoutToColumns } from "../src/lib/mapCartolaScoutToColumns";
 
 const CSV_PATH = path.resolve(
   fileURLToPath(import.meta.url),
@@ -15,11 +16,6 @@ const CSV_PATH = path.resolve(
 );
 const SOURCE = "csv_2026";
 
-function toInt(v: string): number | null {
-  if (!v || v.trim() === "") return null;
-  const n = parseInt(v, 10);
-  return isNaN(n) ? null : n;
-}
 function toFloat(v: string): number | null {
   if (!v || v.trim() === "") return null;
   const n = parseFloat(v);
@@ -67,29 +63,7 @@ async function main() {
         yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
         ff, v, pc, ps, collected_at
       ) VALUES ${rowSql}
-      ON CONFLICT (player_id, round, source) DO UPDATE SET
-        points          = EXCLUDED.points,
-        goals           = EXCLUDED.goals,
-        assists         = EXCLUDED.assists,
-        shots           = EXCLUDED.shots,
-        shots_on_target = EXCLUDED.shots_on_target,
-        tackles         = EXCLUDED.tackles,
-        interceptions   = EXCLUDED.interceptions,
-        fouls_suffered  = EXCLUDED.fouls_suffered,
-        fouls_committed = EXCLUDED.fouls_committed,
-        saves           = EXCLUDED.saves,
-        goals_conceded  = EXCLUDED.goals_conceded,
-        clean_sheet     = EXCLUDED.clean_sheet,
-        yellow_cards    = EXCLUDED.yellow_cards,
-        red_cards       = EXCLUDED.red_cards,
-        penalty_missed  = EXCLUDED.penalty_missed,
-        penalty_saved   = EXCLUDED.penalty_saved,
-        own_goals       = EXCLUDED.own_goals,
-        ff              = EXCLUDED.ff,
-        v               = EXCLUDED.v,
-        pc              = EXCLUDED.pc,
-        ps              = EXCLUDED.ps,
-        collected_at    = now()
+      ON CONFLICT DO NOTHING
     `;
   };
 
@@ -118,29 +92,7 @@ async function main() {
       yellow_cards, red_cards, penalty_missed, penalty_saved, own_goals,
       ff, v, pc, ps, collected_at
     ) VALUES %ROWS%
-    ON CONFLICT (player_id, round, source) DO UPDATE SET
-      points          = EXCLUDED.points,
-      goals           = EXCLUDED.goals,
-      assists         = EXCLUDED.assists,
-      shots           = EXCLUDED.shots,
-      shots_on_target = EXCLUDED.shots_on_target,
-      tackles         = EXCLUDED.tackles,
-      interceptions   = EXCLUDED.interceptions,
-      fouls_suffered  = EXCLUDED.fouls_suffered,
-      fouls_committed = EXCLUDED.fouls_committed,
-      saves           = EXCLUDED.saves,
-      goals_conceded  = EXCLUDED.goals_conceded,
-      clean_sheet     = EXCLUDED.clean_sheet,
-      yellow_cards    = EXCLUDED.yellow_cards,
-      red_cards       = EXCLUDED.red_cards,
-      penalty_missed  = EXCLUDED.penalty_missed,
-      penalty_saved   = EXCLUDED.penalty_saved,
-      own_goals       = EXCLUDED.own_goals,
-      ff              = EXCLUDED.ff,
-      v               = EXCLUDED.v,
-      pc              = EXCLUDED.pc,
-      ps              = EXCLUDED.ps,
-      collected_at    = now()
+    ON CONFLICT DO NOTHING
   `;
 
   let valueSets: string[] = [];
@@ -161,17 +113,18 @@ async function main() {
   for (const r of records) {
     const playerId = idMap.get(r.atleta_id);
     if (!playerId) { skipped++; continue; }
+    const scout = mapCartolaScoutToColumns(r);
 
     const vals: unknown[] = [
       playerId,               // player_id
       parseInt(r.rodada, 10), // round
       SOURCE,                 // source
       toFloat(r.pontuacao),  // points
-      toInt(r.G),  toInt(r.A),  toInt(r.FT), toInt(r.FD),
-      toInt(r.DS), toInt(r.I),  toInt(r.FS), toInt(r.FC),
-      toInt(r.DE), toInt(r.GS), toInt(r.SG),
-      toInt(r.CA), toInt(r.CV), toInt(r.PP), toInt(r.DP), toInt(r.GC),
-      toInt(r.FF), toInt(r.V),  toInt(r.PC), toInt(r.PS),
+      scout.goals, scout.assists, scout.shots, scout.shotsOnTarget,
+      scout.tackles, scout.interceptions, scout.foulsSuffered, scout.foulsCommitted,
+      scout.saves, scout.goalsConceded, scout.cleanSheet,
+      scout.yellowCards, scout.redCards, scout.penaltyMissed, scout.penaltySaved, scout.ownGoals,
+      scout.ff, scout.v, scout.pc, scout.ps,
       new Date(),
     ];
 

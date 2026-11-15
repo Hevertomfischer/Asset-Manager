@@ -17,20 +17,29 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminConfiguration,
+  AdminConfigurationPatch,
   AdminLogsResponse,
   AvailabilityListResponse,
+  BillingConfiguration,
+  BillingSubscription,
+  CronDispatchStatus,
   FormationComparison,
   GetAdminLogsParams,
   GetCurrentAvailabilityParams,
   GetCurrentProjectionsParams,
   GetPlayersParams,
   HealthStatus,
+  HistoricalRepairStatus,
+  LineupAccessError,
   LineupGenerateRequest,
   LineupGenerateResponse,
   LineupValidationError,
   MatchListResponse,
+  PerformanceStats,
   PlayerDetail,
   PlayerListResponse,
+  PopularityUnavailableError,
   ProjectionListResponse,
   ProjectionWeightsRequest,
   ProjectionWeightsResponse,
@@ -39,6 +48,7 @@ import type {
   RoundStatus,
   SaveLineup200,
   SyncResult,
+  SyncStatus,
   UpgradeRequiredError,
 } from "./api.schemas";
 
@@ -50,6 +60,703 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+export const getGetPerformanceStatsUrl = () => {
+  return `/api/stats/performance`;
+};
+
+export const getPerformanceStats = async (
+  options?: RequestInit,
+): Promise<PerformanceStats> => {
+  return customFetch<PerformanceStats>(getGetPerformanceStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPerformanceStatsQueryKey = () => {
+  return [`/api/stats/performance`] as const;
+};
+
+export const getGetPerformanceStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPerformanceStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPerformanceStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPerformanceStats>>
+  > = ({ signal }) => getPerformanceStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPerformanceStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPerformanceStats>>
+>;
+export type GetPerformanceStatsQueryError = ErrorType<void>;
+
+/**
+ * @summary Frozen-projection performance, with explicitly separated legacy data
+ */
+
+export function useGetPerformanceStats<
+  TData = Awaited<ReturnType<typeof getPerformanceStats>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPerformanceStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPerformanceStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+export const getGetHistoricalRepairProgressUrl = () => {
+  return `/api/admin/sync/closed-rounds`;
+};
+
+export const getHistoricalRepairProgress = async (
+  options?: RequestInit,
+): Promise<HistoricalRepairStatus> => {
+  return customFetch<HistoricalRepairStatus>(
+    getGetHistoricalRepairProgressUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetHistoricalRepairProgressQueryKey = () => {
+  return [`/api/admin/sync/closed-rounds`] as const;
+};
+
+export const getGetHistoricalRepairProgressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetHistoricalRepairProgressQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>
+  > = ({ signal }) =>
+    getHistoricalRepairProgress({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHistoricalRepairProgressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHistoricalRepairProgress>>
+>;
+export type GetHistoricalRepairProgressQueryError = ErrorType<void>;
+
+/**
+ * @summary Admin-only progress of the official historical repair
+ */
+
+export function useGetHistoricalRepairProgress<
+  TData = Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHistoricalRepairProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHistoricalRepairProgressQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Force all closed rounds, consolidate scouts and calibrate after success
+ */
+export const getStartHistoricalRepairUrl = () => {
+  return `/api/admin/sync/closed-rounds`;
+};
+
+export const startHistoricalRepair = async (
+  options?: RequestInit,
+): Promise<HistoricalRepairStatus> => {
+  return customFetch<HistoricalRepairStatus>(getStartHistoricalRepairUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStartHistoricalRepairMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startHistoricalRepair>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["startHistoricalRepair"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    void
+  > = () => {
+    return startHistoricalRepair(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartHistoricalRepairMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startHistoricalRepair>>
+>;
+
+export type StartHistoricalRepairMutationError = ErrorType<void>;
+
+/**
+ * @summary Force all closed rounds, consolidate scouts and calibrate after success
+ */
+export const useStartHistoricalRepair = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startHistoricalRepair>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startHistoricalRepair>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getStartHistoricalRepairMutationOptions(options));
+};
+
+/**
+ * @summary Current real subscription and its recorded period
+ */
+export const getGetBillingSubscriptionUrl = () => {
+  return `/api/billing/subscription`;
+};
+
+export const getBillingSubscription = async (
+  options?: RequestInit,
+): Promise<BillingSubscription> => {
+  return customFetch<BillingSubscription>(getGetBillingSubscriptionUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBillingSubscriptionQueryKey = () => {
+  return [`/api/billing/subscription`] as const;
+};
+
+export const getGetBillingSubscriptionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBillingSubscription>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetBillingSubscriptionQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBillingSubscription>>
+  > = ({ signal }) => getBillingSubscription({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBillingSubscriptionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBillingSubscription>>
+>;
+export type GetBillingSubscriptionQueryError = ErrorType<void>;
+
+/**
+ * @summary Current real subscription and its recorded period
+ */
+
+export function useGetBillingSubscription<
+  TData = Awaited<ReturnType<typeof getBillingSubscription>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingSubscription>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBillingSubscriptionQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Current public prices and season validity
+ */
+export const getGetBillingConfigUrl = () => {
+  return `/api/billing/config`;
+};
+
+export const getBillingConfig = async (
+  options?: RequestInit,
+): Promise<BillingConfiguration> => {
+  return customFetch<BillingConfiguration>(getGetBillingConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBillingConfigQueryKey = () => {
+  return [`/api/billing/config`] as const;
+};
+
+export const getGetBillingConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBillingConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBillingConfigQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBillingConfig>>
+  > = ({ signal }) => getBillingConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBillingConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBillingConfig>>
+>;
+export type GetBillingConfigQueryError = ErrorType<void>;
+
+/**
+ * @summary Current public prices and season validity
+ */
+
+export function useGetBillingConfig<
+  TData = Awaited<ReturnType<typeof getBillingConfig>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBillingConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBillingConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetAdminConfigurationUrl = () => {
+  return `/api/admin/config`;
+};
+
+export const getAdminConfiguration = async (
+  options?: RequestInit,
+): Promise<AdminConfiguration> => {
+  return customFetch<AdminConfiguration>(getGetAdminConfigurationUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminConfigurationQueryKey = () => {
+  return [`/api/admin/config`] as const;
+};
+
+export const getGetAdminConfigurationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminConfiguration>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminConfigurationQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminConfiguration>>
+  > = ({ signal }) => getAdminConfiguration({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminConfigurationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminConfiguration>>
+>;
+export type GetAdminConfigurationQueryError = ErrorType<void>;
+
+export function useGetAdminConfiguration<
+  TData = Awaited<ReturnType<typeof getAdminConfiguration>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminConfiguration>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminConfigurationQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateAdminConfigurationUrl = () => {
+  return `/api/admin/config`;
+};
+
+export const updateAdminConfiguration = async (
+  adminConfigurationPatch: AdminConfigurationPatch,
+  options?: RequestInit,
+): Promise<AdminConfiguration> => {
+  return customFetch<AdminConfiguration>(getUpdateAdminConfigurationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminConfigurationPatch),
+  });
+};
+
+export const getUpdateAdminConfigurationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    TError,
+    { data: BodyType<AdminConfigurationPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>,
+  TError,
+  { data: BodyType<AdminConfigurationPatch> },
+  TContext
+> => {
+  const mutationKey = ["updateAdminConfiguration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    { data: BodyType<AdminConfigurationPatch> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateAdminConfiguration(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAdminConfigurationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>
+>;
+export type UpdateAdminConfigurationMutationBody =
+  BodyType<AdminConfigurationPatch>;
+export type UpdateAdminConfigurationMutationError = ErrorType<void>;
+
+export const useUpdateAdminConfiguration = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAdminConfiguration>>,
+    TError,
+    { data: BodyType<AdminConfigurationPatch> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAdminConfiguration>>,
+  TError,
+  { data: BodyType<AdminConfigurationPatch> },
+  TContext
+> => {
+  return useMutation(getUpdateAdminConfigurationMutationOptions(options));
+};
+
+/**
+ * @summary Dispatch a protected synchronization job
+ */
+export const getDispatchInternalCronUrl = (
+  job: "full-sync" | "market-check",
+) => {
+  return `/api/internal/cron/${job}`;
+};
+
+export const dispatchInternalCron = async (
+  job: "full-sync" | "market-check",
+  options?: RequestInit,
+): Promise<CronDispatchStatus> => {
+  return customFetch<CronDispatchStatus>(getDispatchInternalCronUrl(job), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDispatchInternalCronMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    TError,
+    { job: "full-sync" | "market-check" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dispatchInternalCron>>,
+  TError,
+  { job: "full-sync" | "market-check" },
+  TContext
+> => {
+  const mutationKey = ["dispatchInternalCron"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    { job: "full-sync" | "market-check" }
+  > = (props) => {
+    const { job } = props ?? {};
+
+    return dispatchInternalCron(job, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DispatchInternalCronMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dispatchInternalCron>>
+>;
+
+export type DispatchInternalCronMutationError = ErrorType<void>;
+
+/**
+ * @summary Dispatch a protected synchronization job
+ */
+export const useDispatchInternalCron = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dispatchInternalCron>>,
+    TError,
+    { job: "full-sync" | "market-check" },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dispatchInternalCron>>,
+  TError,
+  { job: "full-sync" | "market-check" },
+  TContext
+> => {
+  return useMutation(getDispatchInternalCronMutationOptions(options));
+};
+
+/**
+ * @summary Public synchronization health without private provider logs
+ */
+export const getGetSyncStatusUrl = () => {
+  return `/api/sync/status`;
+};
+
+export const getSyncStatus = async (
+  options?: RequestInit,
+): Promise<SyncStatus> => {
+  return customFetch<SyncStatus>(getGetSyncStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSyncStatusQueryKey = () => {
+  return [`/api/sync/status`] as const;
+};
+
+export const getGetSyncStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSyncStatus>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSyncStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncStatus>>> = ({
+    signal,
+  }) => getSyncStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSyncStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSyncStatus>>
+>;
+export type GetSyncStatusQueryError = ErrorType<void>;
+
+/**
+ * @summary Public synchronization health without private provider logs
+ */
+
+export function useGetSyncStatus<
+  TData = Awaited<ReturnType<typeof getSyncStatus>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSyncStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * Returns server health status
@@ -687,7 +1394,13 @@ export const generateLineup = async (
 };
 
 export const getGenerateLineupMutationOptions = <
-  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
+  TError = ErrorType<
+    | LineupAccessError
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+    | void
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -729,14 +1442,24 @@ export type GenerateLineupMutationResult = NonNullable<
 >;
 export type GenerateLineupMutationBody = BodyType<LineupGenerateRequest>;
 export type GenerateLineupMutationError = ErrorType<
-  UpgradeRequiredError | LineupValidationError | void
+  | LineupAccessError
+  | UpgradeRequiredError
+  | PopularityUnavailableError
+  | LineupValidationError
+  | void
 >;
 
 /**
  * @summary Generate a lineup suggestion
  */
 export const useGenerateLineup = <
-  TError = ErrorType<UpgradeRequiredError | LineupValidationError | void>,
+  TError = ErrorType<
+    | LineupAccessError
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+    | void
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -775,7 +1498,12 @@ export const compareFormations = async (
 };
 
 export const getCompareFormationsMutationOptions = <
-  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TError = ErrorType<
+    | void
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -817,14 +1545,22 @@ export type CompareFormationsMutationResult = NonNullable<
 >;
 export type CompareFormationsMutationBody = BodyType<LineupGenerateRequest>;
 export type CompareFormationsMutationError = ErrorType<
-  void | UpgradeRequiredError | LineupValidationError
+  | void
+  | UpgradeRequiredError
+  | PopularityUnavailableError
+  | LineupValidationError
 >;
 
 /**
  * @summary Compare all formations without saving or consuming generation quota
  */
 export const useCompareFormations = <
-  TError = ErrorType<void | UpgradeRequiredError | LineupValidationError>,
+  TError = ErrorType<
+    | void
+    | UpgradeRequiredError
+    | PopularityUnavailableError
+    | LineupValidationError
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

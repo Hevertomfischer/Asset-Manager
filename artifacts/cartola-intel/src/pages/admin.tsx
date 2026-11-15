@@ -18,7 +18,9 @@ import {
   type FeedbackType,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/useAuth";
+import { HistoricalRepairCard } from "@/components/HistoricalRepairCard";
 import { useSyncStatus } from "@/components/AutoSync";
+import { usePopularityFeatures, popularityReasonLabel } from "@/hooks/usePopularityFeatures";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -511,6 +513,7 @@ export default function Admin() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const syncStatus = useSyncStatus();
+  const popularityFeatures = usePopularityFeatures();
 
   const { data: logsData, isLoading: logsLoading, isError: logsError } = useGetAdminLogs({ limit: 20 });
   const { data: weightsData, isLoading: weightsLoading, isError: weightsError } = useGetProjectionWeights();
@@ -630,9 +633,11 @@ export default function Admin() {
     if (!historicalRound) return;
     setHistoricalSyncing(true);
     try {
-      const res = await fetch(`/api/admin/sync/historical/${historicalRound}`, {
+      const res = await fetch("/api/admin/sync/historical-round", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ round: Number(historicalRound), force: true }),
       });
       const json = (await res.json()) as { message?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
@@ -655,6 +660,20 @@ export default function Admin() {
           Administração
         </h1>
         <p className="text-muted-foreground mt-1">Gerencie pesos, pipelines de dados e logs do sistema.</p>
+        <Card className="mt-5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-base">Recursos de popularidade</CardTitle>
+            <CardDescription>
+              {popularityFeatures.enabled ? "Liberados" : "Em calibração"} · Diferenciais, armadilhas e Antimassa
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+            <div><p className="text-muted-foreground">Estado da chave</p><p className="font-mono">{String(popularityFeatures.enabled)}</p></div>
+            <div><p className="text-muted-foreground">Última coleta</p><p>{popularityFeatures.status?.lastCollectionAt ? new Date(popularityFeatures.status.lastCollectionAt).toLocaleString("pt-BR") : "Sem coleta registrada"}</p></div>
+            <div><p className="text-muted-foreground">Cobertura</p><p>{popularityFeatures.status ? `${popularityFeatures.status.coverage} / ${popularityFeatures.status.minimumCoverage} jogadores` : "Indisponível"}</p></div>
+            <p className="text-xs text-muted-foreground sm:col-span-3">Exige coleta bem-sucedida com pelo menos 20 jogadores nas últimas 24 horas. {popularityReasonLabel(popularityFeatures.status?.reason)}.</p>
+          </CardContent>
+        </Card>
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="w-3 h-3 shrink-0" />
           {syncStatus.lastSyncAt
@@ -686,6 +705,7 @@ export default function Admin() {
 
         {/* ── Aba Sistema ─────────────────────────────────────────────────── */}
         <TabsContent value="sistema" className="space-y-8">
+          {isAdmin && <HistoricalRepairCard />}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {/* Engine Configuration */}
             <Card className="bg-card shadow-lg border-border/50">
