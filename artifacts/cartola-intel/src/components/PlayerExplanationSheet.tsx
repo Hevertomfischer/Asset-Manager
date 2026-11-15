@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { usePaywall } from "@/context/PaywallContext";
+import { getRiskDisplay } from "@/lib/riskDisplay";
 import {
   type ExplanationJson,
   type InsightKind,
@@ -115,8 +116,7 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
   const matchupScore = exp.matchupScore ?? 1;
   const matchupPct = normalizeMatchup(matchupScore);
 
-  const volatility = exp.volatility ?? 0;
-  const riskPct = Math.min(100, volatility * 100);
+  const risk = getRiskDisplay(exp.riskScore);
 
   const playProb = (exp.playProbability ?? 1) * 100;
 
@@ -124,8 +124,6 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
     formPct >= 70 ? "bg-positive" : formPct >= 45 ? "bg-attention" : "bg-danger";
   const matchupColor =
     matchupPct >= 65 ? "bg-positive" : matchupPct >= 42 ? "bg-attention" : "bg-danger";
-  const riskColor =
-    riskPct < 30 ? "bg-positive" : riskPct < 60 ? "bg-attention" : "bg-danger";
 
   return (
     <>
@@ -174,12 +172,14 @@ export function PlayerExplanationSheet({ exp, playerName, position, minimoParaVa
               color={matchupColor}
               sublabel={`×${matchupScore.toFixed(2)}`}
             />
-            <BarRow
-              label="Risco"
-              value={riskPct}
-              color={riskColor}
-              sublabel={riskPct < 30 ? "Baixo" : riskPct < 60 ? "Médio" : "Alto"}
-            />
+            {risk && (
+              <BarRow
+                label="Risco"
+                value={risk.percent}
+                color={risk.color}
+                sublabel={risk.label}
+              />
+            )}
             {exp.playProbability != null && (
               <BarRow
                 label="Prob. de jogo"

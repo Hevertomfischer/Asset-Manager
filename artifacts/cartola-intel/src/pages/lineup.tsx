@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTrack } from "@/hooks/useTrack";
 import { usePopularityFeatures } from "@/hooks/usePopularityFeatures";
 import { type ExplanationJson, type InsightKind, getTopBadges, explainPlayer, normalizeMatchup } from "@/lib/explainPlayer";
+import { getRiskDisplay } from "@/lib/riskDisplay";
 import { PlayerExplanationSheet } from "@/components/PlayerExplanationSheet";
 import { SwapSimulator } from "@/components/SwapSimulator";
 import { LineupProbabilities } from "@/components/LineupProbabilities";
@@ -996,8 +997,7 @@ export default function Lineup() {
         const formPct = Math.min(100, (formScore / 10) * 100);
         const matchupScore = exp.matchupScore ?? 1;
         const matchupPct = normalizeMatchup(matchupScore);
-        const volatility = exp.volatility ?? 0;
-        const riskPct = Math.min(100, volatility * 100);
+        const risk = getRiskDisplay(exp.riskScore);
         const playProb = (exp.playProbability ?? 1) * 100;
 
         return (
@@ -1050,7 +1050,7 @@ export default function Lineup() {
                       {[
                         { label: "Forma", pct: formPct, sublabel: `${formScore.toFixed(1)} pts`, color: formPct >= 70 ? "bg-positive" : formPct >= 45 ? "bg-attention" : "bg-danger" },
                         { label: "Confronto", pct: matchupPct, sublabel: `×${matchupScore.toFixed(2)}`, color: matchupPct >= 65 ? "bg-positive" : matchupPct >= 42 ? "bg-attention" : "bg-danger" },
-                        { label: "Risco", pct: riskPct, sublabel: riskPct < 30 ? "Baixo" : riskPct < 60 ? "Médio" : "Alto", color: riskPct < 30 ? "bg-positive" : riskPct < 60 ? "bg-attention" : "bg-danger" },
+                        ...(risk ? [{ label: "Risco", pct: risk.percent, sublabel: risk.label, color: risk.color }] : []),
                         ...(exp.playProbability != null ? [{ label: "Prob. jogo", pct: playProb, sublabel: `${Math.round(playProb)}%`, color: playProb >= 70 ? "bg-positive" : playProb >= 40 ? "bg-attention" : "bg-danger" }] : []),
                       ].map(({ label, pct, sublabel, color }) => (
                         <div key={label} className="space-y-1">
